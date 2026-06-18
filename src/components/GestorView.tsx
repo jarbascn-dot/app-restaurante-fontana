@@ -34,7 +34,7 @@ export default function GestorView({
 
   // Filter ONLY collaborators belonging to this work
   const colaboradoresSobGestao = usuarios.filter(u => 
-    u.idObraPadrao === obraIdResponsabilidade && u.perfil === 'colaborador'
+    u.idObraPadrao === obraIdResponsabilidade && (u.perfil === 'colaborador' || u.perfil === 'admin')
   );
 
   // Mapped companies/unidades working on this site

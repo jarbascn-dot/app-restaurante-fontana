@@ -60,7 +60,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
   const reportDate = todayDate;
   const getDailyRows = () => {
     // We list all approved/active employees, and check if they made a Booking for June 13, 2026
-    const activeColabs = usuarios.filter(u => u.perfil === 'colaborador' && u.status !== 'pendente');
+    const activeColabs = usuarios.filter(u => (u.perfil === 'colaborador' || u.perfil === 'admin') && u.status !== 'pendente');
     
     return activeColabs.map(user => {
       const res = reservas.find(r => r.idUsuario === user.id && r.data === reportDate);
@@ -95,7 +95,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
 
   // 2. MONTHLY REPORT (Aggregates for June 2026)
   const getMonthlyRows = () => {
-    const activeColabs = usuarios.filter(u => u.perfil === 'colaborador');
+    const activeColabs = usuarios.filter(u => u.perfil === 'colaborador' || u.perfil === 'admin');
     const juneReservas = reservas.filter(r => r.data.startsWith('2026-06'));
 
     const aggregated = activeColabs.map(user => {
@@ -190,8 +190,8 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
 
     // Filter relevant users
     const relevantUsers = usuarios.filter(u => {
-      // Must be a Collaborator
-      if (u.perfil !== Perfil.Colaborador) return false;
+      // Must be a Collaborator or Admin
+      if (u.perfil !== Perfil.Colaborador && u.perfil !== Perfil.Admin) return false;
       // Must match selected company if not 'all'
       if (filterDescontoEmpresa !== 'all' && u.idEmpresa !== filterDescontoEmpresa) return false;
       return true;

@@ -43,7 +43,7 @@ export default function RefeitorioView({
     .map(r => r.idUsuario);
 
   // All active/approved employees
-  const approvedColaboradores = usuarios.filter(u => u.perfil === 'colaborador' && u.status !== 'desativado');
+  const approvedColaboradores = usuarios.filter(u => (u.perfil === 'colaborador' || u.perfil === 'admin') && u.status !== 'desativado');
 
   // Compute production statistics
   const totalReservadosHoje = reservedUserIdsToday.length;

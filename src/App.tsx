@@ -1257,8 +1257,8 @@ export default function App() {
                     </>
                   )}
 
-                  {/* COLABORADOR ONLY BUTTONS */}
-                  {currentUser.perfil === Perfil.Colaborador && (
+                  {/* COLABORADOR / ADMIN BUTTONS */}
+                  {(currentUser.perfil === Perfil.Colaborador || currentUser.perfil === Perfil.Admin) && (
                     <button
                       onClick={() => setActiveTab('colaborador')}
                       className={`w-full text-left px-3.5 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2 shrink-0 ${
