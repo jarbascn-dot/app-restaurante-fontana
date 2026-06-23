@@ -1,0 +1,217 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global safety net - Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global utility helpers
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Role verification helpers via reading /usuarios/{userId}
+    function isUserAdmin() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil == 'admin';
+    }
+
+    function isUserGestor() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil == 'gestor';
+    }
+
+    function isUserFornecedor() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil == 'fornecedor';
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Entity Schema Validators
+    function isValidObra(data) {
+      return data.keys().hasAll(['id', 'nome', 'centroCusto', 'ativa']) && 
+             data.keys().size() <= 10 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.nome is string && data.nome.size() <= 200 &&
+             data.centroCusto is string && data.centroCusto.size() <= 100 &&
+             data.ativa is bool &&
+             (!data.keys().hasAny(['valorRefeicao']) || data.valorRefeicao is number) &&
+             (!data.keys().hasAny(['idFornecedorPrincipal']) || data.idFornecedorPrincipal is string) &&
+             (!data.keys().hasAny(['cardapioUrl']) || (data.cardapioUrl is string && data.cardapioUrl.size() <= 2000000)) &&
+             (!data.keys().hasAny(['cardapioNome']) || (data.cardapioNome is string && data.cardapioNome.size() <= 256)) &&
+             (!data.keys().hasAny(['cardapioAtualizadoEm']) || (data.cardapioAtualizadoEm is string && data.cardapioAtualizadoEm.size() <= 128));
+    }
+
+    function isValidEmpresa(data) {
+      return data.keys().hasAll(['id', 'nome', 'tipo']) &&
+             data.keys().size() <= 4 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.nome is string && data.nome.size() <= 200 &&
+             (data.tipo == 'Propria' || data.tipo == 'Terceirizada' || data.tipo == 'Prestadora');
+    }
+
+    function isValidUsuario(data) {
+      return data.keys().hasAll(['id', 'nome', 'matricula', 'perfil', 'status', 'idEmpresa', 'idObraPadrao', 'criadoEm']) &&
+             data.keys().size() <= 23 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.nome is string && data.nome.size() <= 200 &&
+             data.matricula is string && data.matricula.size() <= 100 &&
+             (data.perfil == 'colaborador' || data.perfil == 'admin' || data.perfil == 'gestor' || data.perfil == 'fornecedor') &&
+             (data.status == 'pendente' || data.status == 'aprovado' || data.status == 'desativado') &&
+             data.idEmpresa is string && data.idObraPadrao is string &&
+             (!data.keys().hasAny(['email']) || (data.email is string && data.email.size() <= 150)) &&
+             (!data.keys().hasAny(['cpf']) || (data.cpf is string && data.cpf.size() <= 20)) &&
+             (!data.keys().hasAny(['senha']) || data.senha is string) &&
+             (!data.keys().hasAny(['idObrasFornecedor']) || data.idObrasFornecedor is list) &&
+             (!data.keys().hasAny(['fotoBiometria']) || data.fotoBiometria is string) &&
+             (!data.keys().hasAny(['alertaEnabled']) || data.alertaEnabled is bool) &&
+             (!data.keys().hasAny(['alertaTiming']) || (data.alertaTiming == 'vespera' || data.alertaTiming == 'mesmo_dia')) &&
+             (!data.keys().hasAny(['alertaTime']) || data.alertaTime is string) &&
+             (!data.keys().hasAny(['aceitouLGPD']) || data.aceitouLGPD is bool) &&
+             (!data.keys().hasAny(['dataAceiteLGPD']) || data.dataAceiteLGPD is string) &&
+             (!data.keys().hasAny(['ipAceiteLGPD']) || data.ipAceiteLGPD is string) &&
+             (!data.keys().hasAny(['requerTrocaSenha']) || data.requerTrocaSenha is bool) &&
+             (!data.keys().hasAny(['alertaTipo']) || (data.alertaTipo == 'reservada' || data.alertaTipo == 'sem_reserva' || data.alertaTipo == 'sempre'));
+    }
+
+    function isValidPushSubscription(data) {
+      return data.keys().hasAll(['id', 'email', 'endpoint', 'keys', 'updatedAt']) &&
+             data.keys().size() == 5 &&
+             data.id is string &&
+             data.email is string &&
+             data.endpoint is string &&
+             data.keys is map &&
+             data.keys.p256dh is string &&
+             data.keys.auth is string &&
+             data.updatedAt is string;
+    }
+
+    function isValidReserva(data) {
+      return data.keys().hasAll(['id', 'idUsuario', 'data', 'status', 'consumido', 'idObraNoDia', 'alteradoEm', 'ipOrigem', 'dispositivo']) &&
+             data.keys().size() <= 10 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.idUsuario is string && data.idUsuario.size() <= 128 &&
+             data.data is string && data.data.size() == 10 &&
+             (data.status == 'reservado' || data.status == 'cancelado') &&
+             data.consumido is bool &&
+             data.idObraNoDia is string &&
+             data.alteradoEm is string &&
+             data.ipOrigem is string &&
+             data.dispositivo is string;
+    }
+
+    function isValidFeriado(data) {
+      return data.keys().hasAll(['id', 'data', 'descricao', 'tipo']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.data is string && data.data.size() == 10 &&
+             data.descricao is string && data.descricao.size() <= 200 &&
+             (data.tipo == 'nacional' || data.tipo == 'estadual' || data.tipo == 'municipal' || data.tipo == 'interno') &&
+             (!data.keys().hasAny(['abrangencia']) || (data.abrangencia == 'nacional' || data.abrangencia == 'especifico')) &&
+             (!data.keys().hasAny(['idObras']) || data.idObras is list);
+    }
+
+    function isValidLog(data) {
+      return data.keys().hasAll(['id', 'usuarioNome', 'usuarioEmail', 'dataHora', 'operacao', 'ip', 'dispositivo', 'perfil']) &&
+             data.keys().size() <= 9 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.usuarioNome is string && data.usuarioNome.size() <= 200 &&
+             data.usuarioEmail is string && data.usuarioEmail.size() <= 150 &&
+             data.dataHora is string &&
+             data.operacao is string && data.operacao.size() <= 1000 &&
+             data.ip is string && data.ip.size() <= 100 &&
+             data.dispositivo is string && data.dispositivo.size() <= 200 &&
+             (data.perfil == 'colaborador' || data.perfil == 'admin' || data.perfil == 'gestor' || data.perfil == 'fornecedor');
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAll(['horarioLimite', 'permitirFinsDeSemana', 'valorRefeicaoPropria', 'valorRefeicaoTerceiro', 'usarTabletRetirada', 'requererBiometriaFacial', 'permitirSimulador']) &&
+             data.keys().size() <= 8 &&
+             data.horarioLimite is string &&
+             data.permitirFinsDeSemana is bool &&
+             data.valorRefeicaoPropria is number &&
+             data.valorRefeicaoTerceiro is number &&
+             data.usarTabletRetirada is bool &&
+             data.requererBiometriaFacial is bool &&
+             data.permitirSimulador is bool;
+    }
+
+    // 2. Collection Rules
+
+    // Obras Collection
+    match /obras/{obraId} {
+      allow read: if true;
+      allow create, update: if isValidId(obraId) && isValidObra(incoming());
+      allow delete: if isValidId(obraId);
+    }
+
+    // Empresas Collection
+    match /empresas/{empresaId} {
+      allow read: if true;
+      allow create, update: if isValidId(empresaId) && isValidEmpresa(incoming());
+      allow delete: if isValidId(empresaId);
+    }
+
+    // Usuarios Collection
+    match /usuarios/{usuarioId} {
+      allow read: if true;
+      allow create, update: if isValidId(usuarioId) && isValidUsuario(incoming());
+      allow delete: if isValidId(usuarioId);
+    }
+
+    // Push Subscriptions Collection
+    match /push_subscriptions/{subscriptionId} {
+      allow read: if true;
+      allow create, update: if isValidId(subscriptionId) && isValidPushSubscription(incoming());
+      allow delete: if isValidId(subscriptionId);
+    }
+
+    // Reservas Collection
+    match /reservas/{reservaId} {
+      allow read: if true;
+      allow create, update: if isValidId(reservaId) && isValidReserva(incoming());
+      allow delete: if isValidId(reservaId);
+    }
+
+    // Feriados Collection
+    match /feriados/{feriadoId} {
+      allow read: if true;
+      allow create, update: if isValidId(feriadoId) && isValidFeriado(incoming());
+      allow delete: if isValidId(feriadoId);
+    }
+
+    // Logs Collection (Append-only logs of Audit)
+    match /logs/{logId} {
+      allow read: if true;
+      allow create: if isValidId(logId) && isValidLog(incoming());
+      allow update, delete: if false; // Append-only immutable logs
+    }
+
+    // Settings Collection
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update: if isValidId(settingId) && isValidSettings(incoming());
+      allow delete: if false;
+    }
+
+  }
+}
