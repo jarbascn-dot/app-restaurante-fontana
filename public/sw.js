@@ -1,3 +1,51 @@
+// ============================================================
+// Firebase Cloud Messaging (FCM) - Receber notificações push
+// ============================================================
+importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+
+// Configuração do Firebase (novo projeto meu-app-producao)
+const firebaseConfig = {
+    apiKey: 'AIzaSyARWM_Q2Anq30Cg86Zn15wptXcL7puZDN0',
+    authDomain: 'meu-app-producao-af69c.firebaseapp.com',
+    projectId: 'meu-app-producao-af69c',
+    storageBucket: 'meu-app-producao-af69c.firebasestorage.app',
+    messagingSenderId: '71368810560',
+    appId: '1:71368810560:web:3557786658420f9f50ffa5',
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const messaging = firebase.messaging();
+
+// Recebe notificações quando o app está em segundo plano
+messaging.onBackgroundMessage(function(payload) {
+    console.log('[sw.js] Notificação recebida em segundo plano:', payload);
+  
+    const notificationTitle = payload.notification?.title || 'Lembrete';
+    const notificationOptions = {
+          body: payload.notification?.body || 'Você tem um novo lembrete!',
+          icon: '/icon.png',
+          badge: '/icon-badge.svg',
+          data: payload.data,
+          requireInteraction: true,
+    };
+  
+    self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+// Ao clicar na notificação, abre o app
+self.addEventListener('notificationclick', function(event) {
+    event.notification.close();
+    event.waitUntil(
+          clients.openWindow('/')
+        );
+});
+
+// ============================================================
+// Código original do Service Worker (abaixo)
+// ============================================================
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
