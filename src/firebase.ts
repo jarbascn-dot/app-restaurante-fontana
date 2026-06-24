@@ -6,12 +6,15 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getMessaging, getToken } from 'firebase/messaging';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 
 // CRITICAL: The app will break without specifying firestoreDatabaseId
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const messaging = getMessaging(app);
+export { getToken };
 export const auth = getAuth(app);
 
 export enum OperationType {
