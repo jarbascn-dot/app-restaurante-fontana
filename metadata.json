@@ -1,6 +1,0 @@
-{
-  "name": "APP Restaurante",
-  "description": "Sistema completo para reserva, cancelamento, controle, auditoria e relatórios de refeições corporativas para colaboradores e prestadores de serviços de construtoras.",
-  "requestFramePermissions": ["camera"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
