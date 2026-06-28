@@ -5,53 +5,76 @@
 
 import { saveToFirestore } from './firebaseSync';
 import { getFCMToken, db } from '../firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
-let fallbackTimeoutId: any = null;
+let fallbackTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 /**
- * Convert VAPID key to Uint8Array for browser push manager registration.
+ * Saves or updates the daily notification schedule in Firestore notificationQueue.
  */
+async function saveNotificationSchedule(
+  userId: string,
+  time: string,
+  title: string,
+  body: string,
+  link?: string
+): Promise<void> {
+  try {
+    const docId = `daily_${userId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    await setDoc(doc(db, 'notificationQueue', docId), {
+      userId,
+      title,
+      body,
+      link: link || '/',
+      scheduledTime: time,
+      sent: false,
+      daily: true,
+      updatedAt: serverTimestamp(),
+    });
+    console.log(`[FCM Queue] Lembrete diário salvo no Firestore para ${userId} às ${time}`);
+  } catch (err) {
+    console.error('[FCM Queue] Erro ao salvar lembrete no Firestore:', err);
+  }
+}
+
+/**
+ * Removes the daily notification schedule from Firestore notificationQueue.
+ */
+export async function cancelNotificationSchedule(userId: string): Promise<void> {
+  try {
+    const docId = `daily_${userId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    await deleteDoc(doc(db, 'notificationQueue', docId));
+    console.log(`[FCM Queue] Lembrete diário removido do Firestore para ${userId}`);
+  } catch (err) {
+    console.error('[FCM Queue] Erro ao remover lembrete do Firestore:', err);
+  }
+}
+
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
+    .replace(/-/g, '+')
     .replace(/_/g, '/');
-
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
-
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
 }
 
-/**
- * Automagic helper to register/sync Web Push subscripton with Firestore and server.
- * This guarantees sleep-proof, WhatsApp-like background and suspended notifications!
- */
 export async function subscribeUserToPush(email: string): Promise<any> {
   const isSWSupported = 'serviceWorker' in navigator;
   const isPushSupported = 'PushManager' in window;
-
   if (!isSWSupported || !isPushSupported) {
     console.warn('[Push Service] Push notifications are not supported on this browser/platform.');
     return null;
   }
-
   try {
-    // 1. Fetch public VAPID key from Express API
-    const response = await fetch('/api/push/public-key');
-    if (!response.ok) {
-      throw new Error(`Failed to fetch push public key: ${response.statusText}`);
-    }
+    const response = await fetch('/api/push-public-key');
+    if (!response.ok) throw new Error(`Failed to fetch push public key: ${response.statusText}`);
     const { publicKey } = await response.json();
-
-    // 2. Get active service worker
     const reg = await navigator.serviceWorker.ready;
-    
-    // 3. Request subscription
     let subscription = await reg.pushManager.getSubscription();
     if (!subscription) {
       subscription = await reg.pushManager.subscribe({
@@ -59,32 +82,21 @@ export async function subscribeUserToPush(email: string): Promise<any> {
         applicationServerKey: urlBase64ToUint8Array(publicKey)
       });
     }
-
-    // 4. Transform into clean serialized object for Firestore and server payload
-    const rawSub = subscription.toJSON();
+    const rawSub = subscription.toJSON() as any;
     if (!rawSub.endpoint || !rawSub.keys || !rawSub.keys.p256dh || !rawSub.keys.auth) {
       console.warn('[Push Service] Serialized subscription contains missing fields.');
       return subscription;
     }
-
     const pushSub = {
       id: `sub-${email.replace(/[^a-zA-Z0-9]/g, '-')}`,
       email,
       endpoint: rawSub.endpoint,
-      keys: {
-        p256dh: rawSub.keys.p256dh,
-        auth: rawSub.keys.auth
-      },
+      keys: { p256dh: rawSub.keys.p256dh, auth: rawSub.keys.auth },
       updatedAt: new Date().toISOString()
     };
-
-    // 5. Store in Firebase Cloud Database to persist across devices and server reboots
     await saveToFirestore('push_subscriptions', pushSub);
     console.log('[Push Service] Device subscribed and synced with Firestore:', pushSub);
-
-    // Save subscription locally for immediate visual testing / simulated alerts
     localStorage.setItem(`sgr_push_subscription_${email}`, JSON.stringify(subscription));
-
     return subscription;
   } catch (err) {
     console.error('[Push Service] Subscription sequence encountered an issue:', err);
@@ -92,19 +104,13 @@ export async function subscribeUserToPush(email: string): Promise<any> {
   }
 }
 
-/**
- * Robust cross-platform helper to request permissions and schedule background
- * and foreground notification triggers.
- */
 export async function scheduleNotification(
   time: string,
   title: string,
   body: string,
   email?: string
 ) {
-  const userParam = email || 'guest';
-
-  // Persist locally in localStorage for robust client fallback reads
+  const userParam = email || 'anonymous';
   localStorage.setItem(`sgr_notify_enabled_${userParam}`, 'true');
   localStorage.setItem(`sgr_notify_time_${userParam}`, time);
 
@@ -118,119 +124,68 @@ export async function scheduleNotification(
   }
 
   try {
-    // Request permission if not already denied or granted
     let permission = Notification.permission;
     if (permission === 'default') {
       permission = await Notification.requestPermission();
     }
-
     if (permission !== 'granted') {
-      console.warn('[Scheduler] Permissão para notificações negada pelo usuário ou sistema:', permission);
+      console.warn('[Scheduler] Permissão para notificações negada:', permission);
       return;
     }
 
-    // Register our customizable sw.js
-    let reg = await navigator.serviceWorker.getRegistration('/sw.js');
-    if (!reg) {
-      reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-    }
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    if (!reg) console.warn('[Scheduler] Falha ao registrar o service worker.');
 
-    // Wait until controller is ready to receive messages
     if (!navigator.serviceWorker.controller) {
       await new Promise<void>((resolve) => {
         navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true });
       });
     }
 
-    // Relay notification specs to background thread
-    const sw = navigator.serviceWorker.controller || reg.active;
+    const sw = navigator.serviceWorker.controller;
     if (sw) {
-      sw.postMessage({
-        type: 'SCHEDULE_NOTIFICATION',
-        email: userParam,
-        time,
-        title,
-        body,
-        timing: 'mesmo_dia'
-      });
-      console.log(`[Scheduler] Agendamento enviado com sucesso para o Service Worker: ${time} para ${userParam}`);
-    } else {
-      console.warn('[Scheduler] Não há um service worker controlador pronto.');
+      sw.postMessage({ type: 'SCHEDULE_NOTIFICATION', email: userParam, time, title, body, timing: 'mesmo_dia' });
+      console.log(`[Scheduler] Agendamento enviado para o Service Worker: ${time} para ${userParam}`);
     }
 
-    // Automagically register background Push Subscription to guarantee sleep-proof notifications
+    // Salvar no Firestore para o cron funcionar com app fechado
     if (email) {
-      subscribeUserToPush(email).catch(err => console.warn('[Scheduler] Auto-push enrollment failed:', err));
+      await saveNotificationSchedule(email, time, title, body, '/');
+      await registerFCMToken(email);
     }
 
   } catch (error) {
-    console.error('[Scheduler] Erro crítico no fluxo de agendamento de notificações:', error);
+    console.error('[Scheduler] Erro crítico no fluxo de agendamento:', error);
   }
 
-  // Always boot up foreground memory fallback
   runLocalFallback(time, title, body);
 }
 
 function runLocalFallback(time: string, title: string, body: string) {
-  if (fallbackTimeoutId) {
-    clearTimeout(fallbackTimeoutId);
-    fallbackTimeoutId = null;
-  }
-
+  if (fallbackTimeoutId) { clearTimeout(fallbackTimeoutId); fallbackTimeoutId = null; }
   const [cfgHour, cfgMin] = time.split(':').map(Number);
   if (isNaN(cfgHour) || isNaN(cfgMin)) return;
-
   const now = new Date();
   const target = new Date();
   target.setHours(cfgHour, cfgMin, 0, 0);
-
-  // If time is already in past today, set for tomorrow
-  if (target.getTime() <= now.getTime()) {
-    target.setDate(target.getDate() + 1);
-  }
-
+  if (target.getTime() <= now.getTime()) target.setDate(target.getDate() + 1);
   const delayMs = target.getTime() - now.getTime();
-  console.log(`[Scheduler Fallback] Agendamento em primeiro plano ativo para daqui a ${Math.round(delayMs / 1000)} segundos`);
-
+  console.log(`[Scheduler Fallback] Agendamento em ${Math.round(delayMs / 1000)} segundos`);
   if (delayMs > 0 && delayMs < 2147483647) {
     fallbackTimeoutId = setTimeout(() => {
-      if (Notification.permission === 'granted') {
-        new Notification(title, {
-          body,
-          icon: '/icon.png'
-        });
-      } else {
-        console.log(`[Notification Fallback Fired] ${title}: ${body}`);
-      }
-      // Stagger tomorrow's timer
+      if (Notification.permission === 'granted') new Notification(title, { body, icon: '/icon.png' });
       runLocalFallback(time, title, body);
     }, delayMs);
   }
 }
 
-
-
-/**
- * Registers the FCM token for the current user in Firestore.
- * This enables server-side notifications via Firebase Cloud Messaging.
- */
 export async function registerFCMToken(userId: string): Promise<void> {
   try {
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      console.warn('[FCM] Notification permission denied.');
-      return;
-    }
+    const permission = Notification.permission;
+    if (permission !== 'granted') { console.warn('[FCM] Notification permission denied.'); return; }
     const token = await getFCMToken();
-    if (!token) {
-      console.warn('[FCM] Could not obtain FCM token.');
-      return;
-    }
-    await setDoc(doc(db, 'fcmTokens', userId), {
-      token,
-      userId,
-      updatedAt: serverTimestamp(),
-    });
+    if (!token) { console.warn('[FCM] Could not obtain FCM token.'); return; }
+    await setDoc(doc(db, 'fcmTokens', userId), { token, userId, updatedAt: serverTimestamp() });
     console.log('[FCM] Token registered successfully for user:', userId);
   } catch (err) {
     console.error('[FCM] Failed to register token:', err);
