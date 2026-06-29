@@ -32,6 +32,9 @@ isSupported().then((supported) => {
     console.error('[FCM] Error checking messaging support:', err);
 });
 
+// VAPID public key for Web Push (safe to include in client code - this is a public key)
+const VAPID_KEY = 'BJ5Vpn_NAv-fyxlgg6jmEvuYBieH8F1GVdVhs3gokWz3SBCu-gWMJPHFiGIFjWSIjG_H2JZe6tGO9dSkQiTW77E';
+
 /**
  * Waits for a ServiceWorkerRegistration's SW to become active.
  * Handles installing/waiting states so getToken() always gets an active SW.
@@ -59,9 +62,11 @@ export async function getFCMToken(): Promise<string | null> {
           if (!messaging) {
                   messaging = getMessaging(app);
           }
-          const vapidKey = (import.meta as any).env.VITE_FIREBASE_VAPID_KEY;
+
+      // Use hardcoded VAPID key (public key, safe for client) as fallback to env var
+      const vapidKey = (import.meta as any).env?.VITE_FIREBASE_VAPID_KEY || VAPID_KEY;
           if (!vapidKey) {
-                  console.warn('[FCM] VITE_FIREBASE_VAPID_KEY not set.');
+                  console.warn('[FCM] No VAPID key available.');
                   return null;
           }
 
@@ -89,7 +94,7 @@ export async function getFCMToken(): Promise<string | null> {
               ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {}),
       });
           if (token) {
-                  console.log('[FCM] Token obtained successfully.');
+                  console.log('[FCM] Token obtained successfully:', token.substring(0, 20) + '...');
           } else {
                   console.warn('[FCM] getToken returned empty — check notification permission and VAPID key.');
           }
