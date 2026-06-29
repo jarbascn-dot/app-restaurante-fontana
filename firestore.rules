@@ -11,7 +11,7 @@ service cloud.firestore {
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
-    
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -20,36 +20,9 @@ service cloud.firestore {
       return request.resource.data;
     }
 
-    function existing() {
-      return resource.data;
-    }
-
-    // Role verification helpers via reading /usuarios/{userId}
-    function isUserAdmin() {
-      return isSignedIn() && 
-             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil == 'admin';
-    }
-
-    function isUserGestor() {
-      return isSignedIn() && 
-             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil == 'gestor';
-    }
-
-    function isUserFornecedor() {
-      return isSignedIn() && 
-             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil == 'fornecedor';
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
     // Entity Schema Validators
     function isValidObra(data) {
-      return data.keys().hasAll(['id', 'nome', 'centroCusto', 'ativa']) && 
+      return data.keys().hasAll(['id', 'nome', 'centroCusto', 'ativa']) &&
              data.keys().size() <= 10 &&
              data.id is string && data.id.size() <= 128 &&
              data.nome is string && data.nome.size() <= 200 &&
@@ -117,28 +90,22 @@ service cloud.firestore {
              data.idObraNoDia is string &&
              data.alteradoEm is string &&
              data.ipOrigem is string &&
-             data.dispositivo is string &&
-             (!data.keys().hasAny(['nomeVisitante']) || data.nomeVisitante is string) &&
-             (!data.keys().hasAny(['empresaFaturamento']) || data.empresaFaturamento is string);
+             data.dispositivo is string;
     }
 
     function isValidFeriado(data) {
       return data.keys().hasAll(['id', 'data', 'descricao', 'tipo']) &&
-             data.id is string && data.id.size() <= 128 &&
-             data.data is string && data.data.size() == 10 &&
-             data.descricao is string && data.descricao.size() <= 200 &&
-             (data.tipo == 'nacional' || data.tipo == 'estadual' || data.tipo == 'municipal' || data.tipo == 'interno') &&
-             (!data.keys().hasAny(['abrangencia']) || (data.abrangencia == 'nacional' || data.abrangencia == 'especifico')) &&
-             (!data.keys().hasAny(['idObras']) || data.idObras is list) &&
-             (!data.keys().hasAny(['dataFixa']) || data.dataFixa is bool);
+             data.keys().size() <= 5 &&
+             data.id is string &&
+             data.data is string &&
+             data.descricao is string &&
+             (data.tipo == 'nacional' || data.tipo == 'estadual' || data.tipo == 'municipal' || data.tipo == 'empresa');
     }
 
     function isValidLog(data) {
-      return data.keys().hasAll(['id', 'usuarioNome', 'usuarioEmail', 'dataHora', 'operacao', 'ip', 'dispositivo', 'perfil']) &&
-             data.keys().size() <= 9 &&
-             data.id is string && data.id.size() <= 128 &&
-             data.usuarioNome is string && data.usuarioNome.size() <= 200 &&
-             data.usuarioEmail is string && data.usuarioEmail.size() <= 150 &&
+      return data.keys().hasAll(['id', 'dataHora', 'operacao', 'ip', 'dispositivo', 'perfil']) &&
+             data.keys().size() <= 8 &&
+             data.id is string &&
              data.dataHora is string &&
              data.operacao is string && data.operacao.size() <= 1000 &&
              data.ip is string && data.ip.size() <= 100 &&
@@ -158,25 +125,25 @@ service cloud.firestore {
              data.permitirSimulador is bool;
     }
 
+    // FCM Token validator - userId can be an email (contains @ and .)
     function isValidFCMToken(data) {
       return data.keys().hasAll(['token', 'userId', 'updatedAt']) &&
              data.keys().size() == 3 &&
              data.token is string && data.token.size() <= 1024 &&
-             data.userId is string && data.userId.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 150 &&
              data.updatedAt is timestamp;
     }
 
+    // Notification queue validator - minimal required fields only
     function isValidNotification(data) {
-      return data.keys().hasAll(['userId', 'title', 'body', 'sent', 'createdAt']) &&
-             data.keys().size() <= 6 &&
-             data.userId is string && data.userId.size() <= 128 &&
+      return data.keys().hasAll(['userId', 'title', 'body', 'sent']) &&
+             data.userId is string && data.userId.size() <= 150 &&
              data.title is string && data.title.size() <= 200 &&
-             data.body is string && data.body.size() <= 1000 &&
-             data.sent is bool &&
-             data.createdAt is timestamp;
+             data.body is string && data.body.size() <= 500 &&
+             data.sent is bool;
     }
 
-    // 2. Collection Rules
+    // Collections
 
     // Obras Collection
     match /obras/{obraId} {
@@ -200,10 +167,10 @@ service cloud.firestore {
     }
 
     // Push Subscriptions Collection
-    match /push_subscriptions/{subscriptionId} {
-      allow read: if true;
-      allow create, update: if isValidId(subscriptionId) && isValidPushSubscription(incoming());
-      allow delete: if isValidId(subscriptionId);
+    match /push_subscriptions/{subId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidPushSubscription(incoming());
+      allow delete: if isSignedIn();
     }
 
     // Reservas Collection
@@ -235,16 +202,18 @@ service cloud.firestore {
     }
 
     // FCM Tokens Collection
+    // NOTE: userId is the user's email address (contains @ and .) - do NOT use isValidId()
     match /fcmTokens/{userId} {
       allow read: if isSignedIn();
-      allow create, update: if isValidId(userId) && isOwner(userId) && isValidFCMToken(incoming());
-      allow delete: if isValidId(userId) && isOwner(userId);
+      allow create, update: if isSignedIn() && isValidFCMToken(incoming());
+      allow delete: if isSignedIn();
     }
 
     // Notification Queue Collection
+    // Doc IDs are like "daily_user_email_com" (alphanumeric + underscore only)
     match /notificationQueue/{notificationId} {
       allow read: if isSignedIn();
-      allow create, update: if isValidId(notificationId) && isValidNotification(incoming());
+      allow create, update: if isSignedIn() && isValidNotification(incoming());
       allow delete: if isSignedIn();
     }
 
