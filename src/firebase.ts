@@ -89,16 +89,30 @@ export async function getFCMToken(): Promise<string | null> {
                   }
           }
 
-      const token = await getToken(messaging, {
-              vapidKey,
-              ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {}),
-      });
-          if (token) {
-                  console.log('[FCM] Token obtained successfully:', token.substring(0, 20) + '...');
-          } else {
-                  console.warn('[FCM] getToken returned empty — check notification permission and VAPID key.');
-          }
-          return token || null;
+              console.log('[FCM] SW ready. Attempting getToken() with retry...');
+              for (let attempt = 1; attempt <= 3; attempt++) {
+                          try {
+                                        console.log('[FCM] getToken() attempt', attempt, 'of 3');
+                                        const token = await getToken(messaging, {
+                                                        vapidKey,
+                                                        ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {}),
+                                        });
+                                        if (token) {
+                                                        console.log('[FCM] Token obtained on attempt', attempt, ':', token.substring(0, 20) + '...');
+                                                        return token;
+                                        }
+                                        console.warn('[FCM] getToken() returned empty on attempt', attempt);
+                          } catch (tokenErr: any) {
+                                        console.error('[FCM] getToken() threw on attempt', attempt,
+                                                                    '- code:', tokenErr?.code, '- msg:', tokenErr?.message, tokenErr);
+                          }
+                          if (attempt < 3) {
+                                        console.log('[FCM] Retrying in', attempt * 2000, 'ms...');
+                                        await new Promise(r => setTimeout(r, attempt * 2000));
+                          }
+              }
+              console.warn('[FCM] All getToken() attempts failed.');
+              return null;
     } catch (err) {
           console.error('[FCM] Error getting token:', err);
           return null;
