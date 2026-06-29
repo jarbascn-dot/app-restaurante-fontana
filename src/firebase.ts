@@ -32,6 +32,23 @@ isSupported().then((supported) => {
     console.error('[FCM] Error checking messaging support:', err);
 });
 
+/**
+ * Waits for a ServiceWorkerRegistration's SW to become active.
+ * Handles installing/waiting states so getToken() always gets an active SW.
+ */
+async function waitForSWActive(registration: ServiceWorkerRegistration): Promise<ServiceWorkerRegistration> {
+    const sw = registration.installing || registration.waiting;
+    if (!sw) return registration; // already active
+  return new Promise((resolve) => {
+        sw.addEventListener('statechange', function handler() {
+                if (sw.state === 'activated') {
+                          sw.removeEventListener('statechange', handler);
+                          resolve(registration);
+                }
+        });
+  });
+}
+
 export async function getFCMToken(): Promise<string | null> {
     try {
           const supported = await isSupported();
@@ -53,15 +70,17 @@ export async function getFCMToken(): Promise<string | null> {
       let swRegistration: ServiceWorkerRegistration | undefined;
           if ('serviceWorker' in navigator) {
                   try {
-                            swRegistration = await navigator.serviceWorker.register(
+                            const reg = await navigator.serviceWorker.register(
                                         '/firebase-messaging-sw.js',
                               { scope: '/' }
                                       );
-                            await navigator.serviceWorker.ready;
-                            console.log('[FCM] firebase-messaging-sw.js registered successfully.');
+                            // Wait for the SW to become fully active before calling getToken()
+                    swRegistration = await waitForSWActive(reg);
+                            console.log('[FCM] firebase-messaging-sw.js registered and active.');
                   } catch (swErr) {
                             console.warn('[FCM] Could not register firebase-messaging-sw.js:', swErr);
-                            swRegistration = await navigator.serviceWorker.ready;
+                            // Fall back to whatever SW is currently active
+                    swRegistration = await navigator.serviceWorker.ready;
                   }
           }
 
@@ -69,6 +88,11 @@ export async function getFCMToken(): Promise<string | null> {
               vapidKey,
               ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {}),
       });
+          if (token) {
+                  console.log('[FCM] Token obtained successfully.');
+          } else {
+                  console.warn('[FCM] getToken returned empty — check notification permission and VAPID key.');
+          }
           return token || null;
     } catch (err) {
           console.error('[FCM] Error getting token:', err);
