@@ -4,7 +4,7 @@
  */
 
 import { getFCMToken, db } from '../firebase';
-import { deleteDoc, doc } from 'firebase/firestore';
+import { deleteDoc, doc, setDoc } from 'firebase/firestore';
 
 let fallbackTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -193,4 +193,24 @@ function runLocalFallback(time: string, title: string, body: string) {
                               runLocalFallback(time, title, body);
               }, delayMs);
       }
+}
+
+/**
+ * Registers the FCM token for the given user and saves it to Firestore
+ * under fcmTokens/{userId}. Called after scheduling a notification so
+ * that server-side push delivery works when the app is closed.
+ */
+export async function registerFCMToken(userId: string): Promise<void> {
+          try {
+                      const token = await getFCMToken();
+                      if (!token) {
+                                    console.warn('[FCM] registerFCMToken: token is null, skipping save.');
+                                    return;
+                      }
+                      const tokenRef = doc(db, 'fcmTokens', userId);
+                      await setDoc(tokenRef, { token, updatedAt: new Date().toISOString() }, { merge: true });
+                      console.log('[FCM] Token saved to fcmTokens/' + userId);
+          } catch (err) {
+                      console.error('[FCM] Error in registerFCMToken:', err);
+          }
 }
