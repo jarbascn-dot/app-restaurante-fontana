@@ -75,3 +75,17 @@ export async function getFCMToken(): Promise<string | null> {
           return null;
     }
 }
+
+// OperationType enum used by firebaseSync.ts for error handling
+export enum OperationType {
+    READ = 'READ',
+    WRITE = 'WRITE',
+    DELETE = 'DELETE',
+    BATCH = 'BATCH',
+}
+
+// Centralized Firestore error handler used by firebaseSync.ts
+export function handleFirestoreError(err: unknown, operation: OperationType, path: string): void {
+    console.error(`[Firestore] Error during ${operation} at ${path}:`, err);
+    throw err;
+}
