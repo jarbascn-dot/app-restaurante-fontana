@@ -4,7 +4,7 @@
  */
 
 import { getFCMToken, db } from '../firebase';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { deleteDoc, doc } from 'firebase/firestore';
 
 let fallbackTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
