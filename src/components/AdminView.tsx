@@ -11,10 +11,10 @@ import CameraCapture from './CameraCapture';
 interface AdminViewProps {
   usuarios: Usuario[];
   onApproveUser: (
-    id: string, h
+    id: string,
     status: UserStatus,
     extraData?: { matricula: string; idEmpresa: string; idObraPadrao: string; perfil: Perfil; idObrasFornecedor?: string[]; fotoBiometria?: string }
-  ) => void;h
+  ) => void;
   onToggleUserActive: (id: string) => void;
   onDeleteUser?: (id: string) => void;
   settings: SystemSettings;
