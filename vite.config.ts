@@ -12,7 +12,7 @@ export default defineConfig(() => {
       VitePWA({
         strategies: 'injectManifest',
         srcDir: 'public',
-        filename: 'sw.js',
+                filename: 'firebase-messaging-sw.js',
         selfDestroying: false,
         registerType: 'autoUpdate',
         includeAssets: ['icon-192.png', 'icon.png', 'manifest.json'],
