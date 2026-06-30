@@ -14,7 +14,7 @@ interface AdminViewProps {
     id: string, 
     status: UserStatus,
     extraData?: { matricula: string; idEmpresa: string; idObraPadrao: string; perfil: Perfil; idObrasFornecedor?: string[]; fotoBiometria?: string }
-  ) => void;
+  ) => void;h
   onToggleUserActive: (id: string) => void;
   onDeleteUser?: (id: string) => void;
   settings: SystemSettings;
@@ -1393,7 +1393,7 @@ export default function AdminView({
                     required
                     value={precoPropriaLocal}
                     onChange={(e) => {
-                      const val = Number(e.target.value);
+                      const val = parseFloat(e.target.value.replace(',', '.'));
                       setPrecoPropriaLocal(val);
                       setPrecoTerceirosLocal(val); // Sincroniza para manter compatibilidade retroativa
                     }}
@@ -1590,13 +1590,13 @@ export default function AdminView({
                   <div>
                     <label className="block text-[10px] text-neutral-550 uppercase font-black mb-1">Valor da Refeição (R$)</label>
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
+                                      inputMode="decimal"
                       required
                       value={obraForm.valorRefeicao === undefined ? settings.valorRefeicaoPropria : obraForm.valorRefeicao}
                       onChange={(e) => {
-                        const val = e.target.value === '' ? '' : Number(e.target.value);
-                        setObraForm(prev => ({ ...prev, valorRefeicao: val as number }));
+                        const val = e.target.value === '' ? '' : parseFloat(e.target.value.replace(',', '.'));
+                        setObraForm(prev => ({ ...prev, valorRefeicao: isNaN(val) ? 0 : val }));
                       }}
                       placeholder="Ex: 25.00"
                       className="w-full px-3 py-1.5 border border-neutral-300 rounded text-xs font-bold bg-white text-neutral-800 focus:ring-1 focus:ring-emerald-500"
@@ -1607,12 +1607,12 @@ export default function AdminView({
                   <div>
                     <label className="block text-[10px] text-neutral-550 uppercase font-black mb-1">Desconto Colaborador (R$)</label>
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
+                                      inputMode="decimal"
                       required
                       value={obraForm.valorDescontoColaborador === undefined ? 0 : obraForm.valorDescontoColaborador}
                       onChange={(e) => {
-                        const val = e.target.value === '' ? 0 : Number(e.target.value);
+                        const val = e.target.value === '' ? 0 : parseFloat(e.target.value.replace(',', '.'));
                         setObraForm(prev => ({ ...prev, valorDescontoColaborador: val }));
                       }}
                       placeholder="Ex: 5.00"
