@@ -78,3 +78,122 @@ self.addEventListener('notificationclick', (event) => {
                     })
                 );
 });
+
+// ============================================================
+// LOCAL ALARM FALLBACK (handles SCHEDULE_NOTIFICATION messages)
+// This replaces sw.js local alarm logic since only this SW is registered.
+// ============================================================
+
+const DB_NAME = 'sgr-notifications-db';
+const STORE_NAME = 'alarms';
+
+function openAlarmDB() {
+          return new Promise((resolve, reject) => {
+                      const request = indexedDB.open(DB_NAME, 1);
+                      request.onupgradeneeded = (e) => {
+                                    const db = e.target.result;
+                                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                                                    db.createObjectStore(STORE_NAME);
+                                    }
+                      };
+                      request.onsuccess = (e) => resolve(e.target.result);
+                      request.onerror = (e) => reject(e.target.error);
+          });
+}
+
+async function saveAlarm(email, alarmData) {
+          try {
+                      const db = await openAlarmDB();
+                      const tx = db.transaction(STORE_NAME, 'readwrite');
+                      const store = tx.objectStore(STORE_NAME);
+                      store.put(alarmData, email);
+                      return new Promise((resolve) => { tx.oncomplete = () => resolve(); });
+          } catch (err) {
+                      console.error('[FCM-SW DB] Error saving alarm:', err);
+          }
+}
+
+async function getAllAlarms() {
+          try {
+                      const db = await openAlarmDB();
+                      const tx = db.transaction(STORE_NAME, 'readonly');
+                      const store = tx.objectStore(STORE_NAME);
+                      const request = store.openCursor();
+                      const alarms = [];
+                      return new Promise((resolve) => {
+                                    request.onsuccess = (e) => {
+                                                    const cursor = e.target.result;
+                                                    if (cursor) { alarms.push({ email: cursor.key, ...cursor.value }); cursor.continue(); }
+                                                    else { resolve(alarms); }
+                                    };
+                                    request.onerror = () => resolve([]);
+                      });
+          } catch (err) {
+                      return [];
+          }
+}
+
+let alarmsCache = {};
+
+self.addEventListener('message', (event) => {
+          const data = event.data;
+          if (data && data.type === 'SCHEDULE_NOTIFICATION') {
+                      const { email, time, title, body, timing } = data;
+                      if (!email) return;
+                      const alarmData = { time, title, body, timing, lastChecked: null };
+                      alarmsCache[email] = alarmData;
+                      if (event.waitUntil) event.waitUntil(saveAlarm(email, alarmData));
+                      else saveAlarm(email, alarmData);
+                      console.log('[FCM-SW] Local alarm scheduled for ' + email + ' at ' + time);
+          }
+});
+
+async function checkAlarms() {
+          const now = new Date();
+          const currentHour = now.getHours();
+          const currentMinute = now.getMinutes();
+          const today = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
+          const persistedAlarms = await getAllAlarms();
+          for (const alarm of persistedAlarms) {
+                      if (!alarmsCache[alarm.email]) { alarmsCache[alarm.email] = alarm; }
+          }
+          for (const email of Object.keys(alarmsCache)) {
+                      const alarm = alarmsCache[email];
+                      if (!alarm.time) continue;
+                      const parts = alarm.time.split(':');
+                      const alarmHour = Number(parts[0]);
+                      const alarmMin = Number(parts[1]);
+                      if (isNaN(alarmHour) || isNaN(alarmMin)) continue;
+                      if (currentHour === alarmHour && currentMinute === alarmMin) {
+                                    const db = await openAlarmDB();
+                                    const tx = db.transaction(STORE_NAME, 'readwrite');
+                                    const store = tx.objectStore(STORE_NAME);
+                                    const existing = await new Promise((resolve) => {
+                                                    const req = store.get(email);
+                                                    req.onsuccess = () => resolve(req.result);
+                                                    req.onerror = () => resolve(null);
+                                    });
+                                    if (existing && existing.lastAlertDate === today) continue;
+                                    const updated = Object.assign({}, alarm, { lastAlertDate: today });
+                                    alarmsCache[email] = updated;
+                                    await saveAlarm(email, updated);
+                                    self.registration.showNotification(alarm.title || 'SGR FONTANA', {
+                                                    body: alarm.body || 'Lembrete de refeicao!',
+                                                    icon: '/icon.png',
+                                                    badge: '/icon-badge.svg',
+                                                    vibrate: [0, 200, 100, 200],
+                                                    tag: 'sgr-local-alert-' + email,
+                                                    renotify: true
+                                    });
+                                    console.log('[FCM-SW] Local alarm fired for ' + email);
+                      }
+          }
+}
+
+setInterval(checkAlarms, 15000);
+
+self.addEventListener('periodicsync', (event) => {
+          if (event.tag === 'check-meal-alerts') {
+                      event.waitUntil(checkAlarms());
+          }
+});
