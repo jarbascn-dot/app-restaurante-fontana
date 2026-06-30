@@ -11,7 +11,7 @@ import CameraCapture from './CameraCapture';
 interface AdminViewProps {
   usuarios: Usuario[];
   onApproveUser: (
-    id: string, 
+    id: string, h
     status: UserStatus,
     extraData?: { matricula: string; idEmpresa: string; idObraPadrao: string; perfil: Perfil; idObrasFornecedor?: string[]; fotoBiometria?: string }
   ) => void;h
@@ -1388,8 +1388,8 @@ export default function AdminView({
                 <div className="max-w-xs">
                   <label className="block text-[10px] text-neutral-500 uppercase font-mono mb-1">Preço Unitário Padrão da Refeição (R$)</label>
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     required
                     value={precoPropriaLocal}
                     onChange={(e) => {
