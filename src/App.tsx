@@ -8,7 +8,7 @@ import {
   Perfil, 
   UserStatus, 
   ReservaStatus, 
-  Obra, 
+  Obra, h
   Empresa, 
   Usuario, 
   Reserva, 
@@ -306,13 +306,6 @@ export default function App() {
     };
 
     initDbAndSync();
-
-    // Register Service Worker for robust client notifications under suspended background states on Android / iOS
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('[ServiceWorker] Registrado com sucesso:', reg.scope))
-        .catch(err => console.warn('[ServiceWorker] Erro ao registrar:', err));
-    }
     
     return () => {
       active = false;
