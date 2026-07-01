@@ -1,4 +1,4 @@
-/**
+h/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -1187,7 +1187,7 @@ export default function App() {
             localStorage.setItem('sgr_is_logged', 'true');
             localStorage.setItem('sgr_logged_user_id', user.id);
             setCurrentUser(user);
-          registerFCMToken(user.id);
+          registerFCMToken(user.id).catch(e => console.warn('[App] FCM token nao registrado:', e));
             setIsLogged(true);
             triggerFlashNotification(`Bem-vindo, ${user.nome}! Identificação efetuada com sucesso.`);
           }}
