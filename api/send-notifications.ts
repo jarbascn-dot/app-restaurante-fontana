@@ -102,6 +102,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { db, messaging } = getFirebaseAdmin();
     console.log('[FCM Daemon] Processing notification queue...');
 
+        // 0. Reset diário: resetar sent: false em notificações daily que foram enviadas ontem ou antes
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const dailySentSnapshot = await db.collection('notificationQueue')
+          .where('daily', '==', true)
+          .where('sent', '==', true)
+          .get();
+        if (!dailySentSnapshot.empty) {
+                const resetBatch = db.batch();
+                let resetCount = 0;
+                dailySentSnapshot.forEach((doc: any) => {
+                          const data = doc.data();
+                          const sentAt = data.sentAt?.toDate?.() || null;
+                          // Resetar se foi enviado antes de hoje (dia anterior)
+                          if (!sentAt || sentAt < todayStart) {
+                                      resetBatch.update(doc.ref, { sent: false });
+                                      resetCount++;
+                          }
+                });
+                if (resetCount > 0) {
+                          await resetBatch.commit();
+                          console.log(`[FCM Daemon] Reset ${resetCount} notificações diárias para sent: false`);
+                }
+        }
+
                                                                                                                                                                     // 1. Fetch up to 400 unsent notifications from the queue
                                                                                                                                                                         const queueSnapshot = await db.collection('notificationQueue')
                                                                                                                                                                               .where('sent', '==', false)
