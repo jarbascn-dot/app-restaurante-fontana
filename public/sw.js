@@ -219,7 +219,7 @@ async function checkAlarms() {
 }
 
 // Run loop every 15 seconds so we don't miss the exact minute!
-setInterval(checkAlarms, 15000);
+// [Removido] setInterval local nao funciona em background no Android; a entrega real agora ocorre via evento 'push' (Web Push VAPID enviado pelo servidor/cron).
 
 // Also try periodicsync if supported
 self.addEventListener('periodicsync', (event) => {
