@@ -74,24 +74,8 @@ function configureWebPush() {
         let privateKey = process.env.VAPID_PRIVATE_KEY;
         const contact = process.env.VAPID_CONTACT || 'mailto:admin@estilofontana.com.br';
 
-        // Fallback: read from public/vapid.json if env vars not set
-        if (!publicKey || !privateKey) {
-                    try {
-                                    const fs = require('fs');
-                                    const path = require('path');
-                                    const vapidPath = path.join(process.cwd(), 'public', 'vapid.json');
-                                    if (fs.existsSync(vapidPath)) {
-                                                        const vapidData = JSON.parse(fs.readFileSync(vapidPath, 'utf-8'));
-                                                        if (!publicKey && vapidData.publicKey) publicKey = vapidData.publicKey;
-                                                        if (!privateKey && vapidData.privateKey) privateKey = vapidData.privateKey;
-                                                        console.log('[WebPush] Loaded VAPID keys from public/vapid.json');
-                                    }
-                    } catch (e: any) {
-                                    console.warn('[WebPush] Could not read vapid.json:', e.message);
-                    }
-        }
-
-        if (!publicKey || !privateKey) {
+        // (VAPID keys agora vem exclusivamente de VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY - fallback via require() removido, causava erro em runtime ESM)
+            if (!publicKey || !privateKey) {
                     console.warn('[WebPush] VAPID keys not available. Push notifications will be skipped.');
                     return false;
         }
