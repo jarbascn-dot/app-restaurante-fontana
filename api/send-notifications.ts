@@ -69,19 +69,36 @@ function getFirebaseAdmin() {
   return { db: adminDb };
 }
 
-// Configure VAPID for web-push
+// Configure VAPID for web-push (reads from env vars or vapid.json fallback)
 function configureWebPush() {
-    const publicKey = process.env.VAPID_PUBLIC_KEY || process.env.VITE_FIREBASE_VAPID_KEY;
-    const privateKey = process.env.VAPID_PRIVATE_KEY;
-    const contact = process.env.VAPID_CONTACT || 'mailto:admin@estilofontana.com.br';
+        let publicKey = process.env.VAPID_PUBLIC_KEY || process.env.VITE_FIREBASE_VAPID_KEY;
+        let privateKey = process.env.VAPID_PRIVATE_KEY;
+        const contact = process.env.VAPID_CONTACT || 'mailto:admin@estilofontana.com.br';
 
-  if (!publicKey || !privateKey) {
-        console.warn('[WebPush] VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY not set. Push notifications will be skipped.');
-        return false;
-  }
+        // Fallback: read from public/vapid.json if env vars not set
+        if (!publicKey || !privateKey) {
+                    try {
+                                    const fs = require('fs');
+                                    const path = require('path');
+                                    const vapidPath = path.join(process.cwd(), 'public', 'vapid.json');
+                                    if (fs.existsSync(vapidPath)) {
+                                                        const vapidData = JSON.parse(fs.readFileSync(vapidPath, 'utf-8'));
+                                                        if (!publicKey && vapidData.publicKey) publicKey = vapidData.publicKey;
+                                                        if (!privateKey && vapidData.privateKey) privateKey = vapidData.privateKey;
+                                                        console.log('[WebPush] Loaded VAPID keys from public/vapid.json');
+                                    }
+                    } catch (e: any) {
+                                    console.warn('[WebPush] Could not read vapid.json:', e.message);
+                    }
+        }
 
-  webpush.setVapidDetails(contact, publicKey, privateKey);
-    return true;
+        if (!publicKey || !privateKey) {
+                    console.warn('[WebPush] VAPID keys not available. Push notifications will be skipped.');
+                    return false;
+        }
+
+        webpush.setVapidDetails(contact, publicKey, privateKey);
+        return true;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
