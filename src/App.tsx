@@ -34,7 +34,7 @@ import {
   saveSystemSettings, 
   seedRequiredCollections 
 } from './lib/firebaseSync';
-import { scheduleNotification, registerFCMToken } from './lib/notificationScheduler';
+import { scheduleNotification, subscribeUserToPush } from './lib/notificationScheduler';
 
 // Components
 import SimulationHeader from './components/SimulationHeader';
@@ -1279,7 +1279,7 @@ export default function App() {
             localStorage.setItem('sgr_is_logged', 'true');
             localStorage.setItem('sgr_logged_user_id', user.id);
             setCurrentUser(user);
-          registerFCMToken(user.id);
+          subscribeUserToPush(user.id);
             setIsLogged(true);
             triggerFlashNotification(`Bem-vindo, ${user.nome}! Identificação efetuada com sucesso.`);
           }}
