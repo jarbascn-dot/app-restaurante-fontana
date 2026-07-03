@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import webpush from 'web-push';
 import firebaseConfig from '../firebase-applet-config.json' with { type: "json" };
@@ -45,7 +45,6 @@ function getFirebaseAdmin() {
               throw new Error('Firebase Admin credentials not configured. Set FIREBASE_SERVICE_ACCOUNT or FIREBASE_PRIVATE_KEY + FIREBASE_CLIENT_EMAIL + FIREBASE_PROJECT_ID.');
       }
 
-      const { cert } = require('firebase-admin/app');
           adminApp = initializeApp({ credential: cert(serviceAccount) });
     }
 
