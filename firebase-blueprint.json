@@ -1,0 +1,209 @@
+{
+  "entities": {
+    "Obra": {
+      "title": "Obra",
+      "description": "Áreas/Obras ativas para distribuição de custos corporativos",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identificador único da obra" },
+        "nome": { "type": "string", "description": "Nome das obras" },
+        "centroCusto": { "type": "string", "description": "Centro de custo para rateio" },
+        "ativa": { "type": "boolean", "description": "Se a obra está operando" },
+        "valorRefeicao": { "type": "number", "description": "Preço da refeição cobrado nesta área/obra pelo fornecedor" },
+        "idFornecedorPrincipal": { "type": "string", "description": "ID do fornecedor de alimentação principal correspondente" },
+        "cardapioUrl": { "type": "string", "description": "URL ou DataURL Base64 contendo o arquivo PDF do cardápio" },
+        "cardapioNome": { "type": "string", "description": "Nome original do arquivo importado" },
+        "cardapioAtualizadoEm": { "type": "string", "format": "date-time", "description": "Timestamp ISO útil do upload do cardápio" }
+      },
+      "required": ["id", "nome", "centroCusto", "ativa"]
+    },
+    "Empresa": {
+      "title": "Empresa",
+      "description": "Empresas ou fornecedores",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID da empresa" },
+        "nome": { "type": "string", "description": "Razão social ou fantasia" },
+        "tipo": { "type": "string", "enum": ["Propria", "Fornecedor"], "description": "Classificação societária" }
+      },
+      "required": ["id", "nome", "tipo"]
+    },
+    "Usuario": {
+      "title": "Usuario",
+      "description": "Controle de colaboradores, gestores, fornecedores e administradores",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID exclusivo de login/auth" },
+        "nome": { "type": "string", "description": "Nome completo" },
+        "email": { "type": "string", "format": "email", "description": "E-mail funcional" },
+        "senha": { "type": "string", "description": "Código hash ou senha de acesso criptografada no modo seguro" },
+        "matricula": { "type": "string", "description": "Matrícula do trabalhador" },
+        "perfil": { "type": "string", "enum": ["colaborador", "admin", "gestor", "fornecedor"], "description": "Grupo de acesso" },
+        "status": { "type": "string", "enum": ["pendente", "aprovado", "desativado"], "description": "Se habilitado no refeitório" },
+        "idEmpresa": { "type": "string", "description": "FK Empresa" },
+        "idObraPadrao": { "type": "string", "description": "FK Obra" },
+        "idObrasFornecedor": { "type": "array", "description": "Lista de obras visíveis caso seja fornecedor" },
+        "criadoEm": { "type": "string", "format": "date-time", "description": "Data do cadastro" },
+        "fotoBiometria": { "type": "string", "description": "Foto da biometria facial registrada" },
+        "alertaEnabled": { "type": "boolean", "description": "Se os lembretes de refeição estão habilitados" },
+        "alertaTiming": { "type": "string", "enum": ["vespera", "mesmo_dia"], "description": "Timing do alerta" },
+        "alertaTime": { "type": "string", "description": "Hórario do alerta formatado HH:MM" },
+        "fcmToken": { "type": "string", "description": "FCM token for mobile/web push notifications" }
+      },
+      "required": ["id", "nome", "email", "matricula", "perfil", "status", "idEmpresa", "idObraPadrao", "criadoEm"]
+    },
+    "Reserva": {
+      "title": "Reserva",
+      "description": "Reserva de marmita para o refeitório da obra",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "idUsuario": { "type": "string" },
+        "data": { "type": "string", "description": "Formato YYYY-MM-DD" },
+        "status": { "type": "string", "enum": ["reservado", "cancelado"] },
+        "consumido": { "type": "boolean" },
+        "idObraNoDia": { "type": "string" },
+        "alteradoEm": { "type": "string", "format": "date-time" },
+        "ipOrigem": { "type": "string" },
+        "dispositivo": { "type": "string" }
+      },
+      "required": ["id", "idUsuario", "data", "status", "consumido", "idObraNoDia", "alteradoEm", "ipOrigem", "dispositivo"]
+    },
+    "Feriado": {
+      "title": "Feriado",
+      "description": "Feriados bloqueantes para o cronograma de reservas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "data": { "type": "string" },
+        "descricao": { "type": "string" },
+        "tipo": { "type": "string", "enum": ["nacional", "estadual", "municipal", "interno"] }
+      },
+      "required": ["id", "data", "descricao", "tipo"]
+    },
+    "AuditoriaLog": {
+      "title": "AuditoriaLog",
+      "description": "Histórico imutável de transações e alterações fiscais/de refeitório",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "usuarioNome": { "type": "string" },
+        "usuarioEmail": { "type": "string" },
+        "dataHora": { "type": "string", "format": "date-time" },
+        "operacao": { "type": "string" },
+        "ip": { "type": "string" },
+        "dispositivo": { "type": "string" },
+        "perfil": { "type": "string" }
+      },
+      "required": ["id", "usuarioNome", "usuarioEmail", "dataHora", "operacao", "ip", "dispositivo", "perfil"]
+    },
+    "SystemSettings": {
+      "title": "SystemSettings",
+      "description": "Configurações de bloqueio de horários e parâmetros financeiros",
+      "type": "object",
+      "properties": {
+        "horarioLimite": { "type": "string" },
+        "permitirFinsDeSemana": { "type": "boolean" },
+        "valorRefeicaoPropria": { "type": "number" },
+        "valorRefeicaoTerceiro": { "type": "number" },
+        "usarTabletRetirada": { "type": "boolean" },
+        "requererBiometriaFacial": { "type": "boolean" },
+        "permitirSimulador": { "type": "boolean" }
+      },
+      "required": ["horarioLimite", "permitirFinsDeSemana", "valorRefeicaoPropria", "valorRefeicaoTerceiro", "usarTabletRetirada", "requererBiometriaFacial", "permitirSimulador"]
+    },
+    "PushSubscription": {
+      "title": "PushSubscription",
+      "description": "Inscrição de notificação push em navegador",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "endpoint": { "type": "string" },
+        "keys": {
+          "type": "object",
+          "properties": {
+            "p256dh": { "type": "string" },
+            "auth": { "type": "string" }
+          },
+          "required": ["p256dh", "auth"]
+        },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "email", "endpoint", "keys", "updatedAt"]
+    },
+    "FCMToken": {
+      "title": "FCMToken",
+      "description": "Tokens de dispositivo para Firebase Cloud Messaging",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "token": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "token", "updatedAt"]
+    },
+    "NotificationQueueItem": {
+      "title": "NotificationQueueItem",
+      "description": "Fila de notificações para envio via FCM",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "link": { "type": "string" },
+        "daily": { "type": "boolean" },
+        "scheduledTime": { "type": "string" },
+        "sent": { "type": "boolean" },
+        "sentAt": { "type": "string", "format": "date-time" },
+        "skipReason": { "type": "string" },
+        "skippedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "body", "sent"]
+    }
+  },
+  "firestore": {
+    "/obras/{obraId}": {
+      "schema": { "$ref": "#/entities/Obra" },
+      "description": "Obras cadastradas"
+    },
+    "/empresas/{empresaId}": {
+      "schema": { "$ref": "#/entities/Empresa" },
+      "description": "Empresas cadastradas"
+    },
+    "/usuarios/{usuarioId}": {
+      "schema": { "$ref": "#/entities/Usuario" },
+      "description": "Usuários do sistema"
+    },
+    "/reservas/{reservaId}": {
+      "schema": { "$ref": "#/entities/Reserva" },
+      "description": "Históricos e reservas de almoços"
+    },
+    "/feriados/{feriadoId}": {
+      "schema": { "$ref": "#/entities/Feriado" },
+      "description": "Calendário de feriados"
+    },
+    "/logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditoriaLog" },
+      "description": "Logs de auditoria e segurança"
+    },
+    "/settings/system": {
+      "schema": { "$ref": "#/entities/SystemSettings" },
+      "description": "Parâmetros globais do refeitório"
+    },
+    "/push_subscriptions/{subscriptionId}": {
+      "schema": { "$ref": "#/entities/PushSubscription" },
+      "description": "Inscrição de notificação push em nuvem"
+    },
+    "/fcmTokens/{userId}": {
+      "schema": { "$ref": "#/entities/FCMToken" },
+      "description": "Tokens FCM de cada usuário"
+    },
+    "/notificationQueue/{notificationId}": {
+      "schema": { "$ref": "#/entities/NotificationQueueItem" },
+      "description": "Fila de notificações pendentes de envio"
+    }
+  }
+}

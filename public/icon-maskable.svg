@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background: Solid green filling 100% of the canvas with no rounded corners -->
+  <rect width="512" height="512" fill="#16a34a" />
+
+  <!-- Group of white elements for the cutlery logo -->
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Subtle elegant plate circle in the background -->
+    <circle cx="256" cy="256" r="180" stroke-width="8" opacity="0.2" />
+    <circle cx="256" cy="256" r="140" stroke-width="4" opacity="0.15" />
+
+    <!-- Fork -->
+    <!-- Handle -->
+    <path d="M 210 233 L 210 383" stroke-width="14" />
+    <!-- Outer prongs and curved bottom cup -->
+    <path d="M 180 133 L 180 203 A 30 30 0 0 0 240 203 L 240 133" stroke-width="10" />
+    <!-- Inner prongs -->
+    <path d="M 200 133 L 200 218 M 220 133 L 220 218" stroke-width="10" />
+
+    <!-- Spoon -->
+    <!-- Handle -->
+    <path d="M 302 233 L 302 383" stroke-width="14" />
+    <!-- Spoon Bowl (Oval filled with white) -->
+    <ellipse cx="302" cy="178" rx="35" ry="50" fill="#ffffff" stroke-width="0" />
+  </g>
+</svg>
