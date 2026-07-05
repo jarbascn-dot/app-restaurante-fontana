@@ -1,0 +1,69 @@
+{
+  "id": "/",
+  "name": "APP Restaurante Fontana",
+  "short_name": "SGR Fontana",
+  "description": "Sistema de Gestão de Refeições - Restaurante Fontana",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#16a34a",
+  "orientation": "portrait-primary",
+  "categories": [
+    "food",
+    "productivity",
+    "business"
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [
+    {
+      "platform": "play",
+      "id": "com.fontana.sgr",
+      "url": "https://play.google.com/store/apps/details?id=com.fontana.sgr"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.jpg",
+      "sizes": "768x1376",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Aplicativo de Gestão de Refeições Fontana (Mobile)"
+    },
+    {
+      "src": "/screenshot-desktop.jpg",
+      "sizes": "1376x768",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Aplicativo de Gestão de Refeições Fontana (Web)"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Fazer Reserva",
+      "short_name": "Reservar",
+      "description": "Agendar refeição rápida no refeitório",
+      "url": "/?shortcut=reservar",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}
