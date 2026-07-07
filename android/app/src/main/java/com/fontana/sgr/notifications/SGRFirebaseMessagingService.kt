@@ -91,6 +91,12 @@ class SGRFirebaseMessagingService : FirebaseMessagingService() {
     notificationManager.notify(notificationId, notificationBuilder.build())
   }
 
+  /**
+  * Saves the FCM token to the SAME Firestore location the backend (api/send-notifications.ts)
+  * reads from: collection "fcmTokens", document id = Firebase Auth uid.
+  * IMPORTANT: firestore.rules requires this document to have EXACTLY these 3 keys:
+  * token, userId, updatedAt (see isValidFCMToken in firestore.rules). Do not add extra fields.
+  */
   private fun sendRegistrationToServer(token: String) {
     val uid = FirebaseAuth.getInstance().currentUser?.uid
     if (uid == null) {
@@ -104,7 +110,6 @@ class SGRFirebaseMessagingService : FirebaseMessagingService() {
     val data = hashMapOf(
       "token" to token,
       "userId" to uid,
-      "platform" to "android",
       "updatedAt" to FieldValue.serverTimestamp()
       )
     FirebaseFirestore.getInstance().collection("fcmTokens").document(uid)
@@ -142,7 +147,6 @@ class SGRFirebaseMessagingService : FirebaseMessagingService() {
       val data = hashMapOf(
         "token" to pendingToken,
         "userId" to uid,
-        "platform" to "android",
         "updatedAt" to FieldValue.serverTimestamp()
         )
       FirebaseFirestore.getInstance().collection("fcmTokens").document(uid)
