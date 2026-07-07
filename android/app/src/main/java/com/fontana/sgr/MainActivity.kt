@@ -45,6 +45,6 @@ class MainActivity : AppCompatActivity() {
   }
 
   companion object {
-    private const val PRODUCTION_URL = "https://REPLACE_WITH_YOUR_DOMAIN.com/"
+        private const val PRODUCTION_URL = "https://app-restaurante-fontana.vercel.app/"
   }
 }
