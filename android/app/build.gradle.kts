@@ -46,7 +46,7 @@ jvmTarget = "17"
 }
 
 dependencies {
-implementation(platform("com.google.firebase:firebase-bom:34.15.0"))
+implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
 implementation("com.google.firebase:firebase-messaging")
 implementation("com.google.firebase:firebase-auth")
 implementation("com.google.firebase:firebase-firestore")
