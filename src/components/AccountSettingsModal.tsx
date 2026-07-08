@@ -81,12 +81,19 @@ export default function AccountSettingsModal({
     }
   }, [isOpen]);
 
-  const [pushStatus, setPushStatus] = useState<'checking' | 'active' | 'inactive' | 'unsupported'>('checking');
+  const [pushStatus, setPushStatus] = useState<'checking' | 'active' | 'inactive' | 'unsupported' | 'native'>('checking');
   const [sendingPush, setSendingPush] = useState(false);
+
+  // Sync current user identity to the native Android bridge (if present) so the app can register the native FCM token, independent of this modal being open.
+  useEffect(() => {
+    if (currentUser && (window as any).SGRNativeBridge) {
+      try { (window as any).SGRNativeBridge.setCurrentUser(currentUser.email); } catch (e) { console.warn('[SGRNativeBridge] sync failed', e); }
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     if (isOpen && currentUser) {
-      if ('PushManager' in window && 'serviceWorker' in navigator) {
+      if ((window as any).SGRNativeBridge) { setPushStatus('native'); try { (window as any).SGRNativeBridge.setCurrentUser(currentUser.email); } catch (e) {} } else if ('PushManager' in window && 'serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then(reg => {
           reg.pushManager.getSubscription().then(sub => {
             if (sub) {
@@ -887,7 +894,10 @@ export default function AccountSettingsModal({
                         ⚠️ Aguardando Salvar (Local)
                       </span>
                     )}
-                    {pushStatus === 'unsupported' && (
+                    {pushStatus === 'native' && (
+                     <span className="px-2 py-0.5 text-[9px] font-mono text-blue-700 bg-blue-100 border border-blue-200 rounded font-bold uppercase">📱 Gerenciado pelo App</span>
+                   )}
+                   {pushStatus === 'unsupported' && (
                       <span className="px-2 py-0.5 text-[9px] font-mono text-red-700 bg-red-100 border border-red-200 rounded font-bold uppercase">
                         ❌ Não suportado
                       </span>
