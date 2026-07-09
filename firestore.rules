@@ -235,9 +235,9 @@ service cloud.firestore {
 
     // FCM Tokens Collection
     match /fcmTokens/{userId} {
-      allow read: if isSignedIn();
-      allow create, update: if isValidId(userId) && isOwner(userId) && isValidFCMToken(incoming());
-      allow delete: if isValidId(userId) && isOwner(userId);
+      allow read: if true;
+      allow create, update: if isValidId(userId) && isValidFCMToken(incoming());
+      allow delete: if isValidId(userId);
     }
 
     // Notification Queue Collection
