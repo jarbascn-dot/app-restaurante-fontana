@@ -173,11 +173,12 @@ export async function scheduleNotification(
           const todayStr = new Date().toISOString().slice(0, 10);
           const lastSyncStr = existingData?.updatedAt ? String(existingData.updatedAt).slice(0, 10) : null;
           const isNewDay = lastSyncStr !== todayStr;
+          const timeChanged = existingData?.scheduledTime !== time;
           
           updateDoc(docRef, {
             scheduledTime: time,
             updatedAt: new Date().toISOString(),
-            ...(isNewDay ? { sent: false, errorAt: null, errorMessage: null } : {})
+            ...((isNewDay || timeChanged) ? { sent: false, errorAt: null, errorMessage: null } : {})
           }).then(() => {
             console.log(`[Scheduler] Updated existing notificationQueue doc ${queueDocId} with scheduledTime:`, time);
           }).catch(err => {
