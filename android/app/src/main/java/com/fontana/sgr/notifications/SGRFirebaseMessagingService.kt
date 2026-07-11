@@ -76,7 +76,7 @@ class SGRFirebaseMessagingService : FirebaseMessagingService() {
     val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
     val notificationBuilder = NotificationCompat.Builder(this, channelId)
-      .setSmallIcon(android.R.drawable.ic_dialog_info)
+      .setSmallIcon(com.fontana.sgr.R.drawable.ic_notification)
       .setContentTitle(title)
       .setContentText(messageBody)
       .setAutoCancel(true)
