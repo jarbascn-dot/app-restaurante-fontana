@@ -12,8 +12,8 @@ defaultConfig {
 applicationId = "com.fontana.sgr"
 minSdk = 26
 targetSdk = 35
-versionCode = 5
-versionName = "1.1.3"
+versionCode = 6
+versionName = "1.1.4"
 }
 
 signingConfigs {
@@ -51,5 +51,6 @@ implementation("com.google.firebase:firebase-messaging")
 implementation("com.google.firebase:firebase-auth")
 implementation("com.google.firebase:firebase-firestore")
 implementation("androidx.appcompat:appcompat:1.7.0")
+implementation("androidx.biometric:biometric:1.1.0")
 implementation("androidx.core:core-ktx:1.13.1")
 }
