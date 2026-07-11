@@ -169,9 +169,15 @@ export async function scheduleNotification(
       
       getDoc(docRef).then((docSnap) => {
         if (docSnap.exists()) {
+          const existingData: any = docSnap.data();
+          const todayStr = new Date().toISOString().slice(0, 10);
+          const lastSyncStr = existingData?.updatedAt ? String(existingData.updatedAt).slice(0, 10) : null;
+          const isNewDay = lastSyncStr !== todayStr;
+          
           updateDoc(docRef, {
             scheduledTime: time,
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date().toISOString(),
+            ...(isNewDay ? { sent: false, errorAt: null, errorMessage: null } : {})
           }).then(() => {
             console.log(`[Scheduler] Updated existing notificationQueue doc ${queueDocId} with scheduledTime:`, time);
           }).catch(err => {
