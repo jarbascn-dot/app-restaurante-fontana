@@ -106,6 +106,34 @@ export default function BiometriaModal({
       setErrorMessage('Por favor, selecione ou digite o e-mail cadastrado.');
       return;
     }
+    // Se o app estiver rodando dentro do wrapper Android nativo (SGRNativeBridge),
+    // o WebView nao suporta WebAuthn/FIDO2 - usamos o BiometricPrompt nativo do
+    // Android (leitor de digital/rosto do sistema) em vez disso.
+    const nativeBridge = (window as any).SGRNativeBridge;
+    if (nativeBridge && typeof nativeBridge.isBiometricAvailable === 'function' && nativeBridge.isBiometricAvailable()) {
+        const handleNativeResult = (e: any) => {
+              window.removeEventListener('sgr-native-biometric-result', handleNativeResult);
+              const detail = (e && e.detail) || {};
+              if (detail.success) {
+                      try {
+                                localStorage.setItem(`sgr_credential_id_${targetEmail}`, 'native-android');
+                      } catch (err) {}
+                      setStatus('success');
+                      setTimeout(() => {
+                                onSuccessRef.current(targetEmail);
+                                onCloseRef.current();
+                                setStatus('idle');
+                      }, 1250);
+              } else {
+                      setStatus('password-fallback');
+                      setErrorMessage(detail.error || 'Nao foi possivel confirmar a biometria neste aparelho. Use sua senha.');
+              }
+        };
+        window.addEventListener('sgr-native-biometric-result', handleNativeResult);
+        nativeBridge.authenticateBiometric();
+        return;
+    }
+    
 
     if (mode === 'authenticate') {
       const savedBase64Id = localStorage.getItem(`sgr_credential_id_${targetEmail}`);
