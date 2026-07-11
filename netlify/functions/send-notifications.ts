@@ -116,19 +116,22 @@ export const handler: Handler = async (event, context) => {
         continue;
       }
 
-      const message = {
-        token: token,
-        notification: {
-          title: title,
-          body: body,
-        },
-        webpush: {
-          notification: {
-            icon: '/icon.png',
-            badge: '/icon.png',
-          }
-        }
-      };
+const message = {
+          token: token,
+          data: {
+                      title: title,
+                      body: body,
+                      link: notification.link || '/',
+          },
+          webpush: {
+                      fcmOptions: {
+                                    link: notification.link || '/',
+                      },
+          },
+          android: {
+                      priority: 'high' as const,
+          },
+};
 
       try {
         await messaging.send(message);
