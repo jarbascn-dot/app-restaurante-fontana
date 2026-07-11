@@ -186,7 +186,7 @@ export async function scheduleNotification(
             link: '/',
             daily: true,
             scheduledTime: time,
-            sent: true,
+            sent: false,
             updatedAt: new Date().toISOString()
           };
           saveToFirestore('notificationQueue', queueItem).then(() => {
