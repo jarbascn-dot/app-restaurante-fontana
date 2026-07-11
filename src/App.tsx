@@ -1352,6 +1352,22 @@ export default function App() {
           registerFCMToken(user.id);
             setIsLogged(true);
             triggerFlashNotification(`Bem-vindo, ${user.nome}! Identificação efetuada com sucesso.`);
+
+            // Auto-recuperacao de biometria: se o usuario ja tinha biometria ativada
+            // anteriormente neste app (email/cpf salvo na lista local), mas a credencial
+            // WebAuthn local foi perdida (ex: reinstalacao do app por mudanca de
+            // certificado de assinatura entre builds), reabre automaticamente o
+            // cadastro de biometria para religar o acesso rapido, sem exigir que o
+            // usuario va manualmente ate as configuracoes.
+            try {
+                const bioEmails: string[] = JSON.parse(localStorage.getItem('sgr_biometria_cadastrada_emails') || '[]');
+                const bioCpfs: string[] = JSON.parse(localStorage.getItem('sgr_biometria_cadastrada_cpfs') || '[]');
+            const wasBiometriaEnabled = (!!user.email && bioEmails.includes(user.email)) || (!!user.cpf && bioCpfs.includes(user.cpf));
+              const hasStoredCredential = !!localStorage.getItem(`sgr_credential_id_${user.email}`);
+                if (wasBiometriaEnabled && !hasStoredCredential && window.PublicKeyCredential) {
+                      setTimeout(() => setIsBiometriaSetupOpen(true), 800);
+                }
+            } catch (e) {}
           }}
           onOpenRegister={() => setIsRegisterOpen(true)}
           onResetPassword={handleResetUserPassword}
