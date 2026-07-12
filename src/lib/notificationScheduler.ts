@@ -108,6 +108,51 @@ export async function scheduleNotification(
   localStorage.setItem(`sgr_notify_enabled_${userParam}`, 'true');
   localStorage.setItem(`sgr_notify_time_${userParam}`, time);
 
+      // Sync notificationQueue in Firestore FIRST, independent of local Notification API
+      // support. Actual delivery on Android happens via native FCM push + native channel,
+      // not via window.Notification, so this must not be gated behind that permission check
+      // (a bare WebView without WebChromeClient support never grants it, which was silently
+      // blocking scheduledTime/sent updates whenever the user rescheduled from the app).
+      if (email) {
+              const emailLowerSync = email.toLowerCase().trim();
+              const queueDocId = `daily_${emailLowerSync.replace(/[^a-zA-Z0-9]/g, '_')}`;
+              const docRef = doc(db, 'notificationQueue', queueDocId);
+
+              try {
+                        const docSnap = await getDoc(docRef);
+                        if (docSnap.exists()) {
+                                    const existingData: any = docSnap.data();
+                                    const todayStr = new Date().toISOString().slice(0, 10);
+                                    const lastSyncStr = existingData?.updatedAt ? String(existingData.updatedAt).slice(0, 10) : null;
+                                    const isNewDay = lastSyncStr !== todayStr;
+                                    const timeChanged = existingData?.scheduledTime !== time;
+
+                                    await updateDoc(docRef, {
+                                                  scheduledTime: time,
+                                                  updatedAt: new Date().toISOString(),
+                                                  ...((isNewDay || timeChanged) ? { sent: false, errorAt: null, errorMessage: null } : {})
+                                    });
+                                    console.log(`[Scheduler] Updated existing notificationQueue doc ${queueDocId} with scheduledTime:`, time);
+                        } else {
+                                    const queueItem = {
+                                                  id: queueDocId,
+                                                  userId: emailLowerSync,
+                                                  title: title || 'SGR Fontana',
+                                                  body: body || 'Lembrete de refeição!',
+                                                  link: '/',
+                                                  daily: true,
+                                                  scheduledTime: time,
+                                                  sent: false,
+                                                  updatedAt: new Date().toISOString()
+                                    };
+                                    await saveToFirestore('notificationQueue', queueItem);
+                                    console.log('[Scheduler] Created new notificationQueue doc:', queueDocId);
+                        }
+              } catch (err) {
+                        console.warn('[Scheduler] Failed to sync notificationQueue doc:', err);
+              }
+      }
+
   const isSWSupported = 'serviceWorker' in navigator;
   const isNotificationSupported = 'Notification' in window;
 
@@ -163,48 +208,7 @@ export async function scheduleNotification(
       const emailLower = email.toLowerCase().trim();
       subscribeUserToPush(emailLower).catch(err => console.warn('[Scheduler] Auto-push enrollment failed:', err));
       
-      // Sync with notificationQueue in Firestore to ensure server-side daemon is in perfect sync
-      const queueDocId = `daily_${emailLower.replace(/[^a-zA-Z0-9]/g, '_')}`;
-      const docRef = doc(db, 'notificationQueue', queueDocId);
-      
-      getDoc(docRef).then((docSnap) => {
-        if (docSnap.exists()) {
-          const existingData: any = docSnap.data();
-          const todayStr = new Date().toISOString().slice(0, 10);
-          const lastSyncStr = existingData?.updatedAt ? String(existingData.updatedAt).slice(0, 10) : null;
-          const isNewDay = lastSyncStr !== todayStr;
-          const timeChanged = existingData?.scheduledTime !== time;
-          
-          updateDoc(docRef, {
-            scheduledTime: time,
-            updatedAt: new Date().toISOString(),
-            ...((isNewDay || timeChanged) ? { sent: false, errorAt: null, errorMessage: null } : {})
-          }).then(() => {
-            console.log(`[Scheduler] Updated existing notificationQueue doc ${queueDocId} with scheduledTime:`, time);
-          }).catch(err => {
-            console.warn('[Scheduler] Failed to update scheduledTime in notificationQueue:', err);
-          });
-        } else {
-          const queueItem = {
-            id: queueDocId,
-            userId: emailLower,
-            title: title || 'SGR Fontana',
-            body: body || 'Lembrete de refeição!',
-            link: '/',
-            daily: true,
-            scheduledTime: time,
-            sent: false,
-            updatedAt: new Date().toISOString()
-          };
-          saveToFirestore('notificationQueue', queueItem).then(() => {
-            console.log('[Scheduler] Created new notificationQueue doc:', queueDocId);
-          }).catch(err => {
-            console.warn('[Scheduler] Failed to create notificationQueue:', err);
-          });
-        }
-      }).catch(err => {
-        console.warn('[Scheduler] Failed to get notificationQueue doc:', err);
-      });
+
     }
 
   } catch (error) {
