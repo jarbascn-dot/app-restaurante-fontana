@@ -1661,15 +1661,17 @@ export default function AdminView({
                   <div>
                     <label className="block text-[10px] text-neutral-550 uppercase font-black mb-1">Valor da Refeição (R$)</label>
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
                       required
-                      value={obraForm.valorRefeicao === undefined ? settings.valorRefeicaoPropria : obraForm.valorRefeicao}
+                      value={obraForm.valorRefeicao === undefined ? String(settings.valorRefeicaoPropria) : String(obraForm.valorRefeicao)}
                       onChange={(e) => {
-                        const val = e.target.value === '' ? '' : Number(e.target.value);
-                        setObraForm(prev => ({ ...prev, valorRefeicao: val as number }));
+                        const raw = e.target.value;
+                        if (raw === '' || /^[0-9]*[,.]?[0-9]*$/.test(raw)) {
+                          setObraForm(prev => ({ ...prev, valorRefeicao: raw as any }));
+                        }
                       }}
-                      placeholder="Ex: 25.00"
+                      placeholder="Ex: 25,00"
                       className="w-full px-3 py-1.5 border border-neutral-300 rounded text-xs font-bold bg-white text-neutral-800 focus:ring-1 focus:ring-emerald-500"
                     />
                     <span className="text-[9px] text-neutral-400 mt-0.5 block">Preço unitário faturado do fornecedor (R$ {settings.valorRefeicaoPropria.toFixed(2)} global).</span>
@@ -1678,15 +1680,17 @@ export default function AdminView({
                   <div>
                     <label className="block text-[10px] text-neutral-550 uppercase font-black mb-1">Desconto Colaborador (R$)</label>
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
                       required
-                      value={obraForm.valorDescontoColaborador === undefined ? 0 : obraForm.valorDescontoColaborador}
+                      value={obraForm.valorDescontoColaborador === undefined ? '0' : String(obraForm.valorDescontoColaborador)}
                       onChange={(e) => {
-                        const val = e.target.value === '' ? 0 : Number(e.target.value);
-                        setObraForm(prev => ({ ...prev, valorDescontoColaborador: val }));
+                        const raw = e.target.value;
+                        if (raw === '' || /^[0-9]*[,.]?[0-9]*$/.test(raw)) {
+                          setObraForm(prev => ({ ...prev, valorDescontoColaborador: raw as any }));
+                        }
                       }}
-                      placeholder="Ex: 5.00"
+                      placeholder="Ex: 5,00"
                       className="w-full px-3 py-1.5 border border-neutral-300 rounded text-xs font-bold bg-white text-neutral-800 focus:ring-1 focus:ring-emerald-500"
                     />
                     <span className="text-[9px] text-neutral-400 mt-0.5 block">Desconto em folha (Ex: limitar por conv. ou 20% do custo).</span>
@@ -1737,8 +1741,8 @@ export default function AdminView({
                         nome: obraForm.nome,
                         centroCusto: obraForm.centroCusto,
                         ativa: !!obraForm.ativa,
-                        valorRefeicao: Number(obraForm.valorRefeicao || 0),
-                        valorDescontoColaborador: Number(obraForm.valorDescontoColaborador || 0),
+                        valorRefeicao: Number(String(obraForm.valorRefeicao || 0).replace(',', '.')),
+                        valorDescontoColaborador: Number(String(obraForm.valorDescontoColaborador || 0).replace(',', '.')),
                         idFornecedorPrincipal: obraForm.idFornecedorPrincipal || '',
                         cardapioUrl: obraForm.cardapioUrl || '',
                         cardapioNome: obraForm.cardapioNome || '',
