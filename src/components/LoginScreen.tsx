@@ -140,8 +140,8 @@ export default function LoginScreen({ usuarios, settings, onLoginSuccess, onOpen
         
         {/* Branding header */}
         <div className="bg-neutral-900 px-6 py-8 text-center text-white relative">
-          <div className="inline-flex bg-emerald-600 text-white p-4 rounded-2xl shadow-lg mb-3 items-center justify-center">
-            <UtensilsCrossed className="h-8 w-8 text-white" />
+                    <div className="inline-flex bg-emerald-600 text-white p-5 rounded-lg shadow-lg mb-3 items-center justify-center">
+                        <UtensilsCrossed className="h-6 w-6 text-white" />
           </div>
           <h2 className="text-xl font-bold tracking-tight">APP Restaurante</h2>
           <p className="text-xs text-neutral-400 mt-1 uppercase tracking-wider font-mono">FONTANA</p>
