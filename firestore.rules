@@ -85,7 +85,7 @@ service cloud.firestore {
              (!data.keys().hasAny(['idObrasFornecedor']) || data.idObrasFornecedor is list) &&
              (!data.keys().hasAny(['fotoBiometria']) || data.fotoBiometria is string) &&
              (!data.keys().hasAny(['alertaEnabled']) || data.alertaEnabled is bool) &&
-             (!data.keys().hasAny(['alertaTiming']) || (data.alertaTiming == 'vespera' || data.alertaTiming == 'mesmo_dia')) &&
+             (!data.keys().hasAny(['alertaTiming']) || (data.alertaTiming == 'todos_dias' || data.alertaTiming == 'seg_sex')) &&
              (!data.keys().hasAny(['alertaTime']) || data.alertaTime is string) &&
              (!data.keys().hasAny(['aceitouLGPD']) || data.aceitouLGPD is bool) &&
              (!data.keys().hasAny(['dataAceiteLGPD']) || data.dataAceiteLGPD is string) &&
