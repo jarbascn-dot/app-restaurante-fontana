@@ -903,7 +903,7 @@ export default function AdminView({
                         <td className="p-3">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
-                              onClick={() => setEditingUser(u)}
+                              onClick={() => setEditingUser({ ...u, senha: '' })}
                               className="px-2.5 py-1 text-[10px] font-bold text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded border border-neutral-300 flex items-center gap-1 cursor-pointer"
                               id={`edit-user-btn-${u.id}`}
                             >
