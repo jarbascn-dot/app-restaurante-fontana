@@ -7,6 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { Usuario, SystemSettings } from '../types';
 import { LogIn, KeyRound, User, AlertCircle, UserPlus, HelpCircle, Fingerprint, Smartphone, UtensilsCrossed, ShieldAlert } from 'lucide-react';
 import BiometriaModal from './BiometriaModal';
+import { comparePassword, hashPassword, isHash } from '../lib/passwordUtils';
+import { saveToFirestore } from '../lib/firebaseSync';
 
 interface LoginScreenProps {
   usuarios: Usuario[];
@@ -118,7 +120,8 @@ export default function LoginScreen({ usuarios, settings, onLoginSuccess, onOpen
     // Since the system defaults to password '1234@' for jarbas or whatever password they defined during registration
     const correctPassword = foundUser.senha || '1234@';
 
-    if (password !== correctPassword) {
+    const isValid = comparePassword(password, correctPassword);
+    if (!isValid) {
       setError('Senha incorreta.');
       return;
     }
@@ -128,8 +131,22 @@ export default function LoginScreen({ usuarios, settings, onLoginSuccess, onOpen
       return;
     }
 
+    // Silent migration to hashed password on first successful login
+    let userToLogin = foundUser;
+    if (!isHash(correctPassword)) {
+      try {
+        const hashed = hashPassword(password);
+        const updatedUser = { ...foundUser, senha: hashed };
+        saveToFirestore('usuarios', updatedUser);
+        userToLogin = updatedUser;
+        console.log('[Security] Senha migrada silenciosamente para hash seguro no login.');
+      } catch (err) {
+        console.error('[Security] Falha na migração silenciosa de senha:', err);
+      }
+    }
+
     // Login success!
-    onLoginSuccess(foundUser);
+    onLoginSuccess(userToLogin);
   };
 
   return (
