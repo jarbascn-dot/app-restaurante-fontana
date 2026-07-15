@@ -28,6 +28,7 @@ function getDatesInBR() {
   const d = new Date();
   const brOffset = -3 * 60; // Brasília is UTC-3
   const brTime = new Date(d.getTime() + (d.getTimezoneOffset() + brOffset) * 60000);
+  const weekday = brTime.getDay(); // 0 = Domingo ... 6 = Sábado
   
   const y = brTime.getFullYear();
   const m = String(brTime.getMonth() + 1).padStart(2, '0');
@@ -44,12 +45,12 @@ function getDatesInBR() {
   const currentMin = brTime.getMinutes();
   const currentTimeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`;
   
-  return { todayStr, tomorrowStr, currentTimeStr };
+  return { todayStr, tomorrowStr, currentTimeStr, weekday };
 }
 
 async function processBackgroundNotifications() {
   try {
-    const { todayStr, tomorrowStr, currentTimeStr } = getDatesInBR();
+    const { todayStr, currentTimeStr, weekday } = getDatesInBR();
     
     // 1. Load users
     const usersRef = collection(firestoreDb, 'usuarios');
@@ -86,6 +87,13 @@ async function processBackgroundNotifications() {
         subscriptionsMap.set(data.email.toLowerCase(), data);
       }
     });
+    // 4. Load holidays (feriados)
+    const feriadosRef = collection(firestoreDb, 'feriados');
+    const feriadosSnap = await getDocs(feriadosRef);
+    const feriados: any[] = [];
+    feriadosSnap.forEach(doc => {
+      feriados.push({ ...doc.data(), id: doc.id });
+    });
     
     for (const user of activeUsers) {
       const userEmail = (user.email || '').toLowerCase();
@@ -94,9 +102,24 @@ async function processBackgroundNotifications() {
       if (!sub) {
         continue;
       }
+      // Suprime notificação em feriados (nacionais ou específicos da obra do usuário), independente da opção escolhida
+      const isHolidayForUser = feriados.some((f: any) => {
+        if (f.data !== todayStr) return false;
+        if (!f.abrangencia || f.abrangencia === 'nacional') return true;
+        return f.idObras?.includes(user.idObraPadrao) ?? false;
+      });
+      if (isHolidayForUser) {
+        continue;
+      }
       
-      const targetTiming = user.alertaTiming || 'vespera';
-      const targetDate = targetTiming === 'vespera' ? tomorrowStr : todayStr;
+      const targetTiming = user.alertaTiming || 'todos_dias';
+
+      // "De Segunda a Sexta-Feira": pula o envio aos sábados (0) e domingos (6)
+      if (targetTiming === 'seg_sex' && (weekday === 0 || weekday === 6)) {
+        continue;
+      }
+
+      const targetDate = todayStr;
       
       const sendKey = `${user.id}-${targetDate}`;
       if (lastSentAlertsMap.get(sendKey) === currentTimeStr) {
@@ -118,32 +141,20 @@ async function processBackgroundNotifications() {
       if (alertType === 'reservada') {
         if (hasReservation) {
           shouldNotify = true;
-          bodyText = `🔔 SGR FONTANA: Olá, ${user.nome}! Você tem uma refeição reservada para AMANHÃ (${targetDateFormatted}). Bom apetite!`;
-          if (targetTiming === 'mesmo_dia') {
-            bodyText = `🔔 SGR FONTANA: Olá, ${user.nome}! Você tem uma refeição reservada para HOJE (${targetDateFormatted}). Não se esqueça!`;
-          }
+          bodyText = `🔔 SGR FONTANA: Olá, ${user.nome}! Você tem uma refeição reservada para HOJE (${targetDateFormatted}). Não se esqueça!`;
         }
       } else if (alertType === 'sem_reserva') {
         if (!hasReservation) {
           shouldNotify = true;
-          bodyText = `⚠️ SGR FONTANA: Atenção, ${user.nome}! Você NÃO possui refeição reservada para AMANHÃ (${targetDateFormatted}). Agende no app!`;
-          if (targetTiming === 'mesmo_dia') {
-            bodyText = `⚠️ SGR FONTANA: Atenção, ${user.nome}! Você NÃO possui refeição reservada para HOJE (${targetDateFormatted}). Marque no app!`;
-          }
+          bodyText = `⚠️ SGR FONTANA: Atenção, ${user.nome}! Você NÃO possui refeição reservada para HOJE (${targetDateFormatted}). Marque no app!`;
         }
       } else {
         // sempre
         shouldNotify = true;
         if (hasReservation) {
-          bodyText = `🔔 SGR FONTANA: Olá, ${user.nome}! Você tem refeição confirmada para AMANHÃ (${targetDateFormatted}). Prato principal está reservado!`;
-          if (targetTiming === 'mesmo_dia') {
-            bodyText = `🔔 SGR FONTANA: Olá, ${user.nome}! Você tem refeição confirmada para HOJE (${targetDateFormatted}). Aproveite seu almoço!`;
-          }
+          bodyText = `🔔 SGR FONTANA: Olá, ${user.nome}! Você tem refeição confirmada para HOJE (${targetDateFormatted}). Aproveite seu almoço!`;
         } else {
-          bodyText = `⚠️ SGR FONTANA: Olá, ${user.nome}! Você NÃO agendou refeição para AMANHÃ (${targetDateFormatted}). Reserve antes do horário limite!`;
-          if (targetTiming === 'mesmo_dia') {
-            bodyText = `⚠️ SGR FONTANA: Olá, ${user.nome}! Você NÃO agendou refeição para HOJE (${targetDateFormatted}). Reserve antes do encerramento!`;
-          }
+          bodyText = `⚠️ SGR FONTANA: Olá, ${user.nome}! Você NÃO agendou refeição para HOJE (${targetDateFormatted}). Reserve antes do encerramento!`;
         }
       }
       
