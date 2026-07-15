@@ -6,6 +6,8 @@
 import React, { useState, useEffect } from 'react';
 import { Fingerprint, CheckCircle2, XCircle, ShieldCheck, Smartphone, HelpCircle, Lock, ShieldAlert } from 'lucide-react';
 import { Usuario } from '../types';
+import { comparePassword, hashPassword, isHash } from '../lib/passwordUtils';
+import { saveToFirestore } from '../lib/firebaseSync';
 
 interface BiometriaModalProps {
   isOpen: boolean;
@@ -273,7 +275,22 @@ export default function BiometriaModal({
       return;
     }
 
-    if (matchedUser.senha === fallbackPassword) {
+    const correctPassword = matchedUser.senha || '1234@';
+    const isValid = comparePassword(fallbackPassword, correctPassword);
+
+    if (isValid) {
+      // Silent migration to hashed password on biometric fallback
+      if (!isHash(correctPassword)) {
+        try {
+          const hashed = hashPassword(fallbackPassword);
+          const updatedUser = { ...matchedUser, senha: hashed };
+          saveToFirestore('usuarios', updatedUser);
+          console.log('[Security] Senha migrada silenciosamente para hash seguro no login por biometria.');
+        } catch (err) {
+          console.error('[Security] Falha na migração silenciosa de senha (biometria):', err);
+        }
+      }
+
       setStatus('success');
       setTimeout(() => {
         onSuccessRef.current(targetEmail);
