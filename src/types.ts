@@ -56,7 +56,7 @@ export interface Usuario {
   criadoEm: string;
   fotoBiometria?: string; // Face Registration Photo/Template for Facial Scan
   alertaEnabled?: boolean;
-  alertaTiming?: 'vespera' | 'mesmo_dia';
+  alertaTiming?: 'todos_dias' | 'seg_sex';
   alertaTime?: string;
   aceitouLGPD?: boolean;
   dataAceiteLGPD?: string;
