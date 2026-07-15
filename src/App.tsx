@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+
 import React, { useState, useEffect } from 'react';
 import { 
   Perfil, 
@@ -26,6 +27,7 @@ import {
   INITIAL_LOGS 
 } from './data/mockData';
 
+
 import { db } from './firebase';
 import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { 
@@ -36,6 +38,7 @@ import {
   deleteFromFirestore
 } from './lib/firebaseSync';
 import { scheduleNotification, registerFCMToken } from './lib/notificationScheduler';
+
 
 // Components
 import SimulationHeader from './components/SimulationHeader';
@@ -52,6 +55,7 @@ import BiometriaModal from './components/BiometriaModal';
 import AccountSettingsModal from './components/AccountSettingsModal';
 import LgpdConsentModal from './components/LgpdConsentModal';
 import FirstAccessPasswordResetModal from './components/FirstAccessPasswordResetModal';
+
 
 // Icons
 import { 
@@ -71,6 +75,7 @@ import {
   X
 } from 'lucide-react';
 
+
 export default function App() {
   
   // --- DATABASE STATE PERSISTED VIA LOCALSTORAGE ---
@@ -79,10 +84,12 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_OBRAS;
   });
 
+
   const [empresas, setEmpresas] = useState<Empresa[]>(() => {
     const saved = localStorage.getItem('sgr_empresas');
     return saved ? JSON.parse(saved) : INITIAL_EMPRESAS;
   });
+
 
   const [usuarios, setUsuarios] = useState<Usuario[]>(() => {
     const saved = localStorage.getItem('sgr_usuarios');
@@ -98,15 +105,18 @@ export default function App() {
     return parsed;
   });
 
+
   const [feriados, setFeriados] = useState<Feriado[]>(() => {
     const saved = localStorage.getItem('sgr_feriados');
     return saved ? JSON.parse(saved) : INITIAL_FERIADOS;
   });
 
+
   const [reservas, setReservas] = useState<Reserva[]>(() => {
     const saved = localStorage.getItem('sgr_reservas');
     return saved ? JSON.parse(saved) : INITIAL_RESERVAS;
   });
+
 
   const [settings, setSettings] = useState<SystemSettings>(() => {
     const saved = localStorage.getItem('sgr_settings');
@@ -122,10 +132,12 @@ export default function App() {
     return INITIAL_SETTINGS;
   });
 
+
   const [logs, setLogs] = useState<AuditoriaLog[]>(() => {
     const saved = localStorage.getItem('sgr_logs');
     return saved ? JSON.parse(saved) : INITIAL_LOGS;
   });
+
 
   // --- OPERATION & SIMULATION CONTROL STATES ---
   const [modoProducao, setModoProducaoState] = useState<boolean>(() => {
@@ -133,10 +145,12 @@ export default function App() {
     return saved !== null ? saved === 'true' : true; // Default to true (Production Mode is the secure corporate standard)
   });
 
+
   const [isLogged, setIsLogged] = useState<boolean>(() => {
     const saved = localStorage.getItem('sgr_is_logged');
     return saved === 'true';
   });
+
 
   const [currentUser, setCurrentUser] = useState<Usuario>(() => {
     const savedUserId = localStorage.getItem('sgr_logged_user_id');
@@ -156,11 +170,13 @@ export default function App() {
   const [flashNotification, setFlashNotification] = useState<string | null>(null);
   const [backgroundPushAlert, setBackgroundPushAlert] = useState<string | null>(null);
 
+
   // Firestore DB status indicator
   const [dbState, setDbState] = useState<{ status: 'loading' | 'connected' | 'error'; errorMsg: string | null }>({
     status: 'loading',
     errorMsg: null
   });
+
 
   const [syncDetails, setSyncDetails] = useState<Record<string, { status: 'loading' | 'connected' | 'error'; errorMsg: string | null }>>({
     obras: { status: 'loading', errorMsg: null },
@@ -173,9 +189,11 @@ export default function App() {
   });
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
+
   // Biometric device authentication states
   const [deviceBiometricActive, setDeviceBiometricActive] = useState<boolean>(false);
   const [isBiometriaSetupOpen, setIsBiometriaSetupOpen] = useState<boolean>(false);
+
 
   // Sync state functions
   const setModoProducao = (val: boolean) => {
@@ -188,10 +206,12 @@ export default function App() {
     }
   };
 
+
   // Firestore Real-Time Shared State Sync
   useEffect(() => {
     let active = true;
     let unsubs: (() => void)[] = [];
+
 
     const initDbAndSync = async () => {
       try {
@@ -210,7 +230,9 @@ export default function App() {
         console.warn("[Firestore] Pre-seeding warning (non-blocking outside setup):", seedError);
       }
 
+
       if (!active) return;
+
 
       // 2. Setup snapshot listeners
       const unsubObras = onSnapshot(collection(db, 'obras'), (snap) => {
@@ -229,6 +251,7 @@ export default function App() {
       });
       unsubs.push(unsubObras);
 
+
       const unsubEmpresas = onSnapshot(collection(db, 'empresas'), (snap) => {
         console.log(`[Firestore] 'empresas' collection update: received ${snap.size} documents.`);
         const list: Empresa[] = [];
@@ -244,6 +267,7 @@ export default function App() {
         }
       });
       unsubs.push(unsubEmpresas);
+
 
       const unsubUsuarios = onSnapshot(collection(db, 'usuarios'), (snap) => {
         const list: Usuario[] = [];
@@ -267,6 +291,7 @@ export default function App() {
       });
       unsubs.push(unsubUsuarios);
 
+
       const unsubFeriados = onSnapshot(collection(db, 'feriados'), (snap) => {
         console.log(`[Firestore] 'feriados' collection update: received ${snap.size} documents.`);
         const list: Feriado[] = [];
@@ -282,6 +307,7 @@ export default function App() {
         }
       });
       unsubs.push(unsubFeriados);
+
 
       const unsubReservas = onSnapshot(collection(db, 'reservas'), (snap) => {
         console.log(`[Firestore] 'reservas' collection update: received ${snap.size} documents.`);
@@ -299,6 +325,7 @@ export default function App() {
       });
       unsubs.push(unsubReservas);
 
+
       const unsubSettings = onSnapshot(doc(db, 'settings', 'system'), (snap) => {
         console.log(`[Firestore] 'settings/system' document update received. Exists: ${snap.exists()}`);
         if (snap.exists() && active) {
@@ -314,7 +341,9 @@ export default function App() {
       unsubs.push(unsubSettings);
     };
 
+
     initDbAndSync();
+
 
     // Register Service Worker for robust client notifications under suspended background states on Android / iOS
     if ('serviceWorker' in navigator) {
@@ -329,11 +358,13 @@ export default function App() {
     };
   }, []);
 
+
   // Sync logs in real-time only if the user is authenticated and has an Admin profile
   useEffect(() => {
     if (!isLogged || !currentUser || currentUser.perfil !== Perfil.Admin) {
       return;
     }
+
 
     const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => {
       console.log(`[Firestore] 'logs' collection update (Admin): received ${snap.size} documents.`);
@@ -347,8 +378,10 @@ export default function App() {
       setSyncDetails(prev => ({ ...prev, logs: { status: 'error', errorMsg: err.message } }));
     });
 
+
     return () => unsubLogs();
   }, [isLogged, currentUser]);
+
 
   // Centralized sync status synchronization to derive dbState dynamically from syncDetails
   useEffect(() => {
@@ -362,11 +395,13 @@ export default function App() {
       return detail.status === 'error';
     });
 
+
     const activeLoadings = details.filter(([col, val]) => {
       const detail = val as { status: 'loading' | 'connected' | 'error'; errorMsg: string | null };
       if (col === 'logs') return false;
       return detail.status === 'loading';
     });
+
 
     if (activeErrors.length > 0) {
       const firstErrorDetail = activeErrors[0][1] as { status: 'loading' | 'connected' | 'error'; errorMsg: string | null };
@@ -387,9 +422,11 @@ export default function App() {
     }
   }, [syncDetails]);
 
+
   useEffect(() => {
     localStorage.setItem('sgr_is_logged', String(isLogged));
   }, [isLogged]);
+
 
   // Safety trigger: if simulator is disabled by Admin, force Production Mode immediately
   useEffect(() => {
@@ -398,6 +435,7 @@ export default function App() {
       triggerFlashNotification('Segurança Ativada: Modo Demonstração/Simulador suspenso permanentemente pelo administrador.');
     }
   }, [settings?.permitirSimulador, modoProducao]);
+
 
   // Compute dynamic active values based on operation mode
   const getTodayDate = () => {
@@ -413,6 +451,7 @@ export default function App() {
     }
   };
 
+
   const getIsAfterCutoff = () => {
     if (modoProducao) {
       const now = new Date();
@@ -425,8 +464,10 @@ export default function App() {
     }
   };
 
+
   const todayDate = getTodayDate();
   const isAfterCutoff = getIsAfterCutoff();
+
 
   // --- DETECT AND PURGE LEGACY LOCALSTORAGE DATA ---
   useEffect(() => {
@@ -439,6 +480,7 @@ export default function App() {
       (savedObras && (savedObras.includes('o-bella-vista') || savedObras.includes('Bella Vista') || savedObras.includes('Escritório Central') || !savedObras.includes('o-sede'))) ||
       (savedUsers && !savedUsers.includes('jarbas.nunes@estilofontana.com.br')) ||
       (savedObras && savedReservas && JSON.parse(savedReservas).length > 0 && JSON.parse(savedObras).some((o: any) => o.id === 'o-bella-vista'));
+
 
     if (needsPurge) {
       console.log('Legacy SGR browser cache detected. Purging local storage for a clean FONTANA instance.');
@@ -461,14 +503,17 @@ export default function App() {
     }
   }, []);
 
+
   // Sync state to local storage when changed
   useEffect(() => {
     localStorage.setItem('sgr_obras', JSON.stringify(obras));
   }, [obras]);
 
+
   useEffect(() => {
     localStorage.setItem('sgr_empresas', JSON.stringify(empresas));
   }, [empresas]);
+
 
   useEffect(() => {
     localStorage.setItem('sgr_usuarios', JSON.stringify(usuarios));
@@ -479,21 +524,26 @@ export default function App() {
     }
   }, [usuarios]);
 
+
   useEffect(() => {
     localStorage.setItem('sgr_feriados', JSON.stringify(feriados));
   }, [feriados]);
+
 
   useEffect(() => {
     localStorage.setItem('sgr_reservas', JSON.stringify(reservas));
   }, [reservas]);
 
+
   useEffect(() => {
     localStorage.setItem('sgr_settings', JSON.stringify(settings));
   }, [settings]);
 
+
   useEffect(() => {
     localStorage.setItem('sgr_logs', JSON.stringify(logs));
   }, [logs]);
+
 
   // Enforce tab security context if current user role changes
   useEffect(() => {
@@ -507,11 +557,13 @@ export default function App() {
       setActiveTab('dashboard'); // Admin has access and defaults to dashboard
     }
 
+
     if (currentUser) {
       setDeviceBiometricActive(localStorage.getItem('sgr_biometria_cadastrada_' + currentUser.email) === 'true');
       localStorage.setItem('sgr_logged_user_id', currentUser.id);
     }
   }, [currentUser]);
+
 
   // Synchronise and reschedule system alarms whenever session updates
   useEffect(() => {
@@ -529,11 +581,13 @@ export default function App() {
     }
   }, [isLogged, currentUser?.email, currentUser?.alertaEnabled, currentUser?.alertaTime, settings?.horarioLimite]);
 
+
   // Helper helper to generate system logs
   const appendAuditLog = (operation: string, overrideUserName?: string, overrideEmail?: string) => {
     const timestamp = modoProducao 
       ? new Date().toISOString()
       : `${new Date().toISOString().split('T')[0]}T${virtualTime}:00Z`;
+
 
     const newLog: AuditoriaLog = {
       id: 'log-' + Math.random().toString(36).substr(2, 9),
@@ -549,16 +603,20 @@ export default function App() {
     saveToFirestore('logs', newLog);
   };
 
+
   const triggerFlashNotification = (msg: string) => {
     setFlashNotification(msg);
     setTimeout(() => setFlashNotification(null), 5000);
   };
 
+
   // --- ACTIONS WORKFLOW ---
+
 
   // Click on date (Reservado -> Cancelado)
   const handleToggleReserva = (dateStr: string) => {
     const existingIndex = reservas.findIndex(r => r.idUsuario === currentUser.id && r.data === dateStr);
+
 
     if (existingIndex > -1) {
       const updated = [...reservas];
@@ -597,6 +655,7 @@ export default function App() {
     }
   };
 
+
   // Period / Batch Booking action
   const handlePeriodReserva = (startDate: string, endDate: string, action: 'reservar' | 'cancelar') => {
     const loopStart = new Date(startDate + 'T12:00:00');
@@ -604,6 +663,7 @@ export default function App() {
     
     const newBatchReservations: Reserva[] = [];
     const updatedExistingReservations = [...reservas];
+
 
     // Build unique day arrays inside standard June month
     for (let d = new Date(loopStart); d <= loopEnd; d.setDate(d.getDate() + 1)) {
@@ -615,23 +675,28 @@ export default function App() {
       const dStr = day < 10 ? `0${day}` : `${day}`;
       const dateStr = `${year}-${mStr}-${dStr}`;
 
+
       // Enforce weekend validation if necessary
       const dayOfWeek = d.getDay(); // 0 is Sunday, 6 is Saturday
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
+
       if (isWeekend && !settings.permitirFinsDeSemana) {
         continue; // skip the weekend day in batch actions
       }
+
 
       // Prevent batch actions on past dates
       if (dateStr < todayDate) {
         continue;
       }
 
+
       // Prevent batch actions on current day if past cutoff threshold
       if (dateStr === todayDate && isAfterCutoff) {
         continue;
       }
+
 
       // Prevent batch actions on holidays applicable to this user
       const isHoliday = feriados.some(f => {
@@ -643,12 +708,15 @@ export default function App() {
         continue;
       }
 
+
       // Check if existing
       const existingIdx = updatedExistingReservations.findIndex(
         r => r.idUsuario === currentUser.id && r.data === dateStr
       );
 
+
       const statusValue = action === 'reservar' ? ReservaStatus.Reservado : ReservaStatus.Cancelado;
+
 
       if (existingIdx > -1) {
         updatedExistingReservations[existingIdx].status = statusValue;
@@ -670,6 +738,7 @@ export default function App() {
       }
     }
 
+
     const finalSet = [...updatedExistingReservations, ...newBatchReservations];
     setReservas(finalSet);
     
@@ -679,9 +748,11 @@ export default function App() {
       saveBatchToFirestore('reservas', userReservas);
     }
 
+
     appendAuditLog(`Ação em lote (${action}) executada no período de ${startDate} a ${endDate}`);
     triggerFlashNotification(`Lote processado! Todos os dias úteis entre ${startDate} e ${endDate} foram alterados para: ${action.toUpperCase()}`);
   };
+
 
   const handleUpdatePassword = (newSenha: string) => {
     const updatedUser = { ...currentUser, senha: newSenha };
@@ -690,7 +761,8 @@ export default function App() {
     saveToFirestore('usuarios', updatedUser);
   };
 
-  const handleUpdateNotifications = async (enabled: boolean, timing: 'vespera' | 'mesmo_dia', time: string, tipo: 'reservada' | 'sem_reserva' | 'sempre') => {
+
+  const handleUpdateNotifications = async (enabled: boolean, timing: 'todos_dias' | 'seg_sex', time: string, tipo: 'reservada' | 'sem_reserva' | 'sempre') => {
     try {
       const updatedUser = { 
         ...currentUser, 
@@ -700,6 +772,7 @@ export default function App() {
         alertaTipo: tipo
       };
 
+
       // Clean up legacy or unneeded fields on user object before saving to Firestore to fit the 24 key size limit
       const cleanUser = { ...updatedUser };
       delete (cleanUser as any).alertasAtivados;
@@ -708,12 +781,15 @@ export default function App() {
       delete (cleanUser as any).alertasTipo;
       delete (cleanUser as any).alertaChannel;
 
+
       // Optimistically update local states
       setUsuarios(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
       setCurrentUser(updatedUser);
 
+
       // Save user profile changes to Firestore
       await saveToFirestore('usuarios', cleanUser);
+
 
       // Sync with notificationQueue in Firestore for daily background scheduler daemons
       const emailStr = (currentUser.email || '').toLowerCase().trim();
@@ -748,13 +824,15 @@ export default function App() {
         }
       }
 
-      appendAuditLog(`Alterou configurações de alertas para: ${enabled ? 'Habilitado' : 'Desabilitado'} (${timing === 'vespera' ? 'Véspera' : 'No dia'} às ${time}, tipo: ${tipo})`);
+
+      appendAuditLog(`Alterou configurações de alertas para: ${enabled ? 'Habilitado' : 'Desabilitado'} (${timing === 'todos_dias' ? 'Todos os Dias' : 'De Segunda a Sexta-Feira'} às ${time}, tipo: ${tipo})`);
       triggerFlashNotification('Configurações de lembretes salvas e sincronizadas com o banco de dados! 🔔');
     } catch (err: any) {
       console.error('[Error] Falha ao atualizar alertas na nuvem:', err);
       triggerFlashNotification(`Falha ao salvar no banco: ${err.message || String(err)} ❌`);
     }
   };
+
 
   // RH approves or blocks pending users with details provided at approval time
   const handleApproveUser = (
@@ -793,10 +871,12 @@ export default function App() {
     });
     setUsuarios(updated);
 
+
     const finalUserObj = updated.find(u => u.id === id);
     if (finalUserObj) {
       saveToFirestore('usuarios', finalUserObj);
     }
+
 
     const userObj = usuarios.find(u => u.id === id);
     
@@ -813,6 +893,7 @@ export default function App() {
     triggerFlashNotification(status === UserStatus.Aprovado ? `Colaborador aprovado com sucesso! Carimbo e dados salvos pelo RH. ✅` : `Cadastro rejeitado.`);
   };
 
+
   // Toggle user activation / block desocupado
   const handleToggleUserActive = (id: string) => {
     const updated = usuarios.map(u => {
@@ -824,10 +905,12 @@ export default function App() {
     });
     setUsuarios(updated);
 
+
     const finalUserObj = updated.find(u => u.id === id);
     if (finalUserObj) {
       saveToFirestore('usuarios', finalUserObj);
     }
+
 
     const userObj = usuarios.find(u => u.id === id);
     const wasDeactivated = userObj?.status !== UserStatus.Desativado;
@@ -835,9 +918,11 @@ export default function App() {
       ? `Usuário DESATIVADO (Desligador/Sem uso): ${userObj?.nome}`
       : `Usuário REATIVADO: ${userObj?.nome}`;
 
+
     appendAuditLog(opMessage);
     triggerFlashNotification(wasDeactivated ? `Colaborador desativado do ecossistema SGR.` : `Colaborador reativado!`);
   };
+
 
   // Perform soft-delete (exclusion) on user to keep their historic bookings for HR payroll/termination auditing,
   // while removing all credentials and deleting future bookings securely.
@@ -845,7 +930,9 @@ export default function App() {
     const userToDelete = usuarios.find(u => u.id === id);
     if (!userToDelete) return;
 
+
     const todayDate = getTodayDate();
+
 
     // 1. Soft-delete the user document by setting status to Excluido and wiping active credentials
     const cleanUser: Usuario = {
@@ -857,6 +944,7 @@ export default function App() {
       alertaEnabled: false // disable active alerts
     };
 
+
     try {
       await saveToFirestore('usuarios', cleanUser);
     } catch (e) {
@@ -867,6 +955,7 @@ export default function App() {
     const userReservations = reservas.filter(r => r.idUsuario === id);
     const futureReservas = userReservations.filter(r => r.data > todayDate);
 
+
     // 3. Delete only future reservations from Firestore 'reservas' collection
     for (const res of futureReservas) {
       try {
@@ -876,16 +965,19 @@ export default function App() {
       }
     }
 
+
     // 4. Update local states
     // - Keep the user in local usuarios state but with the Excluido status, so reports can resolve details
     setUsuarios(prev => prev.map(u => u.id === id ? cleanUser : u));
     // - Remove only future reservations from local state (keep past or current reservations)
     setReservas(prev => prev.filter(r => r.idUsuario !== id || r.data <= todayDate));
 
+
     // 5. Log the audit activity
     appendAuditLog(`Colaborador Desligado/Excluído pelo RH: ${userToDelete.nome} (CPF: ${userToDelete.cpf || 'N/A'}, Matrícula: ${userToDelete.matricula || 'N/A'}). O cadastro foi desativado do ecossistema e todas as reservas futuras foram canceladas. As reservas passadas foram preservadas para auditoria do RH e faturamento.`);
     triggerFlashNotification(`Colaborador "${userToDelete.nome}" desligado. Reservas futuras removidas e histórico mantido para faturamento do RH.`);
   };
+
 
   // Save Settings from Admin Panel
   const handleSaveSettings = (newSettings: SystemSettings) => {
@@ -894,6 +986,7 @@ export default function App() {
     appendAuditLog(`Parâmetros de Sistema atualizados: Limite=${newSettings.horarioLimite}, Preço Próprio=R$ ${newSettings.valorRefeicaoPropria}`);
     triggerFlashNotification('Parâmetros administrativos salvos com sucesso! ⚙');
   };
+
 
   // Save / Update Obra (Worksite) Settings & Pricing
   const handleSaveObra = async (newObra: Obra) => {
@@ -910,6 +1003,7 @@ export default function App() {
     appendAuditLog(`Unidade/Obra configurada: ${newObra.nome} (${newObra.centroCusto}) - Preço Refeição: R$ ${newObra.valorRefeicao?.toFixed(2) || 'Global (padrão)'}`);
     triggerFlashNotification(`Unidade ${newObra.nome} configurada com sucesso!`);
   };
+
 
   // Save / Update User (Colaborador) properties
   const handleSaveUser = async (updatedUser: Usuario) => {
@@ -930,6 +1024,7 @@ export default function App() {
     appendAuditLog(`Usuário salvo pelo RH: ${updatedUser.nome} (${updatedUser.email}) - Perfil: ${updatedUser.perfil}`);
     triggerFlashNotification(`Colaborador ${updatedUser.nome} salvo com sucesso!`);
   };
+
 
   // Save / Update Empresa properties
   const handleSaveEmpresa = async (newEmp: Empresa, originalId?: string) => {
@@ -956,6 +1051,7 @@ export default function App() {
     triggerFlashNotification(`Empresa ${newEmp.nome} configurada com sucesso!`);
   };
 
+
   const handleResetUserPassword = (userId: string, tempPass: string) => {
     let targetUser: Usuario | undefined;
     setUsuarios(prev => prev.map(u => {
@@ -974,6 +1070,7 @@ export default function App() {
     }, 100);
   };
 
+
   // Save / Update Feriado properties
   const handleSaveFeriado = async (newFeriado: Feriado) => {
     setFeriados(prev => {
@@ -990,10 +1087,12 @@ export default function App() {
     triggerFlashNotification(`Feriado "${newFeriado.descricao}" gravado com sucesso!`);
   };
 
+
   // Delete Feriado
   const handleDeleteFeriado = async (id: string) => {
     const found = feriados.find(f => f.id === id);
     if (!found) return;
+
 
     setFeriados(prev => prev.filter(f => f.id !== id));
     try {
@@ -1004,6 +1103,7 @@ export default function App() {
     appendAuditLog(`Feriado excluído: ${found.descricao} na data ${found.data}`);
     triggerFlashNotification(`Feriado "${found.descricao}" removido com sucesso.`);
   };
+
 
   // Clear reservations based on selected mode
   const handleClearAllReservas = async (mode: 'all' | 'future') => {
@@ -1019,9 +1119,11 @@ export default function App() {
       return;
     }
 
+
     const modeText = mode === 'all' 
       ? 'TODAS as reservas (histórico completo de consumos e planejamentos futuros)' 
       : `reservas da data atual (${todayStr}) em diante`;
+
 
     let isConfirmed = false;
     try {
@@ -1030,6 +1132,7 @@ export default function App() {
       isConfirmed = true; // safe fallback in iframe environments where confirm is blocked
     }
     if (!isConfirmed) return;
+
 
     // Delete in Firestore
     try {
@@ -1058,6 +1161,7 @@ export default function App() {
       return;
     }
 
+
     // Update state correctly
     if (mode === 'all') {
       setReservas([]);
@@ -1073,6 +1177,7 @@ export default function App() {
     }
   };
 
+
   // Save / Add a reservation (especially for visitors or manually created by RH)
   const handleAddReserva = (newRes: Reserva) => {
     setReservas(prev => {
@@ -1086,6 +1191,7 @@ export default function App() {
     triggerFlashNotification(`Lançamento realizado: ${newRes.nomeVisitante || 'Refeição Colaborador'} agendada! 🟢`);
   };
 
+
   // Delete/Cancel a reservation manually by RH
   const handleDeleteReserva = async (id: string) => {
     setReservas(prev => prev.filter(r => r.id !== id));
@@ -1098,10 +1204,12 @@ export default function App() {
     triggerFlashNotification('Lançamento excluído com sucesso.');
   };
 
+
   // Simulated facial biometrics scan confirms withdrawal of meal in kitchen
   const handleConfirmWithdrawal = (idUsuario: string, date: string, excessFee: boolean) => {
     const existingIndex = reservas.findIndex(r => r.idUsuario === idUsuario && r.data === date);
     const userObj = usuarios.find(u => u.id === idUsuario);
+
 
     if (existingIndex > -1) {
       const updated = [...reservas];
@@ -1128,6 +1236,7 @@ export default function App() {
       appendAuditLog(`REFEIÇÃO EXCEDENTE RETIRADA: Gravado custo extra para obra de ${userObj?.nome} (sem reserva prévia)`, userObj?.nome, userObj?.email);
     }
   };
+
 
   // Register a new user from register modal form
   const handleRegisterUser = (newUser: Usuario, finishMessage: string) => {
@@ -1158,11 +1267,13 @@ export default function App() {
     saveToFirestore('logs', newLogItem);
     triggerFlashNotification(finishMessage);
 
+
     // If autoApproved, switch simulations to this user to let them test!
     if (newUser.status === UserStatus.Aprovado) {
       setCurrentUser(newUser);
     }
   };
+
 
   // Handle first-access provisional password reset mandate
   const handleMandatoryPasswordReset = (newPassword: string) => {
@@ -1172,9 +1283,11 @@ export default function App() {
       requerTrocaSenha: false
     };
 
+
     // Update in Global list state
     setUsuarios(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
     setCurrentUser(updatedUser);
+
 
     // Persist into LocalStorage list fallback
     const saved = localStorage.getItem('sgr_usuarios');
@@ -1186,14 +1299,18 @@ export default function App() {
       } catch {}
     }
 
+
     // Save to Firestore Database
     saveToFirestore('usuarios', updatedUser);
+
 
     // Corporate compliance audit log
     appendAuditLog(`ALTERAÇÃO OBRIGATÓRIA DE SENHA: Colaborador alterou a senha provisória de primeiro acesso com sucesso.`, currentUser.nome, currentUser.email);
 
+
     triggerFlashNotification(`Senha cadastrada com sucesso! Bem-vindo ao SGR da Fontana. 🔐`);
   };
+
 
   // Accept privacy terms & LGPD consent handler
   const handleAcceptLGPD = (ip: string) => {
@@ -1239,6 +1356,7 @@ export default function App() {
     triggerFlashNotification(`Termos de Privacidade (LGPD) aceitos com sucesso! Básico liberado. 🛡️`);
   };
 
+
   const handleDeclineLGPD = () => {
     if (modoProducao) {
       // Clear session logic
@@ -1256,6 +1374,7 @@ export default function App() {
     }
   };
 
+
   // Standard Factory reset
   const handleReset = () => {
     let isConfirmed = false;
@@ -1266,6 +1385,7 @@ export default function App() {
     }
     if (!isConfirmed) return;
 
+
     localStorage.removeItem('sgr_obras');
     localStorage.removeItem('sgr_empresas');
     localStorage.removeItem('sgr_usuarios');
@@ -1273,6 +1393,7 @@ export default function App() {
     localStorage.removeItem('sgr_reservas');
     localStorage.removeItem('sgr_settings');
     localStorage.removeItem('sgr_logs');
+
 
     setObras(INITIAL_OBRAS);
     setEmpresas(INITIAL_EMPRESAS);
@@ -1282,6 +1403,7 @@ export default function App() {
     setSettings(INITIAL_SETTINGS);
     setLogs(INITIAL_LOGS);
 
+
     saveBatchToFirestore('obras', INITIAL_OBRAS);
     saveBatchToFirestore('empresas', INITIAL_EMPRESAS);
     saveBatchToFirestore('usuarios', INITIAL_USUARIOS);
@@ -1290,6 +1412,7 @@ export default function App() {
     saveSystemSettings(INITIAL_SETTINGS);
     saveBatchToFirestore('logs', INITIAL_LOGS);
 
+
     setCurrentUser(INITIAL_USUARIOS[0]);
     setVirtualTime('07:30');
     setActiveTab('dashboard');
@@ -1297,11 +1420,14 @@ export default function App() {
     triggerFlashNotification('Banco de dados em nuvem reiniciado com sucesso! 🔄');
   };
 
+
   // Utility mappings
   const getObraName = (id: string) => obras.find(o => o.id === id)?.nome || 'Sede';
 
+
   // Count pending users for simulation indicators
   const pendingCount = usuarios.filter(u => u.status === UserStatus.Pendente).length;
+
 
   const clearAllAndReload = async () => {
     try {
@@ -1329,6 +1455,7 @@ export default function App() {
     }
   };
 
+
   const handleLogout = () => {
     localStorage.removeItem('sgr_is_logged');
     localStorage.removeItem('sgr_logged_user_id');
@@ -1337,6 +1464,7 @@ export default function App() {
     setCurrentUser(foundAdmin);
     triggerFlashNotification('Sessão encerrada com sucesso.');
   };
+
 
   // Login guard screen for Production Mode
   if (modoProducao && !isLogged) {
@@ -1352,6 +1480,7 @@ export default function App() {
           registerFCMToken(user.id);
             setIsLogged(true);
             triggerFlashNotification(`Bem-vindo, ${user.nome}! Identificação efetuada com sucesso.`);
+
 
             // Auto-recuperacao de biometria: se o usuario ja tinha biometria ativada
             // anteriormente neste app (email/cpf salvo na lista local), mas a credencial
@@ -1384,6 +1513,7 @@ export default function App() {
     );
   }
 
+
   return (
     <div className="bg-neutral-100 min-h-screen text-neutral-800 font-sans flex flex-col" id="app-root-container">
       
@@ -1405,6 +1535,7 @@ export default function App() {
         settings={settings}
       />
 
+
       {/* Main Flash Feedback alert */}
       {flashNotification && (
         <div className="max-w-7xl mx-auto px-4 mt-4 w-full" id="flash-notifier-overlay text-xs">
@@ -1414,6 +1545,7 @@ export default function App() {
           </div>
         </div>
       )}
+
 
       {/* Background/Scheduled PWA FCM Push Notification floating banner slide down */}
       {backgroundPushAlert && (
@@ -1436,6 +1568,7 @@ export default function App() {
           </button>
         </div>
       )}
+
 
       {/* Database offline/error feedback alert */}
       {dbState.status === 'error' && (
@@ -1463,6 +1596,7 @@ export default function App() {
                 </button>
               </div>
             </div>
+
 
             {showDiagnostics && (
               <div className="bg-white border border-amber-200 rounded-xl p-4 space-y-3 animate-[fadeIn_0.2s_ease]">
@@ -1528,6 +1662,7 @@ export default function App() {
         </div>
       )}
 
+
       {/* Content Layout */}
       <main className="max-w-7xl mx-auto px-4 py-6 flex-1 w-full flex flex-col gap-6" id="sgr-main-viewport">
         {/* Strict security checks: if user is pending, block fully */}
@@ -1550,6 +1685,7 @@ export default function App() {
                   Menu Operacional
                 </span>
 
+
                 {/* Submenu links */}
                 <div className="flex flex-row md:flex-col gap-1 overflow-x-auto p-1 bg-white md:bg-transparent rounded-lg border border-neutral-200 md:border-none shadow-xs md:shadow-none">
                   
@@ -1568,6 +1704,7 @@ export default function App() {
                         <LayoutDashboard className="h-4.5 w-4.5" /> Painel de Indicadores
                       </button>
 
+
                       <button
                         onClick={() => setActiveTab('colaborador')}
                         className={`w-full text-left px-3.5 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2 shrink-0 ${
@@ -1579,6 +1716,7 @@ export default function App() {
                       >
                         <CalendarRange className="h-4.5 w-4.5" /> Agenda do Colaborador
                       </button>
+
 
                       <button
                         onClick={() => setActiveTab('admin')}
@@ -1597,6 +1735,7 @@ export default function App() {
                         )}
                       </button>
 
+
                       <button
                         onClick={() => setActiveTab('reports')}
                         className={`w-full text-left px-3.5 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2 shrink-0 ${
@@ -1609,6 +1748,7 @@ export default function App() {
                         <FilePieChart className="h-4.5 w-4.5" /> Relatórios & Custos
                       </button>
 
+
                       <button
                         onClick={() => setActiveTab('refeitorio')}
                         className={`w-full text-left px-3.5 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2 shrink-0 ${
@@ -1620,6 +1760,7 @@ export default function App() {
                       >
                         <ChefHat className="h-4.5 w-4.5" /> Tablet do Refeitório (Cozinha)
                       </button>
+
 
                       <button
                         onClick={() => setActiveTab('gestor')}
@@ -1634,6 +1775,7 @@ export default function App() {
                       </button>
                     </>
                   )}
+
 
                   {/* COLABORADOR / ADMIN BUTTONS */}
                   {(currentUser.perfil === Perfil.Colaborador || currentUser.perfil === Perfil.Admin) && (
@@ -1650,6 +1792,7 @@ export default function App() {
                     </button>
                   )}
 
+
                   {/* GESTOR ONLY BUTTONS */}
                   {currentUser.perfil === Perfil.Gestor && (
                     <button
@@ -1664,6 +1807,7 @@ export default function App() {
                       <HardHat className="h-4.5 w-4.5 text-emerald-600" /> Minhas Equipes (Áreas/Obras)
                     </button>
                   )}
+
 
                   {/* FORNECEDOR ONLY BUTTONS */}
                   {currentUser.perfil === Perfil.Fornecedor && (
@@ -1680,7 +1824,11 @@ export default function App() {
                     </button>
                   )}
 
+
                 </div>
+
+
+
 
 
 
@@ -1710,6 +1858,7 @@ export default function App() {
                             localStorage.setItem('sgr_biometria_cadastrada_emails', JSON.stringify(filtered));
                           } catch (e) {}
 
+
                           setDeviceBiometricActive(false);
                           appendAuditLog(`Usuário removeu cadastro de biometria deste dispositivo.`);
                           alert("Biometria desativada com sucesso neste aparelho!");
@@ -1736,6 +1885,7 @@ export default function App() {
                   )}
                 </div>
 
+
                 {/* Account Settings & Notifications Shortcut Widget */}
                 <div className="bg-white p-4 rounded-xl border border-neutral-200 shadow-xs text-neutral-600 space-y-3 mt-4" id="account-settings-sidebar-badge">
                   <div className="flex items-center gap-2">
@@ -1760,6 +1910,7 @@ export default function App() {
                 </div>
               </aside>
 
+
               {/* Central Dynamic Context Area View Router */}
               <div className="flex-1" id="dynamic-viewport-container">
                 {activeTab === 'dashboard' && currentUser.perfil === Perfil.Admin && (
@@ -1772,6 +1923,7 @@ export default function App() {
                     todayDate={todayDate}
                   />
                 )}
+
 
                 {activeTab === 'colaborador' && (
                   <ColaboradorView
@@ -1788,6 +1940,7 @@ export default function App() {
                     onSaveObra={handleSaveObra}
                   />
                 )}
+
 
                 {activeTab === 'admin' && currentUser.perfil === Perfil.Admin && (
                   <AdminView
@@ -1813,6 +1966,7 @@ export default function App() {
                   />
                 )}
 
+
                 {activeTab === 'reports' && currentUser.perfil === Perfil.Admin && (
                   <ReportsView
                     reservas={reservas}
@@ -1823,6 +1977,7 @@ export default function App() {
                     todayDate={todayDate}
                   />
                 )}
+
 
                 {activeTab === 'refeitorio' && currentUser.perfil === Perfil.Admin && (
                   <RefeitorioView
@@ -1836,6 +1991,7 @@ export default function App() {
                   />
                 )}
 
+
                 {activeTab === 'gestor' && (currentUser.perfil === Perfil.Gestor || currentUser.perfil === Perfil.Admin) && (
                   <GestorView
                     currentUser={currentUser}
@@ -1848,6 +2004,7 @@ export default function App() {
                   />
                 )}
 
+
                 {activeTab === 'fornecedor' && currentUser.perfil === Perfil.Fornecedor && (
                   <FornecedorView
                     currentUser={currentUser}
@@ -1859,10 +2016,12 @@ export default function App() {
                 )}
               </div>
 
+
             </div>
           </>
         )}
       </main>
+
 
       {/* Footer information bar */}
       <footer className="bg-neutral-900 border-t border-neutral-800 py-6 text-center text-xs text-neutral-500 mt-12 space-y-2">
@@ -1874,6 +2033,7 @@ export default function App() {
         </p>
       </footer>
 
+
       {/* Register dialog modal */}
       <RegisterModal
         isOpen={isRegisterOpen}
@@ -1883,6 +2043,7 @@ export default function App() {
         usuarios={usuarios}
         onRegister={handleRegisterUser}
       />
+
 
       {/* Biometrics registration modal */}
       <BiometriaModal
@@ -1908,6 +2069,7 @@ export default function App() {
             }
           } catch (e) {}
 
+
           setDeviceBiometricActive(true);
           appendAuditLog(`Usuário cadastrou biometria do celular neste aparelho.`, currentUser.nome, currentUser.email);
           setIsBiometriaSetupOpen(false);
@@ -1920,6 +2082,7 @@ export default function App() {
         userEmail={currentUser.cpf || currentUser.email}
         usuarios={usuarios}
       />
+
 
       {/* Account Settings & Alertas Modal */}
       <AccountSettingsModal
@@ -1937,6 +2100,7 @@ export default function App() {
         settings={settings}
       />
 
+
       {/* LGPD Consent System Modal */}
       <LgpdConsentModal
         isOpen={isLogged && !currentUser.aceitouLGPD}
@@ -1944,6 +2108,7 @@ export default function App() {
         onAccept={handleAcceptLGPD}
         onDecline={handleDeclineLGPD}
       />
+
 
       {/* Primeiro Acesso: Redefinição Obrigatória de Senha Provisória */}
       <FirstAccessPasswordResetModal
