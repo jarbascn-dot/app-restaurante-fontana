@@ -46,7 +46,7 @@
         "criadoEm": { "type": "string", "format": "date-time", "description": "Data do cadastro" },
         "fotoBiometria": { "type": "string", "description": "Foto da biometria facial registrada" },
         "alertaEnabled": { "type": "boolean", "description": "Se os lembretes de refeição estão habilitados" },
-        "alertaTiming": { "type": "string", "enum": ["vespera", "mesmo_dia"], "description": "Timing do alerta" },
+        "alertaTiming": { "type": "string", "enum": ["todos_dias", "seg_sex"], "description": "Frequência do alerta: todos os dias ou apenas dias úteis (seg-sex)" },
         "alertaTime": { "type": "string", "description": "Hórario do alerta formatado HH:MM" },
         "fcmToken": { "type": "string", "description": "FCM token for mobile/web push notifications" }
       },
