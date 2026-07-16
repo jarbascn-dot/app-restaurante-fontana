@@ -195,8 +195,8 @@ export default function AdminView({
       perfil: Perfil.Colaborador,
       idObrasFornecedor: [],
       fotoBiometria: '',
-      senha: '1234@',
-      requerTrocaSenha: true
+      senha: '',
+      requerTrocaSenha: false
     };
   };
 
@@ -583,23 +583,22 @@ export default function AdminView({
                             🔑 Credenciais e Senha de Primeiro Acesso
                           </span>
                           <span className="text-[11px] text-neutral-500 block leading-tight mt-0.5">
-                            Configure a senha provisória de acesso do colaborador. Ao fazer o primeiro login, ele será obrigado a cadastrar uma nova senha pessoal definitiva.
+                            Por padrão, é mantida a senha que o colaborador já definiu no cadastro. Preencha o campo abaixo apenas se quiser definir uma nova senha manualmente.
                           </span>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 pt-2 border-t border-neutral-150">
                             <div>
                               <label className="block text-[11px] font-bold text-neutral-700 uppercase tracking-tight mb-1">
-                                Senha Provisória de Entrada *
+                                Senha de Acesso (opcional)
                               </label>
                               <input
                                 type="text"
-                                required
                                 value={formVal.senha || ''}
                                 onChange={(e) => updateFormValue(u.id, 'senha', e.target.value)}
                                 className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-xs bg-white text-neutral-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono font-bold"
-                                placeholder="Defina a senha temporária"
+                                placeholder="Deixe em branco para manter a senha do colaborador"
                               />
-                              <span className="text-[9px] text-neutral-405 block mt-0.5">RH precisará passar esta senha verbalmente ou por Whatsapp.</span>
+                              <span className="text-[9px] text-neutral-405 block mt-0.5">Se deixado em branco, será mantida a senha que o colaborador já cadastrou.</span>
                             </div>
 
                             <div className="flex items-center font-sans">
