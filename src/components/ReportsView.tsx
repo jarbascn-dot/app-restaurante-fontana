@@ -24,9 +24,20 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
   // Monthly search
   const [searchMonthlyUser, setSearchMonthlyUser] = useState('');
   
-  // Financial Filters
-  const [finStart, setFinStart] = useState('2026-06-01');
-  const [finEnd, setFinEnd] = useState('2026-06-30');
+  // Helper: primeiro e ultimo dia do mes atual (baseado em todayDate)
+    const getMonthStart = (ref: string) => {
+          const [y, m] = ref.split('-').map(Number);
+          return `${y}-${String(m).padStart(2, '0')}-01`;
+    };
+    const getMonthEnd = (ref: string) => {
+          const [y, m] = ref.split('-').map(Number);
+          const lastDay = new Date(y, m, 0).getDate();
+          return `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    };
+  
+    // Financial Filters
+  const [finStart, setFinStart] = useState(getMonthStart(todayDate));
+  const [finEnd, setFinEnd] = useState(getMonthEnd(todayDate));
   const [filterFinObra, setFilterFinObra] = useState<string>('all');
   const [filterFinEmpresa, setFilterFinEmpresa] = useState<string>('all');
 
@@ -36,12 +47,12 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
 
   // Desconto em Folha monthly report Filters
   const [filterDescontoEmpresa, setFilterDescontoEmpresa] = useState<string>('all');
-  const [descontoStart, setDescontoStart] = useState('2026-06-01');
-  const [descontoEnd, setDescontoEnd] = useState('2026-06-30');
+  const [descontoStart, setDescontoStart] = useState(getMonthStart(todayDate));
+  const [descontoEnd, setDescontoEnd] = useState(getMonthEnd(todayDate));
 
   // Report by Company and Period Filters
-  const [empresaStart, setEmpresaStart] = useState('2026-06-01');
-  const [empresaEnd, setEmpresaEnd] = useState('2026-06-30');
+  const [empresaStart, setEmpresaStart] = useState(getMonthStart(todayDate));
+  const [empresaEnd, setEmpresaEnd] = useState(getMonthEnd(todayDate));
   const [filterEmpresaObra, setFilterEmpresaObra] = useState<string>('all');
 
   const getUsuario = (id: string) => usuarios.find(u => u.id === id);
