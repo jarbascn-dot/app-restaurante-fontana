@@ -33,6 +33,8 @@ class MainActivity : AppCompatActivity() {
 
     webView.settings.javaScriptEnabled = true
     webView.settings.domStorageEnabled = true
+    webView.settings.useWideViewPort = true
+    webView.settings.loadWithOverviewMode = true
     webView.webViewClient = WebViewClient()
     webView.addJavascriptInterface(SGRNativeBridge(this, webView), "SGRNativeBridge")
     webView.loadUrl(PRODUCTION_URL)
