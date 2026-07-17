@@ -216,7 +216,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: '20mb' }));
 
   // API Route - Get VAPID Public Key so client can subscribe
   app.get('/api/push/public-key', (req, res) => {
