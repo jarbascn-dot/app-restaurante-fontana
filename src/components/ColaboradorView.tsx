@@ -401,6 +401,42 @@ export default function ColaboradorView({
     }
   }, [viewingPdf]);
 
+  // Helper: Download a file reliably on all browsers (incl. mobile Safari), converting base64 data URIs into a local Blob before triggering the download.
+  const downloadCardapioFile = (sourceUrl: string, filename: string) => {
+  try {
+    if (sourceUrl.startsWith('data:')) {
+    const base64Content = sourceUrl.split(',')[1];
+    const mimeMatch = sourceUrl.match(/^data:(.*?);base64/);
+    const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
+    const binaryString = window.atob(base64Content);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) { bytes[i] = binaryString.charCodeAt(i); }
+    const blob = new Blob([bytes], { type: mime });
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+    } else {
+    const link = document.createElement('a');
+    link.href = sourceUrl;
+    link.download = filename;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    }
+  } catch (e) {
+    console.error('Erro ao gerar download do cardápio', e);
+    alert('Erro ao baixar o arquivo. Tente novamente.');
+  }
+  };
+
   // Custom Cardapio State
   const [selectedMenuDate, setSelectedMenuDate] = useState<string>(todayDate);
   const [isUploadingCardapio, setIsUploadingCardapio] = useState(false);
@@ -1141,8 +1177,7 @@ export default function ColaboradorView({
                               if (colaboradorObra.cardapioUrl) {
                                 setViewingPdf(colaboradorObra.cardapioUrl);
                                 setPdfTitle(colaboradorObra.cardapioNome || 'Cardápio PDF');
-                                setModalTab('ai');
-                                loadAiCardapio(colaboradorObra.cardapioUrl, colaboradorObra.cardapioNome || 'cardapio.pdf');
+                  setModalTab('pdf');
                               }
                             }}
                             className="p-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold transition flex items-center gap-1"
@@ -1150,14 +1185,13 @@ export default function ColaboradorView({
                           >
                             <ExternalLink className="h-3 w-3" /> Ver
                           </button>
-                          <a
-                            href={colaboradorObra.cardapioUrl}
-                            download={colaboradorObra.cardapioNome || 'cardapio.pdf'}
+                <button
+                  onClick={() => downloadCardapioFile(colaboradorObra.cardapioUrl, colaboradorObra.cardapioNome || 'cardapio.pdf')}
                             className="p-1.5 border border-neutral-200 hover:bg-neutral-50 text-neutral-600 rounded transition"
                             title="Baixar arquivo original"
                           >
                             <Download className="h-3 w-3" />
-                          </a>
+                </button>
                         </div>
                       </div>
                     </div>
@@ -1372,7 +1406,7 @@ export default function ColaboradorView({
               
               <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 <a
-                  href={viewingPdf}
+                href={safePdfUrl || viewingPdf}
                   download={pdfTitle}
                   className="p-2 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition cursor-pointer flex items-center justify-center mini-touch-target"
                   title="Baixar arquivo original"
@@ -1390,30 +1424,6 @@ export default function ColaboradorView({
               </div>
             </div>
 
-            {/* Elegant Tab Selection */}
-            <div className="bg-neutral-900 border-b border-neutral-800 flex shrink-0">
-              <button
-                onClick={() => setModalTab('ai')}
-                className={`flex-1 py-3.5 text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 touch-target ${
-                  modalTab === 'ai'
-                    ? 'bg-emerald-600 text-white shadow-inner font-black'
-                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
-                }`}
-              >
-                <Sparkles className="h-4 w-4" /> 🤖 Menu Inteligente (Melhor para Celular)
-              </button>
-              <button
-                onClick={() => setModalTab('pdf')}
-                className={`flex-1 py-3.5 text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 touch-target ${
-                  modalTab === 'pdf'
-                    ? 'bg-emerald-600 text-white shadow-inner font-black'
-                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
-                }`}
-              >
-                <FileText className="h-4 w-4" /> 📄 Arquivo PDF Original
-              </button>
-            </div>
-
             {modalTab === 'pdf' && (
               /* Browser security compatibility warning bar */
               <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-amber-900 text-[10px] sm:text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 font-medium leading-normal shrink-0">
@@ -1422,7 +1432,7 @@ export default function ColaboradorView({
                   <span>Em celulares, o visualizador embutido de PDF pode falhar ou aparecer em branco. Se isso ocorrer:</span>
                 </span>
                 <a
-                  href={viewingPdf}
+                  href={safePdfUrl || viewingPdf}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] rounded-lg transition flex items-center justify-center gap-1 min-h-[38px]"
