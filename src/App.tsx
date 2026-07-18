@@ -2025,12 +2025,7 @@ export default function App() {
 
       {/* Footer information bar */}
       <footer className="bg-neutral-900 border-t border-neutral-800 py-6 text-center text-xs text-neutral-500 mt-12 space-y-2">
-        <p className="max-w-md mx-auto">
-          APP Restaurante - FONTANA © 2026. Todos os direitos reservados.
-        </p>
-        <p className="text-[10px] text-neutral-600 font-mono">
-          Desenvolvido com foco em auditoria civil, distribuição de custos e integrabilidade nativa de hardware ERP Sienge.
-        </p>
+        <p className="max-w-md mx-auto">APP Restaurante - Fontana © | Todos os direitos reservados.</p>
       </footer>
 
 
