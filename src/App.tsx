@@ -562,7 +562,7 @@ export default function App() {
       setDeviceBiometricActive(localStorage.getItem('sgr_biometria_cadastrada_' + currentUser.email) === 'true');
       localStorage.setItem('sgr_logged_user_id', currentUser.id);
     }
-  }, [currentUser]);
+  }, [currentUser?.id, currentUser?.perfil]);
 
 
   // Synchronise and reschedule system alarms whenever session updates
