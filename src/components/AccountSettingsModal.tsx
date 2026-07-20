@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Usuario, AuditoriaLog, SystemSettings } from '../types';
-import { X, KeyRound, Bell, Smartphone, ShieldCheck, Check, Eye, EyeOff, Volume2, Sparkles, FileText, Printer, Download } from 'lucide-react';
+import { X, KeyRound, Bell, Smartphone, ShieldCheck, Check, Eye, EyeOff, Volume2, Sparkles, FileText, Download } from 'lucide-react';
 import { scheduleNotification } from '../lib/notificationScheduler';
 import { COMPROMISSO_LGPD_HTML } from './LgpdConsentModal';
 
@@ -120,348 +120,53 @@ export default function AccountSettingsModal({
   }, [isOpen, currentUser]);
 
 
-  const handlePrintPolicy = () => {
-    const simulatedIp = currentUser.ipAceiteLGPD || '177.34.0.130';
-    
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html lang="pt-BR">
-        <head>
-          <meta charset="UTF-8">
-          <title>Política de Privacidade e Proteção de Dados (LGPD) - Construtora Fontana Ltda</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              color: #1f2937;
-              line-height: 1.5;
-              padding: 40px;
-              max-width: 800px;
-              margin: 0 auto;
-              background-color: #ffffff;
-            }
-            .header-print {
-              border-bottom: 2px solid #047857;
-              padding-bottom: 12px;
-              margin-bottom: 24px;
-            }
-            .company-title {
-              font-size: 20px;
-              font-weight: bold;
-              color: #0c0a09;
-              margin: 0;
-            }
-            .document-title {
-              font-size: 14px;
-              font-weight: bold;
-              color: #047857;
-              margin: 4px 0 0 0;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-            }
-            .meta-print {
-              font-size: 11px;
-              color: #4b5563;
-              background-color: #f3f4f6;
-              padding: 12px;
-              border-radius: 6px;
-              margin-bottom: 20px;
-              border: 1px solid #e5e7eb;
-            }
-            .meta-print table {
-              width: 100%;
-              border-collapse: collapse;
-            }
-            .meta-print td {
-              padding: 4px 0;
-              vertical-align: top;
-            }
-            h3 {
-              font-size: 13px;
-              color: #047857 !important;
-              margin-top: 20px;
-              margin-bottom: 6px;
-              border-bottom: 1px solid #e5e7eb;
-              padding-bottom: 3px;
-              text-transform: uppercase;
-            }
-            p, ul, li {
-              font-size: 11.5px;
-              text-align: justify;
-              margin-bottom: 8px;
-            }
-            ul {
-              padding-left: 20px;
-            }
-            li {
-              margin-bottom: 4px;
-            }
-            .footer-print {
-              margin-top: 40px;
-              border-top: 1px solid #d1d5db;
-              padding-top: 12px;
-              font-size: 9.5px;
-              text-align: center;
-              color: #9ca3af;
-              font-family: monospace;
-            }
-            .action-bar-toast {
-              position: fixed;
-              top: 15px;
-              left: 50%;
-              transform: translateX(-50%);
-              background-color: #111827;
-              color: #ffffff;
-              padding: 10px 24px;
-              border-radius: 9999px;
-              font-size: 12px;
-              font-weight: bold;
-              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-              z-index: 99999;
-            }
-            @media print {
-              .action-bar-toast {
-                display: none;
-              }
-              body {
-                padding: 15px;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="action-bar-toast">
-            Pronto para Imprimir/Salvar em PDF. Pressione Ctrl+P se a janela da impressora não abrir automaticamente!
-          </div>
-          <div class="header-print">
-            <h1 class="company-title">CONSTRUTORA FONTANA LTDA</h1>
-            <h2 class="document-title">POLÍTICA DE PRIVACIDADE E PROTEÇÃO DE DADOS (LGPD) - SGR</h2>
-          </div>
-          <div class="meta-print">
-            <table>
-              <tr>
-                <td style="width: 15%;"><strong>Titular:</strong></td>
-                <td>${currentUser.nome}</td>
-                <td style="width: 15%;"><strong>Matrícula:</strong></td>
-                <td>${currentUser.matricula || 'Cadastro Pendente'}</td>
-              </tr>
-              <tr>
-                <td><strong>E-mail/CPF:</strong></td>
-                <td>${currentUser.email || currentUser.cpf || 'Não Informado'}</td>
-                <td><strong>Perfil:</strong></td>
-                <td>${currentUser.perfil.toUpperCase()}</td>
-              </tr>
-              <tr>
-                <td><strong>Documento:</strong></td>
-                <td>Versão 1.2 Oficial da Diretoria</td>
-                <td><strong>Data Geração:</strong></td>
-                <td>${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
-              </tr>
-            </table>
-          </div>
-          
-          ${COMPROMISSO_LGPD_HTML}
+  const handleDownloadPolicyPdf = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      // @ts-ignore
+      const { default: jsPDF } = await import('https://esm.sh/jspdf@2.5.1');
 
-          <div class="footer-print">
-            SGR FONTANA - REGISTRO DE AUDITORIA INTERNA CADASTRAL - IP SIMULADO DA SESSÃO: ${simulatedIp}
-          </div>
-          
-          <script>
-            window.onload = function() {
-              setTimeout(function() {
-                window.print();
-              }, 400);
-            };
-          </script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-    } else {
-      alert("O bloqueador de pop-ups do seu navegador impediu a abertura da tela de impressão corporativa. Por favor, libere os pop-ups para este site ou clique no botão 'Baixar Termo Seguro (.HTML)' para guardar o termo offline!");
-    }
-  };
-
-
-  const handleDownloadPolicy = () => {
-    const formattedHtml = `
-      <!DOCTYPE html>
-      <html lang="pt-BR">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Termo de Consentimento e Privacidade (LGPD) - Construtora Fontana Ltda</title>
-        <style>
-          body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #374151;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            background-color: #f3f4f6;
-          }
-          .container {
-            background-color: #ffffff;
-            max-width: 800px;
-            margin: 30px auto;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e5e7eb;
-          }
-          .header {
-            border-bottom: 3px solid #059669;
-            padding-bottom: 16px;
-            margin-bottom: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-          }
-          .company-name {
-            font-size: 22px;
-            font-weight: 800;
-            color: #111827;
-            margin: 0;
-            letter-spacing: -0.5px;
-          }
-          .policy-badge {
-            font-size: 10px;
-            background-color: #059669;
-            color: #ffffff;
-            padding: 4px 10px;
-            border-radius: 9999px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-          }
-          .document-subtitle {
-            font-size: 13px;
-            font-weight: 600;
-            color: #4b5563;
-            margin-top: 4px;
-            margin-bottom: 0;
-          }
-          .user-metadata {
-            background-color: #f9fafb;
-            border: 1px solid #e5e7eb;
-            color: #4b5563;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 24px;
-            font-size: 12px;
-          }
-          .user-metadata table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-          .user-metadata td {
-            padding: 6px 4px;
-            vertical-align: top;
-          }
-          h3 {
-            font-size: 14px;
-            color: #059669;
-            margin-top: 25px;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #e5e7eb;
-            padding-bottom: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-          }
-          p, ul, li {
-            font-size: 13.5px;
-            text-align: justify;
-            margin-top: 0;
-            margin-bottom: 12px;
-          }
-          ul {
-            padding-left: 20px;
-          }
-          li {
-            margin-bottom: 6px;
-          }
-          .footer-section {
-            margin-top: 50px;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 16px;
-            font-size: 11px;
-            text-align: center;
-            color: #9ca3af;
-            font-family: monospace;
-          }
-          .print-tip {
-            background-color: #ecfdf5;
-            border: 1px dashed #10b981;
-            color: #065f46;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 12px;
-            margin-top: 30px;
-            text-align: center;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <div>
-              <h1 class="company-name">CONSTRUTORA FONTANA LTDA</h1>
-              <p class="document-subtitle">SISTEMA SGR - POLÍTICA DE PRIVACIDADE E CONSENTIMENTO (LGPD)</p>
-            </div>
-            <span class="policy-badge">LGPD Oficial</span>
-          </div>
-
-          <div class="user-metadata">
-            <table>
-              <tr>
-                <td style="width: 18%;"><strong>Titular do Termo:</strong></td>
-                <td>${currentUser.nome}</td>
-                <td style="width: 18%;"><strong>Matrícula Interna:</strong></td>
-                <td>${currentUser.matricula || 'Solicitada/RH'}</td>
-              </tr>
-              <tr>
-                <td><strong>E-mail/CPF:</strong></td>
-                <td>${currentUser.email || currentUser.cpf || 'Não Informado'}</td>
-                <td><strong>Perfil Conta:</strong></td>
-                <td>${currentUser.perfil.toUpperCase()}</td>
-              </tr>
-              <tr>
-                <td><strong>Validade:</strong></td>
-                <td>Versão 1.2 da Controladoria</td>
-                <td><strong>Gerado em:</strong></td>
-                <td>${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
-              </tr>
-            </table>
-          </div>
-
-          ${COMPROMISSO_LGPD_HTML}
-
-          <div class="print-tip">
-            💡 <strong>Dica de Impressão offline:</strong> Abra este arquivo a qualquer momento em seu celular ou computador e pressione <strong>Ctrl+P</strong> (ou vá nas opções do navegador) para salvar como <strong>PDF permanente</strong> ou realizar a impressão física!
-          </div>
-
-          <div class="footer-section">
-            CONSTRUTORA FONTANA LTDA - SISTEMA SGR - CODIGO DE SEGURANÇA INTEGRADO: AUD-${currentUser.id}-${Math.floor(Math.random() * 900000 + 100000)}
-          </div>
+      const simulatedIp = currentUser.ipAceiteLGPD || '177.34.0.130';
+      const container = document.createElement('div');
+      container.style.position = 'fixed';
+      container.style.left = '-99999px';
+      container.style.top = '0';
+      container.style.width = '760px';
+      container.style.padding = '24px';
+      container.style.background = '#ffffff';
+      container.style.fontFamily = 'Arial, sans-serif';
+      container.style.color = '#1f2937';
+      container.innerHTML = `
+        <div style="text-align:center;border-bottom:2px solid #047857;padding-bottom:12px;margin-bottom:16px;">
+          <h1 style="font-size:16px;color:#047857;margin:0;">Política de Privacidade e Proteção de Dados (LGPD)</h1>
+          <p style="font-size:11px;color:#6b7280;margin:4px 0 0;">Construtora Fontana Ltda</p>
         </div>
-      </body>
-      </html>
-    `;
+        <table style="width:100%;font-size:11px;margin-bottom:16px;border-collapse:collapse;">
+          <tr><td style="width:15%;padding:2px 0;"><strong>Matrícula:</strong></td><td>${currentUser.matricula || 'Cadastro Pendente'}</td></tr>
+          <tr><td style="width:15%;padding:2px 0;"><strong>Data:</strong></td><td>${new Date().toLocaleString('pt-BR')}</td></tr>
+          <tr><td style="width:15%;padding:2px 0;"><strong>IP Simulado:</strong></td><td>${simulatedIp}</td></tr>
+        </table>
+        ${COMPROMISSO_LGPD_HTML}
+        <div style="margin-top:20px;font-size:9px;color:#6b7280;text-align:center;border-top:1px solid #e5e7eb;padding-top:8px;">
+          SGR FONTANA - REGISTRO DE AUDITORIA INTERNA CADASTRAL - IP SIMULADO DA SESSÃO: ${simulatedIp}
+        </div>
+      `;
+      document.body.appendChild(container);
 
-
-    const blob = new Blob([formattedHtml], { type: 'text/html;charset=utf-8' });
-    const fileUrl = URL.createObjectURL(blob);
-    const linkElement = document.createElement('a');
-    linkElement.href = fileUrl;
-    linkElement.download = `SGR_Fontana_Politica_Privacidade_LGPD_${currentUser.matricula || currentUser.id}.html`;
-    
-    document.body.appendChild(linkElement);
-    linkElement.click();
-    
-    // Cleanup
-    document.body.removeChild(linkElement);
-    URL.revokeObjectURL(fileUrl);
+      new jsPDF('p', 'pt', 'a4').html(container, {
+        margin: [24, 24, 24, 24],
+        autoPaging: 'text',
+        width: 547,
+        windowWidth: 760,
+        callback: (doc: any) => {
+          doc.save(`SGR_Fontana_Politica_Privacidade_LGPD_${currentUser.matricula || currentUser.id}.pdf`);
+          document.body.removeChild(container);
+        },
+      });
+    } catch (err) {
+      console.error('Erro ao gerar o PDF da Política de Privacidade:', err);
+      alert('Não foi possível gerar o PDF no momento. Por favor, tente novamente.');
+    }
   };
 
 
@@ -1148,23 +853,14 @@ export default function AccountSettingsModal({
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  type="button"
-                  onClick={handlePrintPolicy}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-neutral-100 text-xs text-neutral-700 font-bold rounded-lg border border-neutral-300 transition duration-150 shadow-xs cursor-pointer"
-                  title="Imprimir termo em folha limpa corporativa"
-                >
-                  <Printer className="w-4 h-4 text-emerald-600" />
-                  <span>Imprimir PDF</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDownloadPolicy}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-xs text-white font-bold rounded-lg transition duration-150 shadow-xs cursor-pointer"
-                  title="Baixar termo offline em formato HTML"
-                >
-                  <Download className="w-4 h-4 text-emerald-400" />
-                  <span>Baixar Termo (.HTML)</span>
-                </button>
+                type="button"
+                onClick={handleDownloadPolicyPdf}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-xs text-white font-bold rounded-lg transition duration-150 shadow-xs cursor-pointer"
+                title="Baixar termo em PDF"
+              >
+                <Download className="w-4 h-4 text-emerald-400" />
+                <span>Baixar PDF</span>
+              </button>
               </div>
             </div>
 
