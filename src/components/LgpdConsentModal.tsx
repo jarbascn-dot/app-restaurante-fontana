@@ -142,7 +142,7 @@ export default function LgpdConsentModal({
 
         const container = document.createElement('div');
         container.style.position = 'fixed';
-        container.style.left = '-99999px';
+        container.style.left = '0'; container.style.zIndex = '-9999';
         container.style.top = '0';
         container.style.width = '760px';
         container.style.padding = '24px';
