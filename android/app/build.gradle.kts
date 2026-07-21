@@ -12,9 +12,9 @@ defaultConfig {
 applicationId = "com.fontana.sgr"
 minSdk = 26
 targetSdk = 35
-    versionCode = 11
-    versionName = "1.1.9"
-}
+        versionCode = 12
+        versionName = "1.1.10"
+    }
 
 signingConfigs {
 create("release") {
