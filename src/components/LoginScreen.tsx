@@ -327,7 +327,7 @@ export default function LoginScreen({ usuarios, settings, onLoginSuccess, onOpen
       </div>
 
       <div className="text-center mt-6 text-[10px] text-neutral-400 font-mono">
-        APP Restaurante - FONTANA © 2026. Todos os direitos reservados.
+                  APP Restaurante - Fontana © | Todos os direitos reservados.
       </div>
 
       <BiometriaModal
