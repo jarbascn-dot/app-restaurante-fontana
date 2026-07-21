@@ -130,7 +130,7 @@ export async function scheduleNotification(
                                     await updateDoc(docRef, {
                                                   scheduledTime: time,
                                                   updatedAt: new Date().toISOString(),
-                                                  ...((isNewDay || timeChanged) ? { sent: false, errorAt: null, errorMessage: null } : {})
+                                                  ...((isNewDay || timeChanged) ? { sent: false, lastSentDate: null,  errorAt: null, errorMessage: null } : {})
                                     });
                                     console.log(`[Scheduler] Updated existing notificationQueue doc ${queueDocId} with scheduledTime:`, time);
                         } else {
@@ -143,6 +143,7 @@ export async function scheduleNotification(
                                                   daily: true,
                                                   scheduledTime: time,
                                                   sent: false,
+                                      lastSentDate: null,
                                                   updatedAt: new Date().toISOString()
                                     };
                                     await saveToFirestore('notificationQueue', queueItem);
