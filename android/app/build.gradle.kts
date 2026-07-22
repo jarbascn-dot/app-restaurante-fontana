@@ -6,12 +6,12 @@ id("com.google.gms.google-services")
 
 android {
 namespace = "com.fontana.sgr"
-compileSdk = 35
+compileSdk = 36
 
 defaultConfig {
 applicationId = "com.fontana.sgr"
 minSdk = 26
-targetSdk = 35
+targetSdk = 36
         versionCode = 12
         versionName = "1.1.10"
     }
