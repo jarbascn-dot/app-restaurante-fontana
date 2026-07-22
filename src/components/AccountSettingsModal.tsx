@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: Apache-2.5
  */
 
-
 import React, { useState, useEffect } from 'react';
 import { Usuario, AuditoriaLog, SystemSettings } from '../types';
 import { X, KeyRound, Bell, Smartphone, ShieldCheck, Check, Eye, EyeOff, Volume2, Sparkles, FileText, Download } from 'lucide-react';
 import { scheduleNotification } from '../lib/notificationScheduler';
 import { COMPROMISSO_LGPD_HTML } from './LgpdConsentModal';
-
+import { comparePassword } from '../lib/passwordUtils';
+import { generatePolicyPdf } from '../lib/generatePolicyPdf';
 
 interface AccountSettingsModalProps {
   isOpen: boolean;
@@ -23,7 +23,6 @@ interface AccountSettingsModalProps {
   settings: SystemSettings;
 }
 
-
 export default function AccountSettingsModal({
   isOpen,
   onClose,
@@ -36,7 +35,6 @@ export default function AccountSettingsModal({
   settings,
 }: AccountSettingsModalProps) {
   const isInstalledPwa = typeof window !== 'undefined' ? window.matchMedia('(display-mode: standalone)').matches : false;
-
 
   // Password states
   const [currentPassword, setCurrentPassword] = useState('');
@@ -62,15 +60,12 @@ export default function AccountSettingsModal({
     return (currentUser.alertaTipo ?? localStorage.getItem(`sgr_notify_tipo_${currentUser.email}`) as 'reservada' | 'sem_reserva' | 'sempre' | null) ?? 'sempre';
   });
 
-
   // Mobile Mock Notification State
   const [showMockNotification, setShowMockNotification] = useState(false);
   const [mockNotifText, setMockNotifText] = useState('');
 
-
   // LGPD Privacy Policy Modal State
   const [showPolicyModal, setShowPolicyModal] = useState(false);
-
 
   // Load state ONLY once when modal opens to avoid resetting while user is editing
   useEffect(() => {
@@ -88,22 +83,12 @@ export default function AccountSettingsModal({
     }
   }, [isOpen]);
 
-
-  const [pushStatus, setPushStatus] = useState<'checking' | 'active' | 'inactive' | 'unsupported' | 'native'>('checking');
+  const [pushStatus, setPushStatus] = useState<'checking' | 'active' | 'inactive' | 'unsupported'>('checking');
   const [sendingPush, setSendingPush] = useState(false);
-
-
-  // Sync current user identity to the native Android bridge (if present) so the app can register the native FCM token, independent of this modal being open.
-  useEffect(() => {
-    if (currentUser && (window as any).SGRNativeBridge) {
-      try { (window as any).SGRNativeBridge.setCurrentUser(currentUser.email); } catch (e) { console.warn('[SGRNativeBridge] sync failed', e); }
-    }
-  }, [currentUser]);
-
 
   useEffect(() => {
     if (isOpen && currentUser) {
-      if ((window as any).SGRNativeBridge) { setPushStatus('native'); try { (window as any).SGRNativeBridge.setCurrentUser(currentUser.email); } catch (e) {} } else if ('PushManager' in window && 'serviceWorker' in navigator) {
+      if ('PushManager' in window && 'serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then(reg => {
           reg.pushManager.getSubscription().then(sub => {
             if (sub) {
@@ -119,63 +104,19 @@ export default function AccountSettingsModal({
     }
   }, [isOpen, currentUser]);
 
-
-  const handleDownloadPolicyPdf = async (e: React.MouseEvent) => {
+  const handleDownloadPolicyPdf = (e: React.MouseEvent) => {
     e.stopPropagation();
-    try {
-      // @ts-ignore
-      const { default: jsPDF } = await import('https://esm.sh/jspdf@2.5.1');
-
-      const simulatedIp = currentUser.ipAceiteLGPD || '177.34.0.130';
-      const container = document.createElement('div');
-      container.style.position = 'fixed';
-      container.style.left = '0'; container.style.zIndex = '-9999';
-      container.style.top = '0';
-      container.style.width = '760px';
-      container.style.padding = '24px';
-      container.style.background = '#ffffff';
-      container.style.fontFamily = 'Arial, sans-serif';
-      container.style.color = '#1f2937';
-      container.innerHTML = `
-        <div style="text-align:center;border-bottom:2px solid #047857;padding-bottom:12px;margin-bottom:16px;">
-          <h1 style="font-size:16px;color:#047857;margin:0;">Política de Privacidade e Proteção de Dados (LGPD)</h1>
-          <p style="font-size:11px;color:#6b7280;margin:4px 0 0;">Construtora Fontana Ltda</p>
-        </div>
-        <table style="width:100%;font-size:11px;margin-bottom:16px;border-collapse:collapse;">
-          <tr><td style="width:15%;padding:2px 0;"><strong>Matrícula:</strong></td><td>${currentUser.matricula || 'Cadastro Pendente'}</td></tr>
-          <tr><td style="width:15%;padding:2px 0;"><strong>Data:</strong></td><td>${new Date().toLocaleString('pt-BR')}</td></tr>
-          <tr><td style="width:15%;padding:2px 0;"><strong>IP Simulado:</strong></td><td>${simulatedIp}</td></tr>
-        </table>
-        ${COMPROMISSO_LGPD_HTML}
-        <div style="margin-top:20px;font-size:9px;color:#6b7280;text-align:center;border-top:1px solid #e5e7eb;padding-top:8px;">
-          SGR FONTANA - REGISTRO DE AUDITORIA INTERNA CADASTRAL - IP SIMULADO DA SESSÃO: ${simulatedIp}
-        </div>
-      `;
-      document.body.appendChild(container);
-
-      new jsPDF('p', 'pt', 'a4').html(container, {
-        margin: [24, 24, 24, 24],
-        autoPaging: 'text',
-        width: 547,
-        windowWidth: 760,
-        callback: (doc: any) => {
-          doc.save(`SGR_Fontana_Politica_Privacidade_LGPD_${currentUser.matricula || currentUser.id}.pdf`);
-          document.body.removeChild(container);
-        },
-      });
-    } catch (err) {
+    generatePolicyPdf(currentUser).catch((err) => {
       console.error('Erro ao gerar o PDF da Política de Privacidade:', err);
       alert('Não foi possível gerar o PDF no momento. Por favor, tente novamente.');
-    }
+    });
   };
-
 
   const handleTriggerRealPush = async () => {
     if (pushStatus !== 'active') {
       onTriggerFlash('⚠️ Este aparelho ainda não possui inscrição push ativa. Ative os alertas diários primeiro para registrar!');
       return;
     }
-
 
     setSendingPush(true);
     try {
@@ -188,7 +129,6 @@ export default function AccountSettingsModal({
         return;
       }
 
-
       const response = await fetch('/api/push/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -198,7 +138,6 @@ export default function AccountSettingsModal({
           body: `Olá, ${currentUser.nome}! Horário Limite de reserva aproximando. Confirme seu almoço de amanhã antes das ${settings.horarioLimite}!`
         })
       });
-
 
       const resData = await response.json();
       if (response.ok && resData.success) {
@@ -214,9 +153,7 @@ export default function AccountSettingsModal({
     }
   };
 
-
   if (!isOpen) return null;
-
 
   // Sound generator helper using Web Audio API (no external asset needed, work perfectly everywhere!)
   const playNotificationSound = () => {
@@ -243,13 +180,11 @@ export default function AccountSettingsModal({
     }
   };
 
-
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-
     // Validations
-    if (currentUser.senha && currentPassword !== currentUser.senha) {
+    if (currentUser.senha && !comparePassword(currentPassword, currentUser.senha)) {
       alert('❌ A senha atual informada está incorreta.');
       return;
     }
@@ -262,7 +197,6 @@ export default function AccountSettingsModal({
       return;
     }
 
-
     onUpdatePassword(newPassword);
     appendAuditLog(`Alteração de senha homologada com segurança de credencial.`, currentUser.nome, currentUser.email);
     
@@ -270,11 +204,9 @@ export default function AccountSettingsModal({
     newPassword && setNewPassword('');
     confirmPassword && setConfirmPassword('');
 
-
     onTriggerFlash('✅ Senha de acesso atualizada com sucesso!');
     onClose();
   };
-
 
   const handleToggleNotify = async () => {
     const nextVal = !notifyEnabled;
@@ -302,7 +234,6 @@ export default function AccountSettingsModal({
     }
   };
 
-
   const handleSaveNotifySettings = () => {
     localStorage.setItem(`sgr_notify_enabled_${currentUser.email}`, String(notifyEnabled));
     localStorage.setItem(`sgr_notify_timing_${currentUser.email}`, notifyTiming);
@@ -310,10 +241,8 @@ export default function AccountSettingsModal({
     localStorage.setItem(`sgr_notify_channel_${currentUser.email}`, notifyChannel);
     localStorage.setItem(`sgr_notify_tipo_${currentUser.email}`, notifyTipo);
 
-
     // CRITICAL: Reset last alert date block so user can instantly test their new time today!
     localStorage.removeItem(`sgr_last_alert_date_${currentUser.email}`);
-
 
     if (notifyEnabled) {
       // Schedule background & foreground native system alerts for iOS & Android
@@ -325,7 +254,6 @@ export default function AccountSettingsModal({
       );
     }
 
-
     if (onUpdateNotifications) {
       onUpdateNotifications(notifyEnabled, notifyTiming as 'todos_dias' | 'seg_sex', notifyTime, notifyTipo);
     } else {
@@ -336,20 +264,16 @@ export default function AccountSettingsModal({
       );
     }
 
-
     onTriggerFlash('✅ Configurações de lembrete salvas com sucesso neste aparelho!');
     onClose();
   };
 
-
   const triggerTestNotification = () => {
     const text = `🔔 SGR FONTANA: Olá, ${currentUser.nome}! Lembrete para fazer ou ajustar sua reserva de refeição de hoje antes das ${settings.horarioLimite}.`;
-
 
     setMockNotifText(text);
     setShowMockNotification(true);
     playNotificationSound();
-
 
     // Trigger REAL local browser/mobile notification!
     if ('Notification' in window) {
@@ -378,13 +302,11 @@ export default function AccountSettingsModal({
       }
     }
 
-
     // Auto dismiss after 6 seconds
     setTimeout(() => {
       setShowMockNotification(false);
     }, 6000);
   };
-
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs transition-opacity animate-[fadeIn_0.2s_ease]" id="account-settings-modal-overlay">
@@ -411,7 +333,6 @@ export default function AccountSettingsModal({
         </div>
       )}
 
-
       {/* Main card box */}
       <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl border border-neutral-300 overflow-hidden flex flex-col animate-[scaleIn_0.25s_cubic-bezier(0.16,1,0.3,1)] max-h-[90vh]">
         
@@ -433,7 +354,6 @@ export default function AccountSettingsModal({
           </button>
         </div>
 
-
         {/* Modal content body panel content */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1 text-xs">
           
@@ -445,7 +365,6 @@ export default function AccountSettingsModal({
             <p className="text-[11px] text-neutral-500 leading-normal">
               Altere sua senha de acesso ao SGR imediatamente. Siga boas práticas corporativas e não compartilhe seu código secreto.
             </p>
-
 
             <form onSubmit={handlePasswordSubmit} className="space-y-3 pt-2">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -472,7 +391,6 @@ export default function AccountSettingsModal({
                   </div>
                 </div>
 
-
                 {/* New password */}
                 <div>
                   <label className="block text-[10px] uppercase font-bold text-neutral-600 mb-1">Nova Senha</label>
@@ -495,9 +413,7 @@ export default function AccountSettingsModal({
                   </div>
                 </div>
 
-
               </div>
-
 
               <div>
                 <label className="block text-[10px] uppercase font-bold text-neutral-600 mb-1">Confirmar Nova Senha</label>
@@ -511,7 +427,6 @@ export default function AccountSettingsModal({
                 />
               </div>
 
-
               <div className="pt-1 select-none">
                 <button
                   type="submit"
@@ -522,7 +437,6 @@ export default function AccountSettingsModal({
               </div>
             </form>
           </div>
-
 
           {/* SECTION 2: MOBILE NOTIFICATIONS REGISTER */}
           <div className="space-y-4 bg-neutral-50 p-4 rounded-xl border border-neutral-200" id="notification-settings-section">
@@ -538,7 +452,6 @@ export default function AccountSettingsModal({
             <p className="text-[11px] text-neutral-500 leading-relaxed">
               Configure lembretes diários customizáveis integrados com notificações de sistema do celular para nunca perder a data limite de reserva ou cancelamento de almoços.
             </p>
-
 
             <div className="space-y-4 pt-1">
               
@@ -563,7 +476,6 @@ export default function AccountSettingsModal({
                 </button>
               </div>
 
-
               {notifyEnabled && (
                 <div className="space-y-4 border-l-2 border-emerald-500 pl-4 py-1 animate-[fadeIn_0.25s_ease] space-y-3">
                   
@@ -584,7 +496,6 @@ export default function AccountSettingsModal({
                         <span className="block text-[9px] text-neutral-500 font-normal mt-0.5">Alerta enviado todos os dias, sem exceção</span>
                       </button>
 
-
                       <button
                         type="button"
                         onClick={() => setNotifyTiming('seg_sex')}
@@ -600,7 +511,6 @@ export default function AccountSettingsModal({
                     </div>
                   </div>
 
-
                   {/* Alarm Clock Hour Settings */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -613,7 +523,6 @@ export default function AccountSettingsModal({
                       />
                     </div>
 
-
                     <div>
                       <label className="block text-[10px] uppercase font-bold text-neutral-600 mb-1">Formato de recebimento</label>
                       <select
@@ -625,7 +534,6 @@ export default function AccountSettingsModal({
                       </select>
                     </div>
                   </div>
-
 
                   {/* Server Push status indicator */}
                   <div className="flex items-center justify-between p-2.5 bg-neutral-100 rounded-lg border border-neutral-200">
@@ -645,16 +553,12 @@ export default function AccountSettingsModal({
                         ⚠️ Aguardando Salvar (Local)
                       </span>
                     )}
-                    {pushStatus === 'native' && (
-                     <span className="px-2 py-0.5 text-[9px] font-mono text-blue-700 bg-blue-100 border border-blue-200 rounded font-bold uppercase">📱 Gerenciado pelo App</span>
-                   )}
-                   {pushStatus === 'unsupported' && (
+                    {pushStatus === 'unsupported' && (
                       <span className="px-2 py-0.5 text-[9px] font-mono text-red-700 bg-red-100 border border-red-200 rounded font-bold uppercase">
                         ❌ Não suportado
                       </span>
                     )}
                   </div>
-
 
                   {/* Alerta Tipo Selection UI (Sempre, Com Reserva, Sem Reserva) */}
                   <div className="space-y-2">
@@ -675,7 +579,6 @@ export default function AccountSettingsModal({
                         <span className="block text-[9px] text-neutral-500 font-normal mt-0.5">Dispara o lembrete diariamente, informando se você possui ou não refeição reservada</span>
                       </button>
 
-
                       <button
                         type="button"
                         onClick={() => setNotifyTipo('reservada')}
@@ -690,7 +593,6 @@ export default function AccountSettingsModal({
                         </span>
                         <span className="block text-[9px] text-neutral-500 font-normal mt-0.5">Garante e certifica que sua marmita está reservada e pronta para consumo</span>
                       </button>
-
 
                       <button
                         type="button"
@@ -708,7 +610,6 @@ export default function AccountSettingsModal({
                       </button>
                     </div>
                   </div>
-
 
                   {/* PWA background native alert limitations container */}
                   <div className="bg-amber-50 text-amber-950 text-[10px] leading-relaxed p-3 rounded-lg border border-amber-250">
@@ -735,10 +636,8 @@ export default function AccountSettingsModal({
                     </ul>
                   </div>
 
-
                 </div>
               )}
-
 
               {/* Action buttons save configuration */}
               <div className="pt-2 flex justify-end gap-2 border-t border-neutral-200">
@@ -758,10 +657,8 @@ export default function AccountSettingsModal({
                 </button>
               </div>
 
-
             </div>
           </div>
-
 
           {/* SECTION 3: PRIVACY & LGPD COMPLIANCE DETAILS */}
           <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 mt-4 space-y-3" id="lgpd-settings-info-section">
@@ -772,7 +669,6 @@ export default function AccountSettingsModal({
             <p className="text-[11px] text-neutral-500 leading-relaxed">
               Consulte os termos de conformidade de dados gerais coletados sob a regência da Lei Geral de Proteção de Dados (Nº 13.709/2018).
             </p>
-
 
             <div className="p-3 bg-white rounded-lg border border-neutral-150 text-[11px] leading-relaxed space-y-2 text-neutral-600">
               <div className="flex items-center justify-between text-xs font-semibold text-neutral-800 pb-1.5 border-b border-neutral-100">
@@ -788,7 +684,6 @@ export default function AccountSettingsModal({
                 )}
               </div>
 
-
               {currentUser.aceitouLGPD && (
                 <div className="space-y-1 bg-neutral-50/50 p-2.5 rounded-lg text-[10px] font-mono leading-relaxed text-neutral-500">
                   <p>📅 <strong>Data de Aceite:</strong> {new Date(currentUser.dataAceiteLGPD || '').toLocaleString('pt-BR')}</p>
@@ -797,11 +692,9 @@ export default function AccountSettingsModal({
                 </div>
               )}
 
-
               <p className="text-[10px] text-neutral-500">
                 A Construtora Fontana Ltda garante que seus dados de reservas, matrícula, CPF e auditoria de refeições são confidenciais e tratados exclusivamente para faturamentos operacionais legítimos de obras.
               </p>
-
 
               <div className="pt-1.5 text-center">
                 <button
@@ -816,12 +709,9 @@ export default function AccountSettingsModal({
             </div>
           </div>
 
-
         </div>
 
-
       </div>
-
 
       {/* Nested Safe Modal for Privacy Policy (Visualizar / Imprimir) */}
       {showPolicyModal && (
@@ -845,25 +735,15 @@ export default function AccountSettingsModal({
               </button>
             </div>
 
-
             {/* Actions Bar */}
             <div className="px-5 py-3 bg-neutral-50 border-b border-neutral-200 flex items-center justify-between gap-4">
               <div className="text-[10px] text-neutral-500 font-medium font-mono">
                 MATRÍCULA: {currentUser.matricula || 'NÃO ATRIBUÍDA'}
               </div>
               <div className="flex items-center gap-2">
-                <button
-                type="button"
-                onClick={handleDownloadPolicyPdf}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-xs text-white font-bold rounded-lg transition duration-150 shadow-xs cursor-pointer"
-                title="Baixar termo em PDF"
-              >
-                <Download className="w-4 h-4 text-emerald-400" />
-                <span>Baixar PDF</span>
-              </button>
-              </div>
-            </div>
-
+                <button type="button" onClick={handleDownloadPolicyPdf} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-xs text-white font-bold rounded-lg transition duration-150 shadow-xs cursor-pointer" title="Baixar termo em PDF"><Download className="w-4 h-4 text-emerald-400" /><span>Baixar PDF</span></button>
+                          </div>
+        </div>
 
             {/* Scrollable Document Content */}
             <div className="p-6 overflow-y-auto max-h-[55vh] text-neutral-750 space-y-4 font-sans leading-relaxed text-sm">
@@ -872,7 +752,6 @@ export default function AccountSettingsModal({
                 dangerouslySetInnerHTML={{ __html: COMPROMISSO_LGPD_HTML }} 
               />
             </div>
-
 
             {/* Modal Footer */}
             <div className="px-5 py-3.5 bg-neutral-50 border-t border-neutral-200 flex justify-end">
