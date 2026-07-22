@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { Reserva, Usuario, Obra, Empresa, ReservaStatus, SystemSettings, Perfil, UserStatus } from '../types';
-import { FileSpreadsheet, Download, Filter, Search, DollarSign, Calendar, Sliders, Printer } from 'lucide-react';
+import { FileSpreadsheet, Download, Filter, Search, DollarSign, Calendar, Sliders, Printer, Loader2 } from 'lucide-react';
 
 interface ReportsViewProps {
   reservas: Reserva[];
@@ -18,24 +18,24 @@ interface ReportsViewProps {
 
 export default function ReportsView({ reservas, usuarios, obras, empresas, settings, todayDate }: ReportsViewProps) {
   const [reportType, setReportType] = useState<'diario' | 'mensal' | 'financeiro' | 'folha' | 'desconto' | 'empresa'>('diario');
-  
+
   // Daily Filter
   const [filterDailyObra, setFilterDailyObra] = useState<string>('all');
   // Monthly search
   const [searchMonthlyUser, setSearchMonthlyUser] = useState('');
-  
+
   // Helper: primeiro e ultimo dia do mes atual (baseado em todayDate)
-    const getMonthStart = (ref: string) => {
-          const [y, m] = ref.split('-').map(Number);
-          return `${y}-${String(m).padStart(2, '0')}-01`;
-    };
-    const getMonthEnd = (ref: string) => {
-          const [y, m] = ref.split('-').map(Number);
-          const lastDay = new Date(y, m, 0).getDate();
-          return `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    };
-  
-    // Financial Filters
+  const getMonthStart = (ref: string) => {
+    const [y, m] = ref.split('-').map(Number);
+    return `${y}-${String(m).padStart(2, '0')}-01`;
+  };
+  const getMonthEnd = (ref: string) => {
+    const [y, m] = ref.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    return `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  };
+
+  // Financial Filters
   const [finStart, setFinStart] = useState(getMonthStart(todayDate));
   const [finEnd, setFinEnd] = useState(getMonthEnd(todayDate));
   const [filterFinObra, setFilterFinObra] = useState<string>('all');
@@ -55,6 +55,128 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
   const [empresaEnd, setEmpresaEnd] = useState(getMonthEnd(todayDate));
   const [filterEmpresaObra, setFilterEmpresaObra] = useState<string>('all');
 
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
+
+  const handleDownloadPdf = async (elementId: string, filename: string) => {
+    setIsGeneratingPdf(elementId);
+    try {
+      // @ts-ignore
+      const { default: jsPDF } = await import('https://esm.sh/jspdf@2.5.1');
+
+      const element = document.getElementById(elementId);
+      if (!element) {
+        alert('Não foi possível localizar o conteúdo do relatório para geração do PDF.');
+        return;
+      }
+
+      const container = document.createElement('div');
+      container.style.position = 'fixed';
+      container.style.left = '0';
+      container.style.zIndex = '-9999';
+      container.style.top = '0';
+      container.style.width = '780px';
+      container.style.padding = '24px';
+      container.style.background = '#ffffff';
+      container.style.color = '#1f2937';
+      container.style.fontFamily = 'Arial, sans-serif';
+
+      const clone = element.cloneNode(true) as HTMLElement;
+      clone.style.width = '100%';
+      clone.style.boxShadow = 'none';
+      clone.style.border = 'none';
+      container.appendChild(clone);
+
+      document.body.appendChild(container);
+
+      const doc = new jsPDF('p', 'pt', 'a4');
+      await doc.html(container, {
+        margin: [24, 24, 24, 24],
+        autoPaging: 'slice',
+        width: 547,
+        windowWidth: 780,
+        callback: (pdf: any) => {
+          pdf.save(`${filename}.pdf`);
+          if (document.body.contains(container)) {
+            document.body.removeChild(container);
+          }
+        },
+      });
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      alert('Erro ao processar PDF diretamente. Tentando acionar a tela de impressão corporativa...');
+      handlePrintReport(elementId, filename);
+    } finally {
+      setIsGeneratingPdf(null);
+    }
+  };
+
+  const handlePrintReport = (elementId: string, title: string) => {
+    const element = document.getElementById(elementId);
+    if (!element) {
+      window.focus();
+      window.print();
+      return;
+    }
+
+    try {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html lang="pt-BR">
+          <head>
+            <meta charset="UTF-8">
+            <title>${title}</title>
+            <style>
+              * { box-sizing: border-box; }
+              body {
+                font-family: Arial, Helvetica, sans-serif;
+                color: #111827;
+                background-color: #ffffff;
+                padding: 20px;
+                margin: 0;
+                line-height: 1.4;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+              }
+              th, td {
+                border: 1px solid #d1d5db;
+                padding: 6px 8px;
+              }
+              .no-print { display: none !important; }
+              @page {
+                size: A4 portrait;
+                margin: 1.2cm 1cm;
+              }
+            </style>
+          </head>
+          <body>
+            ${element.outerHTML}
+            <script>
+              window.onload = function() {
+                setTimeout(function() {
+                  window.focus();
+                  window.print();
+                }, 300);
+              };
+            </script>
+          </body>
+          </html>
+        `);
+        printWindow.document.close();
+      } else {
+        window.focus();
+        window.print();
+      }
+    } catch (e) {
+      console.error('Erro ao abrir janela de impressão:', e);
+      window.focus();
+      window.print();
+    }
+  };
+
   const getUsuario = (id: string) => usuarios.find(u => u.id === id);
   const getObra = (id: string) => obras.find(o => o.id === id);
   const getEmpresa = (id: string) => empresas.find(e => e.id === id);
@@ -62,7 +184,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
   const getMealPrice = (user?: Usuario, obraId?: string) => {
     const targetObraId = obraId || user?.idObraPadrao;
     const obra = targetObraId ? getObra(targetObraId) : undefined;
-    
+
     // Obra custom price or fallback to global settings
     if (obra && obra.valorRefeicao !== undefined && obra.valorRefeicao > 0) {
       return obra.valorRefeicao;
@@ -76,17 +198,17 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
   const reportDate = todayDate;
   const getDailyRows = () => {
     // We list all approved/active employees, and check if they made a Booking for June 13, 2026
-    const activeColabs = usuarios.filter(u => 
-      (u.perfil === 'colaborador' || u.perfil === 'admin') && 
+    const activeColabs = usuarios.filter(u =>
+      (u.perfil === 'colaborador' || u.perfil === 'admin') &&
       u.status !== 'pendente' &&
       (u.status !== 'excluido' || reservas.some(r => r.idUsuario === u.id && r.data === reportDate && r.status === ReservaStatus.Reservado))
     );
-    
+
     const colabRows = activeColabs.map(user => {
       const res = reservas.find(r => r.idUsuario === user.id && r.data === reportDate);
       const obra = getObra(user.idObraPadrao);
       const empresa = getEmpresa(user.idEmpresa);
-      
+
       const reservou = res && res.status === ReservaStatus.Reservado;
       const consumido = (res && res.status === ReservaStatus.Reservado && (res.consumido || !settings.usarTabletRetirada))
         ? (settings.usarTabletRetirada ? 'Sim (Auditado)' : 'Sim (Lista Assinada)')
@@ -138,21 +260,22 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
     });
   };
 
-  // 2. MONTHLY REPORT (Aggregates for June 2026)
+  // 2. MONTHLY REPORT (Aggregates dynamically based on selected/current month)
   const getMonthlyRows = () => {
-    const juneReservas = reservas.filter(r => r.data.startsWith('2026-06'));
-    const activeColabs = usuarios.filter(u => 
+    const currentMonthPrefix = todayDate.substring(0, 7); // e.g. "2026-06"
+    const monthlyReservas = reservas.filter(r => r.data.startsWith(currentMonthPrefix));
+    const activeColabs = usuarios.filter(u =>
       (u.perfil === 'colaborador' || u.perfil === 'admin') &&
-      (u.status !== 'excluido' || juneReservas.some(r => r.idUsuario === u.id))
+      (u.status !== 'excluido' || monthlyReservas.some(r => r.idUsuario === u.id))
     );
 
     const aggregated = activeColabs.map(user => {
-      const userRes = juneReservas.filter(r => r.idUsuario === user.id);
-      
+      const userRes = monthlyReservas.filter(r => r.idUsuario === user.id);
+
       const totalReservadas = userRes.filter(r => r.status === ReservaStatus.Reservado).length;
       const totalUtilizadas = userRes.filter(r => r.status === ReservaStatus.Reservado && (r.consumido || !settings.usarTabletRetirada)).length;
       const totalCanceladas = userRes.filter(r => r.status === ReservaStatus.Cancelado).length;
-      
+
       const obra = getObra(user.idObraPadrao);
       const empresa = getEmpresa(user.idEmpresa);
 
@@ -168,10 +291,10 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
       };
     });
 
-    // Aggregate visitors in June
-    const visitors = juneReservas.filter(r => r.idUsuario.startsWith('visitante-') && r.status === ReservaStatus.Reservado);
+    // Aggregate visitors in active month
+    const visitors = monthlyReservas.filter(r => r.idUsuario.startsWith('visitante-') && r.status === ReservaStatus.Reservado);
     const visitorGroups: Record<string, { nome: string; obraNome: string; empresaNome: string; reservadas: number; utilizadas: number; canceladas: number }> = {};
-    
+
     visitors.forEach(v => {
       const vName = v.nomeVisitante || 'Visitante/Cortesia';
       const vEmp = v.empresaFaturamento || 'Visitante / Cortesia';
@@ -214,7 +337,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
     const filteredReservations = reservas.filter(r => {
       const insideDate = r.data >= finStart && r.data <= finEnd;
       if (!insideDate) return false;
-      
+
       const user = getUsuario(r.idUsuario);
       const isVisitor = r.idUsuario.startsWith('visitante-');
       if (!user && !isVisitor) return false;
@@ -233,18 +356,18 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
           return false;
         }
       }
-      
+
       return r.status === ReservaStatus.Reservado; // only active meals costs money
     });
 
     // Group costs by site / work standard
     const financialMap: Record<string, { obra: string; cc: string; qtd: number; consumidoQtd: number; valorTotal: number }> = {};
-    
+
     filteredReservations.forEach(r => {
       const user = getUsuario(r.idUsuario);
       const oId = r.idObraNoDia || (user ? user.idObraPadrao : 'outra');
       const oObj = getObra(oId);
-      
+
       const obraName = oObj ? oObj.nome : 'Outras Obras / Sede';
       const cCusto = oObj ? oObj.centroCusto : 'CC Geral';
       const price = getMealPrice(user, oId);
@@ -258,7 +381,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
           valorTotal: 0
         };
       }
-      
+
       financialMap[oId].qtd += 1;
       if (r.consumido || !settings.usarTabletRetirada) {
         financialMap[oId].consumidoQtd += 1;
@@ -296,9 +419,9 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
     const rows = relevantUsers.map(user => {
       // Find reservations for this user
       const userRes = activeReservations.filter(r => r.idUsuario === user.id);
-      
+
       const totalReservas = userRes.length;
-      
+
       // Compute total meal price & total collaborator discount
       let valorTotalRefeicao = 0;
       let valorTotalDesconto = 0;
@@ -443,10 +566,10 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
     }
 
     const rows = Object.values(companyMap);
-    
+
     // Sort by reservations desc
     rows.sort((a, b) => b.quantidadeReservas - a.quantidadeReservas || a.nome.localeCompare(b.nome, 'pt-BR'));
-    
+
     return rows;
   };
 
@@ -466,21 +589,21 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
     if (reportType === 'diario') {
       headers = 'Nome;Matrícula;Obra;Centro de Custo;Empresa;Reservou?;Consumido?;IP/Hora;Custo Estimado\n';
       const rows = getDailyRows();
-      body = rows.map(r => 
+      body = rows.map(r =>
         `"${r.nome}";"${r.matricula}";"${r.obraNome}";"${r.centroCusto}";"${r.empresaNome}";"${r.reservou}";"${r.consumido}";"${r.alterado}";${fNum(r.custo)}`
       ).join('\n');
       fn = `SGR-Relatorio-Diario-${reportDate}.csv`;
     } else if (reportType === 'mensal') {
       headers = 'Colaborador;Matrícula;Obra de Origem;Contrato / Empresa;Reservadas;Consumidas;Canceladas\n';
       const rows = getMonthlyRows();
-      body = rows.map(r => 
+      body = rows.map(r =>
         `"${r.nome}";"${r.matricula}";"${r.obraNome}";"${r.empresaNome}";${r.reservadas};${r.utilizadas};${r.canceladas}`
       ).join('\n');
       fn = 'SGR-Relatorio-Mensal-Consumo.csv';
     } else if (reportType === 'desconto') {
       headers = 'Matrícula;Nome do Colaborador;Empresa/Contrato;Quantidade de Reservas;Custo Total Empresa;Valor total de Desconto;Custo Líquido Empresa\n';
       const rows = getDescontoRows();
-      body = rows.map(r => 
+      body = rows.map(r =>
         `"${r.matricula}";"${r.nome}";"${r.empresaNome}";${r.quantidadeReservas};${fNum(r.custoCozinhaTotal)};${fNum(r.descontoTotalColaborador)};${fNum(r.custoLiquidoEmpresa)}`
       ).join('\n');
       const totalReservas = rows.reduce((acc, r) => acc + r.quantidadeReservas, 0);
@@ -492,7 +615,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
     } else if (reportType === 'financeiro') {
       headers = 'Obra / Centro;Centro de Custo;Quantidade de Marmitas;Retirada Confirmada (FaceID);Custo Total Gasto\n';
       const rows = getFinancialRows();
-      body = rows.map(r => 
+      body = rows.map(r =>
         `"${r.obra}";"${r.cc}";${r.qtd};${r.consumidoQtd};${fNum(r.valorTotal)}`
       ).join('\n');
       body += `\n\n"TOTAL";"";${totalRefeicoesFinanceiro};"";${fNum(totalFinanceiro)}\n`;
@@ -533,23 +656,21 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setReportType('diario')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
-              reportType === 'diario'
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${reportType === 'diario'
                 ? 'bg-neutral-900 text-white shadow'
                 : 'bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-300'
-            }`}
+              }`}
             id="report-type-daily"
           >
             📊 Relatório Diário
           </button>
-          
+
           <button
             onClick={() => setReportType('mensal')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
-              reportType === 'mensal'
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${reportType === 'mensal'
                 ? 'bg-neutral-900 text-white shadow'
                 : 'bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-300'
-            }`}
+              }`}
             id="report-type-monthly"
           >
             🗓️ Absenteísmo & Mensal
@@ -557,11 +678,10 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
 
           <button
             onClick={() => setReportType('financeiro')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
-              reportType === 'financeiro'
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${reportType === 'financeiro'
                 ? 'bg-neutral-900 text-white shadow'
                 : 'bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-300'
-            }`}
+              }`}
             id="report-type-financial"
           >
             💰 Custos por Obra
@@ -569,11 +689,10 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
 
           <button
             onClick={() => setReportType('folha')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
-              reportType === 'folha'
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${reportType === 'folha'
                 ? 'bg-emerald-600 text-white shadow'
                 : 'bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-300'
-            }`}
+              }`}
             id="report-type-folha"
           >
             📋 Folha de Assinatura (Imprimir)
@@ -581,11 +700,10 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
 
           <button
             onClick={() => setReportType('desconto')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
-              reportType === 'desconto'
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${reportType === 'desconto'
                 ? 'bg-neutral-900 text-white shadow'
                 : 'bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-300'
-            }`}
+              }`}
             id="report-type-desconto"
           >
             💸 Desconto em Folha (Assinatura)
@@ -593,11 +711,10 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
 
           <button
             onClick={() => setReportType('empresa')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
-              reportType === 'empresa'
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${reportType === 'empresa'
                 ? 'bg-neutral-900 text-white shadow'
                 : 'bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-300'
-            }`}
+              }`}
             id="report-type-empresa"
           >
             🏢 Consumo por Empresa
@@ -666,11 +783,10 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
                     <td className="p-0.5 px-3 text-center font-bold text-[10px] h-[16px]">{row.reservou}</td>
                     <td className="p-0.5 px-3 text-neutral-450 text-[9px] font-mono h-[16px]">{row.alterado}</td>
                     <td className="p-0.5 px-3 h-[16px]">
-                      <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold font-mono border ${
-                        row.consumido.includes('Sim')
+                      <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold font-mono border ${row.consumido.includes('Sim')
                           ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                           : 'bg-neutral-100 text-neutral-400'
-                      }`}>
+                        }`}>
                         {row.consumido}
                       </span>
                     </td>
@@ -895,8 +1011,8 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
               <Printer className="h-4 w-4" />
               <span>Configurações da Relação de Assinaturas</span>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
                 <label className="block text-[10px] text-neutral-500 uppercase font-black mb-1">Selecione a Data das Refeições</label>
                 <input
@@ -925,27 +1041,51 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
 
               <div className="flex items-end">
                 <button
-                  onClick={() => window.print()}
-                  className="w-full py-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs rounded-lg transition shadow-md flex items-center justify-center gap-2 duration-150"
+                  type="button"
+                  onClick={() => handleDownloadPdf('printable-sheet-area', `SGR_Folha_Assinatura_${folhaDate}`)}
+                  disabled={isGeneratingPdf === 'printable-sheet-area'}
+                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition shadow-md flex items-center justify-center gap-1.5 duration-150 disabled:opacity-50 cursor-pointer"
+                  id="trigger-download-folha-pdf-btn"
+                >
+                  {isGeneratingPdf === 'printable-sheet-area' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      <span>Gerando PDF...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 shrink-0" />
+                      <span>Baixar PDF</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={() => handlePrintReport('printable-sheet-area', 'Folha de Assinatura - Fontana')}
+                  className="w-full py-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs rounded-lg transition shadow-md flex items-center justify-center gap-1.5 duration-150 cursor-pointer"
                   id="trigger-print-cmd-btn"
                 >
-                  <Printer className="h-4 w-4 shrink-0 text-emerald-400" /> Imprimir Relação (ou Salvar em PDF)
+                  <Printer className="h-4 w-4 shrink-0 text-emerald-400" />
+                  <span>Imprimir Documento</span>
                 </button>
               </div>
             </div>
 
             <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-xs text-neutral-600 flex flex-col md:flex-row md:items-center justify-between gap-2">
               <span className="font-medium text-neutral-700 leading-normal">
-                💡 **Dica de Impressão:** Ao abrir a janela de impressão do seu navegador, escolha <strong>Salvar como PDF</strong> caso queira salvar o arquivo digital, ou envie diretamente para a sua impressora física. Lembre-se de certificar que a opção "Gráficos de fundo" esteja marcada para imprimir as linhas pontilhadas de assinatura de forma nítida.
+                💡 <strong>Download & Impressão:</strong> Clique em <strong>Baixar PDF</strong> para salvar o arquivo digital diretamente no seu dispositivo, ou em <strong>Imprimir Documento</strong> para acionar a impressão em papel.
               </span>
             </div>
           </div>
 
           {/* Visual simulation sheet area - looks exactly like real printed paper */}
           <div className="bg-white border border-neutral-300/80 rounded-xl shadow-lg p-6 md:p-8 max-w-4xl mx-auto bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-[size:16px_16px] overflow-x-auto min-h-[500px]" id="printable-sheet-preview-frame">
-            
+
             <div className="w-full min-w-[620px] bg-white p-4 border border-neutral-200 shadow-xs" id="printable-sheet-area">
-              
+
               {/* Sheet header */}
               <div className="border-b-2 border-neutral-950 pb-4 flex justify-between items-start">
                 <div className="space-y-0.5">
@@ -953,7 +1093,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
                   <div className="text-xs font-bold uppercase text-neutral-500 font-mono tracking-wide">Controle Interno de Restaurante</div>
                   <h4 className="text-base font-extrabold tracking-tight text-neutral-950 uppercase mt-2">LISTA DE PRESENÇA E ASSINATURA</h4>
                 </div>
-                
+
                 <div className="text-right font-mono text-[11px] text-neutral-800 space-y-1 bg-neutral-50 border border-neutral-200 p-2.5 rounded-lg max-w-xs">
                   <p><strong>DATA:</strong> {new Date(folhaDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
                   <p><strong>CÓD. DOC:</strong> FTR-{folhaDate.replace(/-/g, '')}</p>
@@ -1023,7 +1163,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
               </div>
 
               <div className="mt-8 text-center text-[9px] font-mono text-neutral-400 border-t border-neutral-200 pt-2">
-                SGR - APP AUTOMAÇÃO DE RESTAURANTE FONTANA -- IMPRESSO EM {new Date().toLocaleDateString('pt-BR')} {new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
+                SGR - APP AUTOMAÇÃO DE RESTAURANTE FONTANA -- IMPRESSO EM {new Date().toLocaleDateString('pt-BR')} {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
               </div>
 
             </div>
@@ -1071,7 +1211,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
               <span>Configuração do Relatório de Desconto</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
               <div>
                 <label className="block text-[10px] text-neutral-500 uppercase font-bold mb-1">Selecionar Empresa</label>
                 <select
@@ -1111,18 +1251,42 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
 
               <div className="flex items-end">
                 <button
-                  onClick={() => window.print()}
-                  className="w-full py-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs rounded-lg transition shadow-md flex items-center justify-center gap-2 duration-150"
+                  type="button"
+                  onClick={() => handleDownloadPdf('payroll-printable-sheet-area', `SGR_Desconto_Folha_${descontoStart}_a_${descontoEnd}`)}
+                  disabled={isGeneratingPdf === 'payroll-printable-sheet-area'}
+                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition shadow-md flex items-center justify-center gap-1.5 duration-150 disabled:opacity-50 cursor-pointer"
+                  id="trigger-download-desconto-pdf-btn"
+                >
+                  {isGeneratingPdf === 'payroll-printable-sheet-area' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      <span>Gerando PDF...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 shrink-0" />
+                      <span>Baixar PDF</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={() => handlePrintReport('payroll-printable-sheet-area', 'Relatório de Desconto em Folha - Fontana')}
+                  className="w-full py-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs rounded-lg transition shadow-md flex items-center justify-center gap-1.5 duration-150 cursor-pointer"
                   id="trigger-desconto-print-btn"
                 >
-                  <Printer className="h-4 w-4 shrink-0 text-emerald-400" /> Imprimir Documento (PDF)
+                  <Printer className="h-4 w-4 shrink-0 text-emerald-400" />
+                  <span>Imprimir Documento</span>
                 </button>
               </div>
             </div>
 
             <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-xs text-neutral-600 flex flex-col md:flex-row md:items-center justify-between gap-2">
               <span className="font-medium text-neutral-700 leading-normal">
-                💡 **Relatório para Assinatura e Desconto**: Lista os colaboradores em ordem alfabética com o total de refeições reservadas, custos totais e o valor a ser descontado em folha (com base no desconto de colaborador configurado em cada obra).
+                💡 <strong>Relatório para Assinatura e Desconto:</strong> Baixe o arquivo PDF diretamente para arquivamento digital ou acione a impressão em papel para coleta física de assinaturas.
               </span>
             </div>
           </div>
@@ -1130,7 +1294,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
           {/* Visual simulation sheet area */}
           <div className="bg-white border border-neutral-300/80 rounded-xl shadow-lg p-6 md:p-8 max-w-4xl mx-auto bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-[size:16px_16px] overflow-x-auto min-h-[500px]" id="payroll-printable-sheet-frame">
             <div className="w-full min-w-[700px] bg-white p-4 border border-neutral-200 shadow-xs" id="payroll-printable-sheet-area">
-              
+
               {/* Header */}
               <div className="border-b-2 border-neutral-950 pb-4 flex justify-between items-start">
                 <div className="space-y-0.5">
@@ -1138,7 +1302,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
                   <div className="text-xs font-bold uppercase text-neutral-500 font-mono tracking-wide">CONSTRUTORA E INCORPORADORA</div>
                   <h4 className="text-base font-extrabold tracking-tight text-neutral-950 uppercase mt-2">RELAÇÃO DE DESCONTO EM FOLHA - REFEIÇÕES</h4>
                 </div>
-                
+
                 <div className="text-right font-mono text-[11px] text-neutral-800 space-y-1 bg-neutral-50 border border-neutral-200 p-2.5 rounded-lg max-w-xs">
                   <p><strong>PERÍODO:</strong> {new Date(descontoStart + 'T00:00:00').toLocaleDateString('pt-BR')} a {new Date(descontoEnd + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
                   <p><strong>EMPRESA:</strong> {filterDescontoEmpresa === 'all' ? 'TODAS COMPATÍVEIS' : empresas.find(e => e.id === filterDescontoEmpresa)?.nome || 'Fontana'}</p>
@@ -1278,7 +1442,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
                 </select>
               </div>
             </div>
-            
+
             <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-xs text-neutral-600">
               💡 <strong>Relatório Executivo de Reservas por Empresa:</strong> Consolida a soma de refeições reservadas, refeições confirmadas e taxas de adesão por parceiro e frente de trabalho no período selecionado.
             </div>
@@ -1306,11 +1470,11 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
                 <tbody className="divide-y divide-neutral-100 text-neutral-700">
                   {getEmpresaReportRows().length > 0 ? (
                     getEmpresaReportRows().map((row) => {
-                      const pct = row.quantidadeReservas > 0 
-                        ? (row.quantidadeConsumidas / row.quantidadeReservas * 100).toFixed(1) 
+                      const pct = row.quantidadeReservas > 0
+                        ? (row.quantidadeConsumidas / row.quantidadeReservas * 100).toFixed(1)
                         : '0';
                       const pctNum = parseFloat(pct);
-                      
+
                       return (
                         <tr key={row.id} className="hover:bg-neutral-50 h-[16px]" style={{ height: '16px' }}>
                           <td className="p-0.5 px-3 h-[16px]">
@@ -1320,12 +1484,11 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
                           <td className="p-0.5 px-3 text-center text-[11px] font-mono text-neutral-900 font-bold h-[16px]">{row.quantidadeReservas}</td>
                           <td className="p-0.5 px-3 text-center text-[11px] font-mono text-emerald-700 font-bold h-[16px]">{row.quantidadeConsumidas}</td>
                           <td className="p-0.5 px-3 text-center h-[16px]">
-                            <span className={`px-1.5 rounded text-[8px] font-bold font-mono border ${
-                              pctNum >= 90 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                              pctNum >= 75 ? 'bg-amber-50 text-amber-800 border-amber-200' :
-                              pctNum > 0 ? 'bg-rose-50 text-rose-800 border-rose-200' :
-                              'bg-neutral-100 text-neutral-450 border-neutral-200'
-                            }`}>
+                            <span className={`px-1.5 rounded text-[8px] font-bold font-mono border ${pctNum >= 90 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                                pctNum >= 75 ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                                  pctNum > 0 ? 'bg-rose-50 text-rose-800 border-rose-200' :
+                                    'bg-neutral-100 text-neutral-450 border-neutral-200'
+                              }`}>
                               {pct}%
                             </span>
                           </td>
