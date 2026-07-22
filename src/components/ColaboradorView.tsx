@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { Usuario, Reserva, ReservaStatus, Feriado, SystemSettings, Obra, Perfil } from '../types';
-import { Calendar as CalendarIcon, Check, X, ShieldAlert, Clock, RefreshCw, FileText, Download, ExternalLink, AlertTriangle, MousePointerClick, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { Calendar as CalendarIcon, Check, X, ShieldAlert, Clock, RefreshCw, FileText, Download, AlertTriangle, MousePointerClick, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 
 interface Refeicao {
   pratoPrincipal: string;
@@ -251,155 +251,6 @@ export default function ColaboradorView({
     }
   };
 
-  // State for showing PDF modal
-  const [viewingPdf, setViewingPdf] = useState<string | null>(null);
-  const [pdfTitle, setPdfTitle] = useState('');
-  const [safePdfUrl, setSafePdfUrl] = useState<string | null>(null);
-
-  // AI Cardápio Parser state
-  const [modalTab, setModalTab] = useState<'ai' | 'pdf'>('ai');
-  const [aiMenuText, setAiMenuText] = useState<string | null>(null);
-  const [isLoadingAiMenu, setIsLoadingAiMenu] = useState(false);
-  const [aiMenuError, setAiMenuError] = useState<string | null>(null);
-
-  const loadAiCardapio = async (url: string, name: string) => {
-    setIsLoadingAiMenu(true);
-    setAiMenuError(null);
-    try {
-      const response = await fetch('/api/gemini/parse-cardapio', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          cardapioUrl: url,
-          cardapioNome: name,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error('Falha ao processar o cardápio com inteligência artificial.');
-      }
-      const data = await response.json();
-      if (data.success && data.text) {
-        setAiMenuText(data.text);
-      } else {
-        throw new Error(data.error || 'Não foi possível analisar o cardápio.');
-      }
-    } catch (err: any) {
-      console.error('[AI Menu Fetch] Error:', err);
-      setAiMenuError(err.message || 'Houve um erro ao solicitar a leitura inteligente do cardápio.');
-    } finally {
-      setIsLoadingAiMenu(false);
-    }
-  };
-
-  const renderFormattedAiContent = (text: string) => {
-    return text.split('\n').map((line, index) => {
-      let trimmed = line.trim();
-      if (!trimmed) return <div key={index} className="h-2" />;
-      
-      if (trimmed === '---') {
-        return <hr key={index} className="my-2 border-neutral-200" />;
-      }
-      
-      if (trimmed.startsWith('###')) {
-        return (
-          <h4 key={index} className="text-xs sm:text-sm font-black text-neutral-800 mt-3 mb-1.5 flex items-center gap-1.5 uppercase tracking-wide">
-            {trimmed.replace('###', '').trim()}
-          </h4>
-        );
-      }
-      if (trimmed.startsWith('##')) {
-        return (
-          <h3 key={index} className="text-sm sm:text-base font-black text-emerald-800 mt-3 mb-1.5 flex items-center gap-1.5 uppercase tracking-wide">
-            {trimmed.replace('##', '').trim()}
-          </h3>
-        );
-      }
-      if (trimmed.startsWith('#')) {
-        return (
-          <h2 key={index} className="text-base sm:text-lg font-black text-emerald-950 mt-4 mb-2 flex items-center gap-2 uppercase tracking-wide border-b-2 border-emerald-500 pb-1">
-            {trimmed.replace('#', '').trim()}
-          </h2>
-        );
-      }
-      
-      if (trimmed.startsWith('-')) {
-        let content = trimmed.substring(1).trim();
-        const boldRegex = /\*\*(.*?)\*\*/g;
-        const parts = [];
-        let lastIndex = 0;
-        let match;
-        while ((match = boldRegex.exec(content)) !== null) {
-          if (match.index > lastIndex) {
-            parts.push(content.substring(lastIndex, match.index));
-          }
-          parts.push(<strong key={match.index} className="font-extrabold text-neutral-900">{match[1]}</strong>);
-          lastIndex = boldRegex.lastIndex;
-        }
-        if (lastIndex < content.length) {
-          parts.push(content.substring(lastIndex));
-        }
-        
-        return (
-          <li key={index} className="text-[11px] sm:text-xs text-neutral-600 list-none pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-emerald-500 before:font-bold py-0.5">
-            {parts.length > 0 ? parts : content}
-          </li>
-        );
-      }
-      
-      const boldRegex = /\*\*(.*?)\*\*/g;
-      const parts = [];
-      let lastIndex = 0;
-      let match;
-      while ((match = boldRegex.exec(trimmed)) !== null) {
-        if (match.index > lastIndex) {
-          parts.push(trimmed.substring(lastIndex, match.index));
-        }
-        parts.push(<strong key={match.index} className="font-extrabold text-neutral-950">{match[1]}</strong>);
-        lastIndex = boldRegex.lastIndex;
-      }
-      if (lastIndex < trimmed.length) {
-        parts.push(trimmed.substring(lastIndex));
-      }
-      return (
-        <p key={index} className="text-[11px] sm:text-xs text-neutral-600 leading-relaxed py-0.5">
-          {parts.length > 0 ? parts : trimmed}
-        </p>
-      );
-    });
-  };
-
-  React.useEffect(() => {
-    if (!viewingPdf) {
-      setSafePdfUrl(null);
-      return;
-    }
-
-    if (viewingPdf.startsWith('data:application/pdf;base64,')) {
-      try {
-        const base64Content = viewingPdf.split(',')[1];
-        const binaryString = window.atob(base64Content);
-        const len = binaryString.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        const blob = new Blob([bytes], { type: 'application/pdf' });
-        const blobUrl = URL.createObjectURL(blob);
-        setSafePdfUrl(blobUrl);
-
-        return () => {
-          URL.revokeObjectURL(blobUrl);
-        };
-      } catch (e) {
-        console.error('Error generating PDF blob URL', e);
-        setSafePdfUrl(viewingPdf);
-      }
-    } else {
-      setSafePdfUrl(viewingPdf);
-    }
-  }, [viewingPdf]);
 
   // Helper: Download a file reliably on all browsers (incl. mobile Safari), converting base64 data URIs into a local Blob before triggering the download.
   const downloadCardapioFile = (sourceUrl: string, filename: string) => {
@@ -431,12 +282,12 @@ export default function ColaboradorView({
     link.click();
     document.body.removeChild(link);
     }
-  } catch (e) {
+    } catch (e) {
     console.error('Erro ao gerar download do cardápio', e);
     alert('Erro ao baixar o arquivo. Tente novamente.');
-  }
-  };
-
+    }
+    };
+  
   // Custom Cardapio State
   const [selectedMenuDate, setSelectedMenuDate] = useState<string>(todayDate);
   const [isUploadingCardapio, setIsUploadingCardapio] = useState(false);
@@ -1151,48 +1002,43 @@ export default function ColaboradorView({
                   {/* PDF Segment if active */}
                   {temCardapio ? (
                     <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-3.5 space-y-3" id="cardapio-oficial-preview">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
-                        <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                        <span>Cardápio Oficial PDF Vinculado</span>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
+                          <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                          <span>Cardápio Oficial Disponível</span>
+                        </div>
+                        {colaboradorObra.cardapioAtualizadoEm && (
+                          <span className="text-[10px] text-emerald-700 font-medium bg-emerald-100/70 px-2 py-0.5 rounded-full font-mono">
+                            {new Date(colaboradorObra.cardapioAtualizadoEm).toLocaleDateString('pt-BR')}
+                          </span>
+                        )}
                       </div>
                       
-                      <div className="bg-white border border-emerald-100 rounded-lg p-3 shadow-xs flex items-center justify-between gap-3">
+                      <div className="bg-white border border-emerald-100 rounded-xl p-3.5 shadow-xs space-y-3">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="p-1.5 bg-emerald-50 rounded-lg text-emerald-600 shrink-0">
+                          <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600 shrink-0">
                             <FileText className="h-5 w-5" />
                           </div>
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <span className="block text-xs font-black text-neutral-800 truncate" title={colaboradorObra.cardapioNome}>
-                              {colaboradorObra.cardapioNome}
+                              {colaboradorObra.cardapioNome || 'Cardápio Oficial PDF'}
                             </span>
-                            <span className="block text-[8px] text-neutral-400 font-mono mt-0.5">
+                            <span className="block text-[10px] text-neutral-500 font-medium mt-0.5">
                               Atualizado: {colaboradorObra.cardapioAtualizadoEm ? new Date(colaboradorObra.cardapioAtualizadoEm).toLocaleDateString('pt-BR') : 'Recentemente'}
                             </span>
                           </div>
                         </div>
                         
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => {
-                              if (colaboradorObra.cardapioUrl) {
-                                setViewingPdf(colaboradorObra.cardapioUrl);
-                                setPdfTitle(colaboradorObra.cardapioNome || 'Cardápio PDF');
-                  setModalTab('pdf');
-                              }
-                            }}
-                            className="p-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold transition flex items-center gap-1"
-                            title="Visualizar documento integrado"
-                          >
-                            <ExternalLink className="h-3 w-3" /> Ver
-                          </button>
-                <button
-                  onClick={() => downloadCardapioFile(colaboradorObra.cardapioUrl, colaboradorObra.cardapioNome || 'cardapio.pdf')}
-                            className="p-1.5 border border-neutral-200 hover:bg-neutral-50 text-neutral-600 rounded transition"
-                            title="Baixar arquivo original"
-                          >
-                            <Download className="h-3 w-3" />
-                </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => downloadCardapioFile(colaboradorObra.cardapioUrl, colaboradorObra.cardapioNome || 'cardapio.pdf')}
+                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs rounded-lg transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                          title="Baixar arquivo do cardápio diretamente"
+                          id="btn-download-cardapio-direto"
+                        >
+                          <Download className="h-4 w-4 shrink-0" />
+                          <span>Baixar Cardápio PDF</span>
+                        </button>
                       </div>
                     </div>
                   ) : (
@@ -1390,142 +1236,7 @@ export default function ColaboradorView({
         </div>
       )}
 
-      {/* PDF Viewer Lightbox Modal */}
-      {viewingPdf && (
-        <div className="fixed inset-0 bg-neutral-900/95 backdrop-blur-md flex items-center justify-center p-0 sm:p-4 z-50 animate-fade-in" id="pdf-viewer-modal">
-          <div className="bg-white rounded-none sm:rounded-xl shadow-2xl border border-neutral-200 w-full sm:max-w-4xl h-full sm:h-[90vh] flex flex-col overflow-hidden animate-scale-up">
-            {/* Modal Header */}
-            <div className="bg-neutral-950 text-white px-4 sm:px-5 py-4 flex justify-between items-center shrink-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <FileText className="h-5 w-5 text-emerald-400 shrink-0" />
-                <div className="min-w-0">
-                  <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider truncate" title={pdfTitle}>{pdfTitle}</h3>
-                  <p className="text-[10px] text-neutral-400 leading-none mt-0.5">Visualizador Inteligente Fontana</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                <a
-                href={safePdfUrl || viewingPdf}
-                  download={pdfTitle}
-                  className="p-2 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition cursor-pointer flex items-center justify-center mini-touch-target"
-                  title="Baixar arquivo original"
-                >
-                  <Download className="h-4.5 w-4.5" />
-                </a>
-                <button
-                  onClick={() => {
-                    setViewingPdf(null);
-                  }}
-                  className="p-2 hover:bg-neutral-800 rounded-lg transition text-neutral-400 hover:text-white cursor-pointer flex items-center justify-center mini-touch-target"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
 
-            {modalTab === 'pdf' && (
-              /* Browser security compatibility warning bar */
-              <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-amber-900 text-[10px] sm:text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 font-medium leading-normal shrink-0">
-                <span className="flex items-center gap-1.5">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                  <span>Em celulares, o visualizador embutido de PDF pode falhar ou aparecer em branco. Se isso ocorrer:</span>
-                </span>
-                <a
-                  href={safePdfUrl || viewingPdf}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full sm:w-auto px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] rounded-lg transition flex items-center justify-center gap-1 min-h-[38px]"
-                >
-                  <ExternalLink className="h-3 w-3" /> Abrir PDF Completo Externo
-                </a>
-              </div>
-            )}
- 
-            {/* Modal content area */}
-            <div className="flex-1 bg-neutral-100 p-2 sm:p-4 flex flex-col justify-between overflow-hidden">
-              {modalTab === 'pdf' ? (
-                <div className="flex-1 bg-white rounded-lg border border-neutral-200 overflow-hidden relative">
-                  {safePdfUrl ? (
-                    <iframe 
-                      src={safePdfUrl}
-                      className="w-full h-full border-none"
-                      title="Document PDF Container"
-                      id="iframe-pdf-document"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-4">
-                      <FileText className="h-16 w-16 text-emerald-500 animate-pulse" />
-                      <div>
-                        <h4 className="font-bold text-neutral-800 text-sm">Visualização Indisponível</h4>
-                        <p className="text-xs text-neutral-500 max-w-sm mt-1">Nenhum arquivo ou link de cardápio foi carregado corretamente.</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* AI Menu Rendering segment */
-                <div className="flex-1 bg-neutral-900 rounded-xl p-3 sm:p-5 overflow-y-auto border border-neutral-800 text-left relative flex flex-col justify-between min-h-0">
-                  {isLoadingAiMenu ? (
-                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
-                      <div className="relative">
-                        <div className="w-14 h-14 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin"></div>
-                        <Sparkles className="h-6 w-6 text-emerald-400 absolute inset-0 m-auto animate-pulse" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-white text-xs sm:text-sm">Minerando pratos com IA Fontana...</h4>
-                        <p className="text-[10px] text-neutral-400 max-w-xs mt-1">Processando o arquivo PDF com inteligência artificial para extrair os alimentos em formato de leitura rápida para celular.</p>
-                      </div>
-                    </div>
-                  ) : aiMenuError ? (
-                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
-                      <AlertTriangle className="h-12 w-12 text-rose-500" />
-                      <div>
-                        <h4 className="font-bold text-white text-xs sm:text-sm">Leitura Inteligente Indisponível</h4>
-                        <p className="text-[10px] text-neutral-400 max-w-sm mt-1">{aiMenuError}</p>
-                      </div>
-                    </div>
-                  ) : aiMenuText ? (
-                    <div className="bg-white rounded-xl p-4 sm:p-6 border border-neutral-200 shadow-md space-y-3 font-sans overflow-y-auto block max-w-3xl mx-auto w-full">
-                      <div className="flex items-center gap-2 border-b border-neutral-100 pb-3">
-                        <span className="p-2 bg-emerald-50 text-emerald-600 rounded-lg font-bold shrink-0">
-                          <Sparkles className="h-4.5 w-4.5" />
-                        </span>
-                        <div>
-                          <h4 className="text-xs sm:text-sm font-black text-neutral-900 leading-none">PRATOS EXTRAÍDOS POR INTELIGÊNCIA IA</h4>
-                          <span className="text-[9px] text-emerald-600 font-bold tracking-widest uppercase block mt-1">Fontana Cloud AI Reader</span>
-                        </div>
-                      </div>
-                      <div className="text-neutral-700 leading-normal text-xs pt-1 space-y-2">
-                        {renderFormattedAiContent(aiMenuText)}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
-                      <FileText className="h-12 w-12 text-neutral-600 animate-pulse" />
-                      <div>
-                        <h4 className="font-bold text-white text-xs sm:text-sm">Leitura Inteligente Pendente</h4>
-                        <p className="text-[10px] text-neutral-400 max-w-xs mt-1">Carregando cardápio no leitor inteligente...</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
- 
-            {/* Modal footer controls */}
-            <div className="bg-neutral-50 px-5 py-3 border-t border-neutral-200 flex justify-between items-center text-xs">
-              <span className="text-neutral-400 font-mono text-[10px]">Pressione ESC ou clique em fechar para voltar</span>
-              <button
-                onClick={() => setViewingPdf(null)}
-                className="px-4 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs rounded-lg transition-all cursor-pointer"
-              >
-                Voltar ao Painel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
