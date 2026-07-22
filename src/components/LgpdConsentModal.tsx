@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Check, X, FileText, Building2, CheckCircle2, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { Usuario } from '../types';
+import { generatePolicyPdf } from '../lib/generatePolicyPdf';
 
 interface LgpdConsentModalProps {
   isOpen: boolean;
@@ -130,58 +131,15 @@ export default function LgpdConsentModal({
   };
 
     /**
-   * Generates and downloads the Privacy Policy term as a PDF file directly.
-   * Avoids opening any print window/dialog, which previously left the user
-   * unable to close the window and resume navigation inside the app.
+   * Generates and downloads the Privacy Policy term as a vector-based PDF file directly.
+   * Handles page breaks, section headers, typography, and page numbers cleanly without slicing text.
    */
   const handleDownloadPdf = (e: React.MouseEvent) => {
     e.stopPropagation();
-    (async () => {
-      try {
-        const { default: jsPDF } = await import('https://esm.sh/jspdf@2.5.1');
-
-        const container = document.createElement('div');
-        container.style.position = 'fixed';
-        container.style.left = '0'; container.style.zIndex = '-9999';
-        container.style.top = '0';
-        container.style.width = '760px';
-        container.style.padding = '24px';
-        container.style.background = '#ffffff';
-        container.style.fontFamily = 'Arial, sans-serif';
-        container.style.color = '#1f2937';
-        container.innerHTML = `
-          <div style="text-align:center; border-bottom:2px solid #047857; padding-bottom:12px; margin-bottom:16px;">
-            <h1 style="font-size:16px; color:#047857; margin:0;">CONSTRUTORA FONTANA LTDA</h1>
-            <h2 style="font-size:13px; margin:4px 0 0; color:#1f2937;">POLÍTICA DE PRIVACIDADE E PROTEÇÃO DE DADOS (LGPD)</h2>
-          </div>
-          <table style="width:100%; font-size:11px; margin-bottom:16px; border-collapse: collapse;">
-            <tr><td style="width:15%; padding:2px 0;"><strong>Titular:</strong></td><td>${currentUser.nome}</td></tr>
-            <tr><td style="width:15%; padding:2px 0;"><strong>Matrícula:</strong></td><td>${currentUser.matricula || 'Cadastro Pendente'}</td></tr>
-            <tr><td style="width:15%; padding:2px 0;"><strong>Data:</strong></td><td>${new Date().toLocaleString('pt-BR')}</td></tr>
-            <tr><td style="width:15%; padding:2px 0;"><strong>IP Simulado:</strong></td><td>${simulatedIp}</td></tr>
-          </table>
-          ${COMPROMISSO_LGPD_HTML}
-          <div style="margin-top:20px; font-size:9px; color:#6b7280; text-align:center; border-top:1px solid #e5e7eb; padding-top:8px;">
-            SGR FONTANA - REGISTRO DE AUDITORIA INTERNA CADASTRAL - IP SIMULADO DA SESSÃO: ${simulatedIp}
-          </div>
-        `;
-        document.body.appendChild(container);
-
-        new jsPDF('p', 'pt', 'a4').html(container, {
-          margin: [24, 24, 24, 24],
-          autoPaging: 'text',
-          width: 547,
-          windowWidth: 760,
-          callback: (doc: any) => {
-            doc.save(`SGR_Fontana_Politica_Privacidade_LGPD_${currentUser.matricula || currentUser.id}.pdf`);
-            document.body.removeChild(container);
-          },
-        });
-      } catch (err) {
-        console.error('Erro ao gerar o PDF da Política de Privacidade:', err);
-        alert('Não foi possível gerar o PDF no momento. Por favor, tente novamente.');
-      }
-    })();
+    generatePolicyPdf(currentUser).catch((err) => {
+      console.error('Erro ao gerar o PDF da Política de Privacidade:', err);
+      alert('Não foi possível gerar o PDF no momento. Por favor, tente novamente.');
+    });
   };
 
   return (
