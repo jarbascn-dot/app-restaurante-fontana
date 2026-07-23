@@ -255,16 +255,34 @@ export default function ColaboradorView({
   // Helper: Download a file reliably on all browsers and mobile WebViews (Google Play apps), using Web Share API when available.
   const downloadCardapioFile = async (sourceUrl: string, filename: string) => {
     try {
+      if (!sourceUrl) return;
+
+      let blob: Blob | null = null;
+      let mime = 'application/pdf';
+
       if (sourceUrl.startsWith('data:')) {
         const base64Content = sourceUrl.split(',')[1];
         const mimeMatch = sourceUrl.match(/^data:(.*?);base64/);
-        const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
+        if (mimeMatch) mime = mimeMatch[1];
         const binaryString = window.atob(base64Content);
         const len = binaryString.length;
         const bytes = new Uint8Array(len);
         for (let i = 0; i < len; i++) { bytes[i] = binaryString.charCodeAt(i); }
-        const blob = new Blob([bytes], { type: mime });
+        blob = new Blob([bytes], { type: mime });
+      } else if (sourceUrl.startsWith('http://') || sourceUrl.startsWith('https://')) {
+        try {
+          const resp = await fetch(sourceUrl);
+          if (resp.ok) {
+            blob = await resp.blob();
+            if (blob.type) mime = blob.type;
+          }
+        } catch (fetchErr) {
+          console.warn('Fetch failed for cardapio URL, falling back to direct open:', fetchErr);
+        }
+      }
 
+      // If we have a Blob (from data URI or fetched HTTP URL)
+      if (blob) {
         // 1. Try Web Share API for Android WebViews (Google Play Store app wrapper)
         if (typeof navigator !== 'undefined' && navigator.canShare) {
           try {
@@ -281,13 +299,16 @@ export default function ColaboradorView({
           }
         }
 
-        // 2. Mobile WebView fallback
+        // 2. Mobile WebView fallback for Blob URLs
         const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         const blobUrl = URL.createObjectURL(blob);
         if (isMobile) {
           const newWin = window.open(blobUrl, '_blank');
-          if (!newWin) window.location.href = blobUrl;
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+          if (!newWin) {
+            window.location.href = blobUrl;
+          }
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+          return;
         } else {
           const link = document.createElement('a');
           link.href = blobUrl;
@@ -296,6 +317,16 @@ export default function ColaboradorView({
           link.click();
           document.body.removeChild(link);
           setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+          return;
+        }
+      }
+
+      // Fallback for direct HTTP/HTTPS URLs without Blob (e.g. CORS blocked fetch)
+      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile) {
+        const newWin = window.open(sourceUrl, '_blank');
+        if (!newWin) {
+          window.location.href = sourceUrl;
         }
       } else {
         const link = document.createElement('a');
