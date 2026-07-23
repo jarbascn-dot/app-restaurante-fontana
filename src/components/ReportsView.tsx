@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import jsPDF from 'jspdf';
 import { Reserva, Usuario, Obra, Empresa, ReservaStatus, SystemSettings, Perfil, UserStatus } from '../types';
 import { FileSpreadsheet, Download, Filter, Search, DollarSign, Calendar, Sliders, Printer, Loader2 } from 'lucide-react';
 import { downloadPdfOrFile } from '../lib/downloadHelper';
@@ -565,9 +566,6 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
   const handleDownloadPdf = async (elementId: string, filename: string) => {
     setIsGeneratingPdf(elementId);
     try {
-      // @ts-ignore
-      const { default: jsPDF } = await import('https://esm.sh/jspdf@2.5.1');
-
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
       if (elementId === 'printable-sheet-area') {
@@ -583,9 +581,9 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
         filename: `${filename}.pdf`,
         title: filename,
       });
-    } catch (err) {
-      console.error('Erro ao gerar PDF:', err);
-      alert('Não foi possível gerar o arquivo PDF no momento. Por favor, tente novamente.');
+    } catch (err: any) {
+            console.error('Erro ao gerar/baixar PDF:', err);
+            alert(err?.message || 'Não foi possível baixar o PDF. Por favor, tente novamente.');
     } finally {
       setIsGeneratingPdf(null);
     }
