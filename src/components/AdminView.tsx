@@ -7,6 +7,7 @@ import React, { useState, useRef } from 'react';
 import { Usuario, Perfil, UserStatus, SystemSettings, AuditoriaLog, Obra, Empresa, Feriado, Reserva, ReservaStatus } from '../types';
 import { Users, UserCheck, ShieldAlert, Sliders, FileText, Search, Settings, Save, Trash2, CheckCircle, Ban, Building2, Plus, Edit, Briefcase, X, Check, ExternalLink, Calendar, FileSpreadsheet, Smile, Camera } from 'lucide-react';
 import CameraCapture from './CameraCapture';
+import { downloadPdfOrFile } from '../lib/downloadHelper';
 
 interface AdminViewProps {
   usuarios: Usuario[];
@@ -261,7 +262,7 @@ export default function AdminView({
     u.matricula.toLowerCase().includes(userSearch.toLowerCase())
   ).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
-  const exportUsersToCSV = () => {
+  const exportUsersToCSV = async () => {
     // BOM for Excel compatibility with Portuguese Special characters
     const BOM = '\uFEFF';
     let csvContent = "Matrícula;Nome;CPF;E-mail;Perfil;Empresa;Obra Padrão;Status\n";
@@ -288,13 +289,12 @@ export default function AdminView({
     });
     
     const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `SGR-Relatorio-Colaboradores.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    await downloadPdfOrFile({
+      blob,
+      filename: 'SGR-Relatorio-Colaboradores.csv',
+      mimeType: 'text/csv;charset=utf-8;',
+      title: 'Relatório de Colaboradores — SGR Fontana',
+    });
   };
 
   const filteredLogs = logs.filter(l => 
@@ -1660,17 +1660,15 @@ export default function AdminView({
                   <div>
                     <label className="block text-[10px] text-neutral-550 uppercase font-black mb-1">Valor da Refeição (R$)</label>
                     <input
-                      type="text"
-                      inputMode="decimal"
+                      type="number"
+                      step="0.01"
                       required
-                      value={obraForm.valorRefeicao === undefined ? String(settings.valorRefeicaoPropria) : String(obraForm.valorRefeicao)}
+                      value={obraForm.valorRefeicao === undefined ? settings.valorRefeicaoPropria : obraForm.valorRefeicao}
                       onChange={(e) => {
-                        const raw = e.target.value;
-                        if (raw === '' || /^[0-9]*[,.]?[0-9]*$/.test(raw)) {
-                          setObraForm(prev => ({ ...prev, valorRefeicao: raw as any }));
-                        }
+                        const val = e.target.value === '' ? '' : Number(e.target.value);
+                        setObraForm(prev => ({ ...prev, valorRefeicao: val as number }));
                       }}
-                      placeholder="Ex: 25,00"
+                      placeholder="Ex: 25.00"
                       className="w-full px-3 py-1.5 border border-neutral-300 rounded text-xs font-bold bg-white text-neutral-800 focus:ring-1 focus:ring-emerald-500"
                     />
                     <span className="text-[9px] text-neutral-400 mt-0.5 block">Preço unitário faturado do fornecedor (R$ {settings.valorRefeicaoPropria.toFixed(2)} global).</span>
@@ -1679,17 +1677,15 @@ export default function AdminView({
                   <div>
                     <label className="block text-[10px] text-neutral-550 uppercase font-black mb-1">Desconto Colaborador (R$)</label>
                     <input
-                      type="text"
-                      inputMode="decimal"
+                      type="number"
+                      step="0.01"
                       required
-                      value={obraForm.valorDescontoColaborador === undefined ? '0' : String(obraForm.valorDescontoColaborador)}
+                      value={obraForm.valorDescontoColaborador === undefined ? 0 : obraForm.valorDescontoColaborador}
                       onChange={(e) => {
-                        const raw = e.target.value;
-                        if (raw === '' || /^[0-9]*[,.]?[0-9]*$/.test(raw)) {
-                          setObraForm(prev => ({ ...prev, valorDescontoColaborador: raw as any }));
-                        }
+                        const val = e.target.value === '' ? 0 : Number(e.target.value);
+                        setObraForm(prev => ({ ...prev, valorDescontoColaborador: val }));
                       }}
-                      placeholder="Ex: 5,00"
+                      placeholder="Ex: 5.00"
                       className="w-full px-3 py-1.5 border border-neutral-300 rounded text-xs font-bold bg-white text-neutral-800 focus:ring-1 focus:ring-emerald-500"
                     />
                     <span className="text-[9px] text-neutral-400 mt-0.5 block">Desconto em folha (Ex: limitar por conv. ou 20% do custo).</span>
@@ -1740,8 +1736,8 @@ export default function AdminView({
                         nome: obraForm.nome,
                         centroCusto: obraForm.centroCusto,
                         ativa: !!obraForm.ativa,
-                        valorRefeicao: Number(String(obraForm.valorRefeicao || 0).replace(',', '.')),
-                        valorDescontoColaborador: Number(String(obraForm.valorDescontoColaborador || 0).replace(',', '.')),
+                        valorRefeicao: Number(obraForm.valorRefeicao || 0),
+                        valorDescontoColaborador: Number(obraForm.valorDescontoColaborador || 0),
                         idFornecedorPrincipal: obraForm.idFornecedorPrincipal || '',
                         cardapioUrl: obraForm.cardapioUrl || '',
                         cardapioNome: obraForm.cardapioNome || '',
