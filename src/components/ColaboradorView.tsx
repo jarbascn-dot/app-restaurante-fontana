@@ -252,41 +252,66 @@ export default function ColaboradorView({
   };
 
 
-  // Helper: Download a file reliably on all browsers (incl. mobile Safari), converting base64 data URIs into a local Blob before triggering the download.
-  const downloadCardapioFile = (sourceUrl: string, filename: string) => {
-  try {
-    if (sourceUrl.startsWith('data:')) {
-    const base64Content = sourceUrl.split(',')[1];
-    const mimeMatch = sourceUrl.match(/^data:(.*?);base64/);
-    const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
-    const binaryString = window.atob(base64Content);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) { bytes[i] = binaryString.charCodeAt(i); }
-    const blob = new Blob([bytes], { type: mime });
-    const blobUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
-    } else {
-    const link = document.createElement('a');
-    link.href = sourceUrl;
-    link.download = filename;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    }
+  // Helper: Download a file reliably on all browsers and mobile WebViews (Google Play apps), using Web Share API when available.
+  const downloadCardapioFile = async (sourceUrl: string, filename: string) => {
+    try {
+      if (sourceUrl.startsWith('data:')) {
+        const base64Content = sourceUrl.split(',')[1];
+        const mimeMatch = sourceUrl.match(/^data:(.*?);base64/);
+        const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
+        const binaryString = window.atob(base64Content);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) { bytes[i] = binaryString.charCodeAt(i); }
+        const blob = new Blob([bytes], { type: mime });
+
+        // 1. Try Web Share API for Android WebViews (Google Play Store app wrapper)
+        if (typeof navigator !== 'undefined' && navigator.canShare) {
+          try {
+            const file = new File([blob], filename, { type: mime });
+            if (navigator.canShare({ files: [file] })) {
+              await navigator.share({
+                files: [file],
+                title: filename,
+              });
+              return;
+            }
+          } catch (shareErr: any) {
+            if (shareErr?.name === 'AbortError') return;
+          }
+        }
+
+        // 2. Mobile WebView fallback
+        const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const blobUrl = URL.createObjectURL(blob);
+        if (isMobile) {
+          const newWin = window.open(blobUrl, '_blank');
+          if (!newWin) window.location.href = blobUrl;
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        } else {
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+        }
+      } else {
+        const link = document.createElement('a');
+        link.href = sourceUrl;
+        link.download = filename;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
     } catch (e) {
-    console.error('Erro ao gerar download do cardápio', e);
-    alert('Erro ao baixar o arquivo. Tente novamente.');
+      console.error('Erro ao gerar download do cardápio', e);
+      alert('Erro ao baixar o arquivo. Tente novamente.');
     }
-    };
+  };
   
   // Custom Cardapio State
   const [selectedMenuDate, setSelectedMenuDate] = useState<string>(todayDate);
