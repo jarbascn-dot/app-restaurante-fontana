@@ -4,6 +4,7 @@
  */
 
 import { Usuario } from '../types';
+import { downloadPdfOrFile } from './downloadHelper';
 
 /**
  * Generates a crisp, vector-based PDF document of the Construtora Fontana Privacy Policy (LGPD).
@@ -161,11 +162,11 @@ export async function generatePolicyPdf(currentUser: Usuario): Promise<void> {
   addParagraph('Em estrita conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD) - Lei Federal nº 13.709/2018, a CONSTRUTORA FONTANA LTDA, por meio de seu departamento de Segurança da Informação, Tecnologia e Compliance, estabelece esta Diretiva e Política de Privacidade para regular as atividades de coleta, armazenamento, processamento e controle de dados pessoais tratados de forma eletrônica dentro do escopo do aplicativo SGR (Sistema de Gerenciamento de Refeitórios).');
   addParagraph('A plataforma SGR foi concebida para otimizar reservas ordinárias e recorrentes de refeições de colaboradores próprios ou terceirizados envolvidos nas atividades canteiristas da empresa, atuando diretamente no refeitório técnico, promovendo o combate sistemático ao desperdício socioambiental de suprimentos alimentares e garantindo uma distribuição idônea, transparente e auditável de custos corporativos indiretos entre as frentes de obras e suas respectivas prestadoras de serviço subcontratadas.');
 
-addSectionHeader('2. AGENTE CONTROLADOR E CANAL DE PRIVACIDADE');
+  addSectionHeader('2. AGENTE CONTROLADOR E CANAL DE PRIVACIDADE');
   addParagraph('Define-se, para todos os efeitos de governança corporativa, compliance legal e responsabilidade regulatória, como Controladora exclusiva das informações e dados de agendamentos tratados neste aplicativo:');
   addBulletItem('• Razão Social:', 'CONSTRUTORA FONTANA LTDA, pessoa jurídica de direito privado inscrita no CNPJ sob o nº 79.667.655/0001-78.');
   addBulletItem('• Endereço Físico Administrativo:', 'Rua Domênico Sônego, 255 – Centro, Criciúma/SC - CEP 88.804-050.');
-addBulletItem('• Canal de Privacidade e Proteção de Dados:', 'As solicitações relacionadas ao tratamento de dados pessoais, ao exercício dos direitos dos titulares e às questões de privacidade poderão ser encaminhadas ao setor de Recursos Humanos da Construtora Fontana, por meio do e-mail corporativo: folha@estilofontana.com.br.');
+  addBulletItem('• Canal de Privacidade e Proteção de Dados:', 'As solicitações relacionadas ao tratamento de dados pessoais, ao exercício dos direitos dos titulares e às questões de privacidade poderão ser encaminhadas ao setor de Recursos Humanos da Construtora Fontana, por meio do e-mail corporativo: folha@estilofontana.com.br.');
 
   addSectionHeader('3. CATEGORIAS DE DADOS PESSOAIS TRATADOS NO SISTEMA');
   addParagraph('Para propiciar a funcionalidade legítima de refeições nos canteiros, prevenir potenciais fraudes cibernéticas de falsidade ideológica e garantir comprovação fiscal, recolhem-se e processam-se exclusivamente as seguintes categorias de dados:');
@@ -231,40 +232,10 @@ addBulletItem('• Canal de Privacidade e Proteção de Dados:', 'As solicitaç�
   }
 
   const filename = `SGR_Fontana_Politica_Privacidade_LGPD_${currentUser.matricula || currentUser.id}.pdf`;
-  const pdfBlob = doc.output('blob');
 
-  // Android WebViews (e.g. apps on Google Play Store) block programmatic <a download> clicks.
-  // 1. Try Web Share API with File object (natively supported by Android WebViews and mobile OS)
-  if (typeof navigator !== 'undefined' && navigator.canShare) {
-    try {
-      const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'Política de Privacidade LGPD — Fontana',
-          text: 'Documento de Política de Privacidade e Proteção de Dados (LGPD) — Construtora Fontana',
-        });
-        return;
-      }
-    } catch (shareErr: any) {
-      if (shareErr?.name === 'AbortError') {
-        return; // User intentionally closed the share sheet
-      }
-      console.warn('Web Share attempt failed, falling back to blob opening:', shareErr);
-    }
-  }
-
-  // 2. Fallback for mobile WebViews or browsers without Web Share
-  const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if (isMobile) {
-    const blobUrl = URL.createObjectURL(pdfBlob);
-    const newWin = window.open(blobUrl, '_blank');
-    if (!newWin) {
-      window.location.href = blobUrl;
-    }
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-  } else {
-    // 3. Desktop browser standard download
-    doc.save(filename);
-  }
+  await downloadPdfOrFile({
+    pdfDoc: doc,
+    filename,
+    title: 'Política de Privacidade LGPD — Construtora Fontana',
+  });
 }
