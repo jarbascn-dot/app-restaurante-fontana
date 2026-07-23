@@ -57,60 +57,575 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
 
+  // --- NATIVE VECTOR PDF GENERATOR FUNCTIONS (100% Reliable, Fast, High Quality) ---
+
+  const generateFolhaPdfDoc = (doc: any) => {
+    const rows = getFolhaRows();
+    const obraSelObj = obras.find(o => o.id === folhaObraId);
+    const localNome = folhaObraId === 'all' ? 'Todos os Refeitórios da Empresa' : (obraSelObj?.nome || 'Área Administradora');
+    const dateFormatted = new Date(folhaDate + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const codDoc = `FTR-${folhaDate.replace(/-/g, '')}`;
+
+    let y = 15;
+
+    const drawHeader = (pageNumber: number) => {
+      // Company Header Left
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.setTextColor(15, 23, 42); // #0f172a
+      doc.text('FONTANA', 14, y);
+
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139); // #64748b
+      doc.text('CONTROLE INTERNO DE RESTAURANTE', 14, y + 4.5);
+
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.text('LISTA DE PRESENÇA E ASSINATURA', 14, y + 11);
+
+      // Meta Box Right
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(130, y - 4, 66, 17, 'FD');
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text(`DATA: ${dateFormatted}`, 133, y + 0.5);
+      doc.text(`CÓD. DOC: ${codDoc}`, 133, y + 5);
+      doc.text(`TOTAL RESERVADO: ${rows.length} almoço(s)`, 133, y + 9.5);
+
+      // Divider line
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.6);
+      doc.line(14, y + 15, 196, y + 15);
+
+      // Sub-meta Box
+      doc.setFillColor(241, 245, 249);
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(14, y + 18, 182, 9, 'FD');
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('LOCAL / REFEITÓRIO:', 17, y + 22);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(localNome.substring(0, 45), 48, y + 22);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('RESPONSÁVEL PELA COLETA:', 115, y + 22);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text('Resp. Cozinha Administrativa', 158, y + 22);
+
+      y = y + 32;
+
+      // Table Header
+      doc.setFillColor(226, 232, 240);
+      doc.setDrawColor(148, 163, 184);
+      doc.setLineWidth(0.3);
+      doc.rect(14, y, 182, 6, 'FD');
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text('Nº', 18, y + 4.2);
+      doc.text('NOME DO COLABORADOR', 35, y + 4.2);
+      doc.text('ASSINATURA DO COLABORADOR', 115, y + 4.2);
+
+      // Vertical lines header
+      doc.line(28, y, 28, y + 6);
+      doc.line(110, y, 110, y + 6);
+
+      y = y + 6;
+    };
+
+    drawHeader(1);
+
+    // Rows
+    if (rows.length === 0) {
+      doc.setFillColor(255, 255, 255);
+      doc.rect(14, y, 182, 12, 'D');
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(9);
+      doc.setTextColor(148, 163, 184);
+      doc.text('Nenhum colaborador possui reserva de refeição ativa para a data e área selecionadas.', 30, y + 7);
+      y += 12;
+    } else {
+      rows.forEach((row, idx) => {
+        if (y > 262) {
+          doc.addPage();
+          y = 15;
+          drawHeader(doc.getNumberOfPages());
+        }
+
+        const rowHeight = 7.5;
+        doc.setFillColor(idx % 2 === 0 ? 255 : 250, 255, idx % 2 === 0 ? 255 : 250);
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineWidth(0.2);
+        doc.rect(14, y, 182, rowHeight, 'FD');
+
+        // Vertical column dividers
+        doc.line(28, y, 28, y + rowHeight);
+        doc.line(110, y, 110, y + rowHeight);
+
+        // Nº
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(15, 23, 42);
+        doc.text(String(idx + 1), 21, y + 5, { align: 'center' });
+
+        // Nome
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(15, 23, 42);
+        const nameTruncated = row.nome.length > 42 ? row.nome.substring(0, 42) + '...' : row.nome;
+        doc.text(nameTruncated, 31, y + 5);
+
+        // Assinatura line
+        doc.setDrawColor(148, 163, 184);
+        doc.setLineWidth(0.2);
+        doc.setLineDashPattern([1, 1], 0);
+        doc.line(114, y + 5.5, 192, y + 5.5);
+        doc.setLineDashPattern([], 0);
+
+        y += rowHeight;
+      });
+    }
+
+    // Signatures footer block
+    if (y > 245) {
+      doc.addPage();
+      y = 20;
+    } else {
+      y += 10;
+    }
+
+    doc.setDrawColor(148, 163, 184);
+    doc.setLineWidth(0.4);
+
+    // Left signature line
+    doc.line(25, y + 12, 90, y + 12);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(100, 116, 139);
+    doc.text('VISTO DO ADMINISTRATIVO / RH', 57.5, y + 16, { align: 'center' });
+
+    // Right signature line
+    doc.line(120, y + 12, 185, y + 12);
+    doc.text('VISTO DO FORNECEDOR / COZINHA', 152.5, y + 16, { align: 'center' });
+
+    // Footer timestamp line
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(148, 163, 184);
+    const timeStamp = `SGR - APP AUTOMAÇÃO DE RESTAURANTE FONTANA -- IMPRESSO EM ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    doc.text(timeStamp, 105, 290, { align: 'center' });
+  };
+
+  const generateDescontoPdfDoc = (doc: any) => {
+    const rows = getDescontoRows();
+    const empSelObj = empresas.find(e => e.id === filterDescontoEmpresa);
+    const empresaNomeStr = filterDescontoEmpresa === 'all' ? 'TODAS COMPATÍVEIS' : (empSelObj?.nome || 'Fontana');
+
+    const startFormatted = new Date(descontoStart + 'T00:00:00').toLocaleDateString('pt-BR');
+    const endFormatted = new Date(descontoEnd + 'T00:00:00').toLocaleDateString('pt-BR');
+    const todayFormatted = new Date().toLocaleDateString('pt-BR');
+
+    let y = 15;
+
+    const drawHeader = (pageNumber: number) => {
+      // Header Left
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(15, 23, 42);
+      doc.text('FONTANA', 12, y);
+
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text('CONSTRUTORA E INCORPORADORA', 12, y + 4.5);
+
+      doc.setFontSize(10.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text('RELAÇÃO DE DESCONTO EM FOLHA - REFEIÇÕES', 12, y + 10.5);
+
+      // Right Meta Box
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(125, y - 4, 73, 16.5, 'FD');
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text(`PERÍODO: ${startFormatted} a ${endFormatted}`, 127, y + 0.5);
+      doc.text(`EMPRESA: ${empresaNomeStr.substring(0, 30)}`, 127, y + 4.8);
+      doc.text(`COLETADO EM: ${todayFormatted}`, 127, y + 9.1);
+
+      // Divider line
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.6);
+      doc.line(12, y + 14.5, 198, y + 14.5);
+
+      y = y + 19;
+
+      // Table Header
+      doc.setFillColor(226, 232, 240);
+      doc.setDrawColor(148, 163, 184);
+      doc.setLineWidth(0.3);
+      doc.rect(12, y, 186, 6.5, 'FD');
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+
+      doc.text('Nº', 16, y + 4.2, { align: 'center' });
+      doc.text('MATRÍCULA', 22, y + 4.2);
+      doc.text('NOME DO COLABORADOR', 40, y + 4.2);
+      doc.text('QUANT.', 104, y + 4.2, { align: 'center' });
+      doc.text('CUSTO EMPRESA', 140, y + 4.2, { align: 'right' });
+      doc.text('DESCONTO COLAB.', 168, y + 4.2, { align: 'right' });
+      doc.text('ASSINATURA', 183, y + 4.2, { align: 'center' });
+
+      // Dividers
+      doc.line(20, y, 20, y + 6.5);
+      doc.line(38, y, 38, y + 6.5);
+      doc.line(96, y, 96, y + 6.5);
+      doc.line(112, y, 112, y + 6.5);
+      doc.line(142, y, 142, y + 6.5);
+      doc.line(170, y, 170, y + 6.5);
+
+      y = y + 6.5;
+    };
+
+    drawHeader(1);
+
+    let totQuant = 0;
+    let totCustoEmp = 0;
+    let totDescontoColab = 0;
+
+    if (rows.length === 0) {
+      doc.setFillColor(255, 255, 255);
+      doc.rect(12, y, 186, 12, 'D');
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(8.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text('Nenhum colaborador possui reservas de refeição ativas no período selecionado.', 35, y + 7);
+      y += 12;
+    } else {
+      rows.forEach((row, idx) => {
+        totQuant += row.quantidadeReservas;
+        totCustoEmp += row.custoCozinhaTotal;
+        totDescontoColab += row.descontoTotalColaborador;
+
+        if (y > 262) {
+          doc.addPage();
+          y = 15;
+          drawHeader(doc.getNumberOfPages());
+        }
+
+        const rowHeight = 7.2;
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineWidth(0.2);
+        doc.rect(12, y, 186, rowHeight, 'FD');
+
+        // Dividers
+        doc.line(20, y, 20, y + rowHeight);
+        doc.line(38, y, 38, y + rowHeight);
+        doc.line(96, y, 96, y + rowHeight);
+        doc.line(112, y, 112, y + rowHeight);
+        doc.line(142, y, 142, y + rowHeight);
+        doc.line(170, y, 170, y + rowHeight);
+
+        // Nº
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(15, 23, 42);
+        doc.text(String(idx + 1), 16, y + 4.8, { align: 'center' });
+
+        // Matrícula
+        doc.setFont('courier', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(51, 65, 85);
+        doc.text(row.matricula, 22, y + 4.8);
+
+        // Nome
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(15, 23, 42);
+        const nameTruncated = row.nome.length > 28 ? row.nome.substring(0, 28) + '...' : row.nome;
+        doc.text(nameTruncated.toUpperCase(), 40, y + 4.8);
+
+        // Quant
+        doc.setFont('courier', 'bold');
+        doc.setFontSize(8);
+        doc.text(String(row.quantidadeReservas), 104, y + 4.8, { align: 'center' });
+
+        // Custo Emp
+        doc.setFont('courier', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(71, 85, 105);
+        doc.text(`R$ ${row.custoCozinhaTotal.toFixed(2)}`, 140, y + 4.8, { align: 'right' });
+
+        // Desconto Colab
+        doc.setFont('courier', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(6, 95, 70);
+        doc.text(`R$ ${row.descontoTotalColaborador.toFixed(2)}`, 168, y + 4.8, { align: 'right' });
+
+        // Assinatura line
+        doc.setDrawColor(148, 163, 184);
+        doc.setLineWidth(0.2);
+        doc.setLineDashPattern([1, 1], 0);
+        doc.line(172, y + 5, 196, y + 5);
+        doc.setLineDashPattern([], 0);
+
+        y += rowHeight;
+      });
+
+      // Total Row
+      if (y > 260) {
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.setFillColor(226, 232, 240);
+      doc.setDrawColor(100, 116, 139);
+      doc.setLineWidth(0.3);
+      doc.rect(12, y, 186, 7.5, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(15, 23, 42);
+      doc.text('TOTAL GERAL:', 38, y + 5);
+
+      doc.setFont('courier', 'bold');
+      doc.setFontSize(8.5);
+      doc.text(String(totQuant), 104, y + 5, { align: 'center' });
+
+      doc.setFont('courier', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(`R$ ${totCustoEmp.toFixed(2)}`, 140, y + 5, { align: 'right' });
+
+      doc.setTextColor(6, 95, 70);
+      doc.text(`R$ ${totDescontoColab.toFixed(2)}`, 168, y + 5, { align: 'right' });
+
+      y += 7.5;
+    }
+
+    // Signatures footer block
+    if (y > 245) {
+      doc.addPage();
+      y = 20;
+    } else {
+      y += 12;
+    }
+
+    doc.setDrawColor(148, 163, 184);
+    doc.setLineWidth(0.4);
+
+    // Left signature line
+    doc.line(25, y + 10, 90, y + 10);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(100, 116, 139);
+    doc.text('VISTO DO RH / CONTABILIDADE', 57.5, y + 14, { align: 'center' });
+
+    // Right signature line
+    doc.line(120, y + 10, 185, y + 10);
+    doc.text('VISTO DO REPRESENTANTE LEGAL', 152.5, y + 14, { align: 'center' });
+
+    // Footer timestamp
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(148, 163, 184);
+    const timeStamp = `SGR - APP AUTOMAÇÃO DE RESTAURANTE FONTANA -- IMPRESSO EM ${todayFormatted} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    doc.text(timeStamp, 105, 290, { align: 'center' });
+  };
+
+  const generateGenericReportPdfDoc = (doc: any, elementId: string, filename: string) => {
+    let y = 15;
+    const todayFormatted = new Date().toLocaleDateString('pt-BR');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(15, 23, 42);
+    doc.text('FONTANA', 12, y);
+
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('SISTEMA DE GESTÃO DE RESTAURANTE - SGR', 12, y + 4.5);
+
+    let titleText = 'RELATÓRIO GERENCIAL';
+    let headers: string[] = [];
+    let colWidths: number[] = [];
+    let tableData: string[][] = [];
+
+    if (reportType === 'diario') {
+      titleText = `RELATÓRIO DE CONSUMO DIÁRIO - ${todayDate}`;
+      headers = ['NOME DO COLABORADOR', 'EMPRESA', 'OBRA', 'CENTRO CUSTO', 'RESERVOU', 'RETIRADA'];
+      colWidths = [50, 35, 35, 25, 20, 21];
+      const rows = getDailyRows();
+      tableData = rows.map(r => [r.nome, r.empresaNome, r.obraNome, r.centroCusto, r.reservou.includes('Sim') ? 'Sim' : 'Não', r.consumido]);
+    } else if (reportType === 'mensal') {
+      titleText = 'RELATÓRIO MENSAL DE ABSENTEÍSMO & REFEIÇÕES';
+      headers = ['COLABORADOR', 'MATRÍCULA', 'OBRA ORIGEM', 'EMPRESA', 'RESERVAS', 'CONSUMIDAS', 'CANCELADAS'];
+      colWidths = [45, 20, 35, 35, 17, 17, 17];
+      const rows = getMonthlyRows();
+      tableData = rows.map(r => [r.nome, r.matricula, r.obraNome, r.empresaNome, String(r.reservadas), String(r.utilizadas), String(r.canceladas)]);
+    } else if (reportType === 'financeiro') {
+      titleText = `ESPELHO DE CUSTOS POR CENTRO DE CUSTO (${finStart} a ${finEnd})`;
+      headers = ['OBRA / CENTRO DE CUSTO', 'CÓDIGO CC', 'QUANT. REFEIÇÕES', 'CONFIRMADAS', 'CUSTO LÍQUIDO'];
+      colWidths = [60, 30, 30, 30, 36];
+      const rows = getFinancialRows();
+      tableData = rows.map(r => [r.obra, r.cc, String(r.qtd), `${r.consumidoQtd}/${r.qtd}`, `R$ ${r.valorTotal.toFixed(2)}`]);
+    } else if (reportType === 'empresa') {
+      titleText = `RELATÓRIO DE CONSUMO POR EMPRESA (${empresaStart} a ${empresaEnd})`;
+      headers = ['EMPRESA / EMPREITEIRA', 'TIPO CONTRATO', 'RESERVAS', 'CONSUMIDAS', 'PERCENTUAL'];
+      colWidths = [65, 35, 28, 28, 30];
+      const rows = getEmpresaReportRows();
+      tableData = rows.map(r => {
+        const pct = r.quantidadeReservas > 0 ? ((r.quantidadeConsumidas / r.quantidadeReservas) * 100).toFixed(1) + '%' : '0%';
+        return [r.nome, r.tipo, String(r.quantidadeReservas), String(r.quantidadeConsumidas), pct];
+      });
+    }
+
+    doc.setFontSize(10.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text(titleText, 12, y + 10.5);
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`GERADO EM: ${todayFormatted} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, 12, y + 14.5);
+
+    doc.setDrawColor(15, 23, 42);
+    doc.setLineWidth(0.6);
+    doc.line(12, y + 17, 198, y + 17);
+
+    y = y + 22;
+
+    const totalW = colWidths.reduce((a, b) => a + b, 0);
+    doc.setFillColor(226, 232, 240);
+    doc.setDrawColor(148, 163, 184);
+    doc.setLineWidth(0.3);
+    doc.rect(12, y, totalW, 6.5, 'FD');
+
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 41, 59);
+
+    let curX = 12;
+    headers.forEach((h, i) => {
+      doc.text(h, curX + 2, y + 4.2);
+      curX += colWidths[i];
+      if (i < headers.length - 1) {
+        doc.line(curX, y, curX, y + 6.5);
+      }
+    });
+
+    y += 6.5;
+
+    tableData.forEach((row, idx) => {
+      if (y > 265) {
+        doc.addPage();
+        y = 20;
+      }
+
+      const rowH = 6.5;
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.2);
+      doc.rect(12, y, totalW, rowH, 'FD');
+
+      let cellX = 12;
+      row.forEach((cellText, colIdx) => {
+        doc.setFont('helvetica', colIdx === 0 ? 'bold' : 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(15, 23, 42);
+        const truncated = cellText.length > 30 ? cellText.substring(0, 30) + '...' : cellText;
+        doc.text(truncated, cellX + 2, y + 4.3);
+        cellX += colWidths[colIdx];
+        if (colIdx < row.length - 1) {
+          doc.line(cellX, y, cellX, y + rowH);
+        }
+      });
+
+      y += rowH;
+    });
+
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(148, 163, 184);
+    doc.text(`SGR - APP AUTOMAÇÃO DE RESTAURANTE FONTANA -- IMPRESSO EM ${todayFormatted}`, 105, 290, { align: 'center' });
+  };
+
   const handleDownloadPdf = async (elementId: string, filename: string) => {
     setIsGeneratingPdf(elementId);
     try {
       // @ts-ignore
       const { default: jsPDF } = await import('https://esm.sh/jspdf@2.5.1');
 
-      const element = document.getElementById(elementId);
-      if (!element) {
-        alert('Não foi possível localizar o conteúdo do relatório para geração do PDF.');
-        return;
+      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+      if (elementId === 'printable-sheet-area') {
+        generateFolhaPdfDoc(doc);
+      } else if (elementId === 'payroll-printable-sheet-area') {
+        generateDescontoPdfDoc(doc);
+      } else {
+        generateGenericReportPdfDoc(doc, elementId, filename);
       }
 
-      const container = document.createElement('div');
-      container.style.position = 'fixed';
-      container.style.left = '0';
-      container.style.zIndex = '-9999';
-      container.style.top = '0';
-      container.style.width = '780px';
-      container.style.padding = '24px';
-      container.style.background = '#ffffff';
-      container.style.color = '#1f2937';
-      container.style.fontFamily = 'Arial, sans-serif';
+      const pdfBlob = doc.output('blob');
 
-      const clone = element.cloneNode(true) as HTMLElement;
-      clone.style.width = '100%';
-      clone.style.boxShadow = 'none';
-      clone.style.border = 'none';
-      container.appendChild(clone);
-
-      document.body.appendChild(container);
-
-      const doc = new jsPDF('p', 'pt', 'a4');
-      await doc.html(container, {
-        margin: [24, 24, 24, 24],
-        autoPaging: 'slice',
-        width: 547,
-        windowWidth: 780,
-        callback: (pdf: any) => {
-          pdf.save(`${filename}.pdf`);
-          if (document.body.contains(container)) {
-            document.body.removeChild(container);
+      // 1. Try Web Share API for Android WebViews (Google Play Store app wrapper)
+      if (typeof navigator !== 'undefined' && navigator.canShare) {
+        try {
+          const file = new File([pdfBlob], `${filename}.pdf`, { type: 'application/pdf' });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: filename,
+            });
+            return;
           }
-        },
-      });
+        } catch (shareErr: any) {
+          if (shareErr?.name === 'AbortError') return;
+        }
+      }
+
+      // 2. Mobile WebView fallback (Direct Blob URL)
+      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile) {
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        const newWin = window.open(blobUrl, '_blank');
+        if (!newWin) {
+          window.location.href = blobUrl;
+        }
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+      } else {
+        // 3. Desktop standard download
+        doc.save(`${filename}.pdf`);
+      }
     } catch (err) {
       console.error('Erro ao gerar PDF:', err);
-      alert('Erro ao processar PDF diretamente. Tentando acionar a tela de impressão corporativa...');
-      handlePrintReport(elementId, filename);
+      alert('Não foi possível gerar o arquivo PDF no momento. Por favor, tente novamente.');
     } finally {
       setIsGeneratingPdf(null);
     }
   };
 
   const handlePrintReport = (elementId: string, title: string) => {
+    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    if (isMobile) {
+      // On mobile app / WebViews, window.print() breaks page layout and locks navigation.
+      // Redirect to native PDF download / Web Share API which gives immediate print/share sheet natively!
+      handleDownloadPdf(elementId, title.replace(/[^a-zA-Z0-9_-]/g, '_'));
+      return;
+    }
+
     const element = document.getElementById(elementId);
     if (!element) {
       window.focus();
@@ -140,10 +655,17 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
               table {
                 width: 100%;
                 border-collapse: collapse;
+                margin-top: 10px;
               }
               th, td {
-                border: 1px solid #d1d5db;
+                border: 1px solid #9ca3af;
                 padding: 6px 8px;
+                font-size: 11px;
+              }
+              th {
+                background-color: #f3f4f6;
+                font-weight: bold;
+                text-transform: uppercase;
               }
               .no-print { display: none !important; }
               @page {
