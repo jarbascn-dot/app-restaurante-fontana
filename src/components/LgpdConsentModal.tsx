@@ -25,7 +25,8 @@ export const COMPROMISSO_LGPD_HTML = `
     <p style="margin-bottom: 15px; font-size: 11.5px; text-align: justify;">
       A plataforma SGR foi concebida para otimizar reservas ordinárias e recorrentes de refeições de colaboradores próprios ou terceirizados envolvidos nas atividades canteiristas da empresa, atuando diretamente no refeitório técnico, promovendo o combate sistemático ao desperdício socioambiental de suprimentos alimentares e garantindo uma distribuição idônea, transparente e auditável de custos corporativos indiretos entre as frentes de obras e suas respectivas prestadoras de serviço subcontratadas.
     </p>
-<h3 style="font-size: 14px; font-weight: bold; color: #047857; margin-top: 20px; margin-bottom: 8px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; text-transform: uppercase;">2. AGENTE CONTROLADOR E CANAL DE PRIVACIDADE</h3>
+
+    <h3 style="font-size: 14px; font-weight: bold; color: #047857; margin-top: 20px; margin-bottom: 8px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; text-transform: uppercase;">2. AGENTE CONTROLADOR E CANAL DE PRIVACIDADE</h3>
     <p style="margin-bottom: 10px; font-size: 11.5px; text-align: justify;">
       Define-se, para todos os efeitos de governança corporativa, compliance legal e responsabilidade regulatória, como Controladora exclusiva das informações e dados de agendamentos tratados neste aplicativo:
     </p>
