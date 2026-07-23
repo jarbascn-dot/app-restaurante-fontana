@@ -230,5 +230,41 @@ export async function generatePolicyPdf(currentUser: Usuario): Promise<void> {
     doc.text(`Página ${i} de ${totalPages}`, marginLeft + contentWidth, pageHeight - 7, { align: 'right' });
   }
 
-  doc.save(`SGR_Fontana_Politica_Privacidade_LGPD_${currentUser.matricula || currentUser.id}.pdf`);
+  const filename = `SGR_Fontana_Politica_Privacidade_LGPD_${currentUser.matricula || currentUser.id}.pdf`;
+  const pdfBlob = doc.output('blob');
+
+  // Android WebViews (e.g. apps on Google Play Store) block programmatic <a download> clicks.
+  // 1. Try Web Share API with File object (natively supported by Android WebViews and mobile OS)
+  if (typeof navigator !== 'undefined' && navigator.canShare) {
+    try {
+      const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Política de Privacidade LGPD — Fontana',
+          text: 'Documento de Política de Privacidade e Proteção de Dados (LGPD) — Construtora Fontana',
+        });
+        return;
+      }
+    } catch (shareErr: any) {
+      if (shareErr?.name === 'AbortError') {
+        return; // User intentionally closed the share sheet
+      }
+      console.warn('Web Share attempt failed, falling back to blob opening:', shareErr);
+    }
+  }
+
+  // 2. Fallback for mobile WebViews or browsers without Web Share
+  const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (isMobile) {
+    const blobUrl = URL.createObjectURL(pdfBlob);
+    const newWin = window.open(blobUrl, '_blank');
+    if (!newWin) {
+      window.location.href = blobUrl;
+    }
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+  } else {
+    // 3. Desktop browser standard download
+    doc.save(filename);
+  }
 }
