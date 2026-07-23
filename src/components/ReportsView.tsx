@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { Reserva, Usuario, Obra, Empresa, ReservaStatus, SystemSettings, Perfil, UserStatus } from '../types';
 import { FileSpreadsheet, Download, Filter, Search, DollarSign, Calendar, Sliders, Printer, Loader2 } from 'lucide-react';
+import { downloadPdfOrFile } from '../lib/downloadHelper';
 
 interface ReportsViewProps {
   reservas: Reserva[];
@@ -577,37 +578,11 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
         generateGenericReportPdfDoc(doc, elementId, filename);
       }
 
-      const pdfBlob = doc.output('blob');
-
-      // 1. Try Web Share API for Android WebViews (Google Play Store app wrapper)
-      if (typeof navigator !== 'undefined' && navigator.canShare) {
-        try {
-          const file = new File([pdfBlob], `${filename}.pdf`, { type: 'application/pdf' });
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: filename,
-            });
-            return;
-          }
-        } catch (shareErr: any) {
-          if (shareErr?.name === 'AbortError') return;
-        }
-      }
-
-      // 2. Mobile WebView fallback (Direct Blob URL)
-      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if (isMobile) {
-        const blobUrl = URL.createObjectURL(pdfBlob);
-        const newWin = window.open(blobUrl, '_blank');
-        if (!newWin) {
-          window.location.href = blobUrl;
-        }
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
-      } else {
-        // 3. Desktop standard download
-        doc.save(`${filename}.pdf`);
-      }
+      await downloadPdfOrFile({
+        pdfDoc: doc,
+        filename: `${filename}.pdf`,
+        title: filename,
+      });
     } catch (err) {
       console.error('Erro ao gerar PDF:', err);
       alert('Não foi possível gerar o arquivo PDF no momento. Por favor, tente novamente.');
@@ -1101,7 +1076,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
   const totalRefeicoesFinanceiro = getFinancialRows().reduce((acc, row) => acc + row.qtd, 0);
 
   // --- CSV EXPORTER ACTION ---
-  const triggerCSVDownload = () => {
+  const triggerCSVDownload = async () => {
     let headers = '';
     let body = '';
     let fn = '';
@@ -1164,11 +1139,12 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
     }
 
     const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), headers + body], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', fn);
-    link.click();
+    await downloadPdfOrFile({
+      blob,
+      filename: fn,
+      mimeType: 'text/csv;charset=utf-8;',
+      title: fn,
+    });
   };
 
   return (
