@@ -12,8 +12,8 @@ defaultConfig {
 applicationId = "com.fontana.sgr"
 minSdk = 26
 targetSdk = 36
-        versionCode = 15
-        versionName = "1.1.13"
+        versionCode = 16
+        versionName = "1.1.14"
     }
 
 signingConfigs {
