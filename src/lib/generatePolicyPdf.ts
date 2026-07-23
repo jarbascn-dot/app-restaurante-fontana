@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import jsPDF from 'jspdf';
 import { Usuario } from '../types';
 import { downloadPdfOrFile } from './downloadHelper';
 
@@ -12,9 +13,6 @@ import { downloadPdfOrFile } from './downloadHelper';
  * to ensure no lines or paragraphs are cut in half across page boundaries.
  */
 export async function generatePolicyPdf(currentUser: Usuario): Promise<void> {
-  // @ts-ignore
-  const { default: jsPDF } = await import('https://esm.sh/jspdf@2.5.1');
-
   const doc = new jsPDF({
     orientation: 'p',
     unit: 'mm',
