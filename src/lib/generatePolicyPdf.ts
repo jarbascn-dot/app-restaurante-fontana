@@ -161,11 +161,11 @@ export async function generatePolicyPdf(currentUser: Usuario): Promise<void> {
   addParagraph('Em estrita conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD) - Lei Federal nº 13.709/2018, a CONSTRUTORA FONTANA LTDA, por meio de seu departamento de Segurança da Informação, Tecnologia e Compliance, estabelece esta Diretiva e Política de Privacidade para regular as atividades de coleta, armazenamento, processamento e controle de dados pessoais tratados de forma eletrônica dentro do escopo do aplicativo SGR (Sistema de Gerenciamento de Refeitórios).');
   addParagraph('A plataforma SGR foi concebida para otimizar reservas ordinárias e recorrentes de refeições de colaboradores próprios ou terceirizados envolvidos nas atividades canteiristas da empresa, atuando diretamente no refeitório técnico, promovendo o combate sistemático ao desperdício socioambiental de suprimentos alimentares e garantindo uma distribuição idônea, transparente e auditável de custos corporativos indiretos entre as frentes de obras e suas respectivas prestadoras de serviço subcontratadas.');
 
-  addSectionHeader('2. AGENTE CONTROLADOR E CANAL DE PRIVACIDADE DO ENCARREGADO (DPO)');
+addSectionHeader('2. AGENTE CONTROLADOR E CANAL DE PRIVACIDADE');
   addParagraph('Define-se, para todos os efeitos de governança corporativa, compliance legal e responsabilidade regulatória, como Controladora exclusiva das informações e dados de agendamentos tratados neste aplicativo:');
   addBulletItem('• Razão Social:', 'CONSTRUTORA FONTANA LTDA, pessoa jurídica de direito privado inscrita no CNPJ sob o nº 79.667.655/0001-78.');
   addBulletItem('• Endereço Físico Administrativo:', 'Rua Domênico Sônego, 255 – Centro, Criciúma/SC - CEP 88.804-050.');
-  addBulletItem('• Encarregado de Proteção de Dados (DPO):', 'Setor de Compliance de Dados e Ouvidoria de Segurança, contatável e disponível via e-mail corporativo: dpo@estilofontana.com.br.');
+addBulletItem('• Canal de Privacidade e Proteção de Dados:', 'As solicitações relacionadas ao tratamento de dados pessoais, ao exercício dos direitos dos titulares e às questões de privacidade poderão ser encaminhadas ao setor de Recursos Humanos da Construtora Fontana, por meio do e-mail corporativo: folha@estilofontana.com.br.');
 
   addSectionHeader('3. CATEGORIAS DE DADOS PESSOAIS TRATADOS NO SISTEMA');
   addParagraph('Para propiciar a funcionalidade legítima de refeições nos canteiros, prevenir potenciais fraudes cibernéticas de falsidade ideológica e garantir comprovação fiscal, recolhem-se e processam-se exclusivamente as seguintes categorias de dados:');
