@@ -3,9 +3,12 @@
  * - On Desktop: Uses direct browser file download (jsPDF.save or DOM <a download> click).
  * - On Mobile / Android WebViews / TWAs:
  *   1. Prioritizes local Blob creation & synchronous URL.createObjectURL.
- *   2. Uses Native File Share API (navigator.share) ONLY when navigator.canShare confirms file sharing is supported.
- *   3. Uses DOM <a> element with download attribute and target="_self" to allow native Android WebView download listeners to intercept.
- *   4. Avoids window.open with Data URIs (blocked by Chrome Android and Android WebView).
+ *   2. On Android specifically, navigates directly to a data: URI so the native
+ *      setDownloadListener configured in MainActivity.kt can intercept and save the file
+ *      (a blob: URL is invisible to the native WebView and gets silently discarded).
+ *   3. Uses Native File Share API (navigator.share) ONLY when navigator.canShare confirms file sharing is supported.
+ *   4. Uses DOM <a> element with download attribute and target="_self" to allow native Android WebView download listeners to intercept.
+ *   5. Avoids window.open with Data URIs (blocked by Chrome Android and Android WebView).
  */
 
 export async function blobToDataUrl(blob: Blob): Promise<string> {
@@ -64,6 +67,13 @@ export async function downloadPdfOrFile(options: DownloadOptions): Promise<void>
       activeBlob = pdfDoc.output('blob');
     } catch (e) {
       console.warn('Could not extract blob from jsPDF synchronously:', e);
+    }
+    if (isAndroid && !activeDataUrl) {
+      try {
+        activeDataUrl = pdfDoc.output('datauristring');
+      } catch (e) {
+        console.warn('Could not extract datauristring from jsPDF synchronously:', e);
+      }
     }
   } else if (!activeBlob && activeDataUrl && activeDataUrl.startsWith('data:')) {
     try {
@@ -154,7 +164,20 @@ export async function downloadPdfOrFile(options: DownloadOptions): Promise<void>
     }
   }
 
-  // Attempt 2: Synchronous Blob Object URL trigger via DOM Anchor element (Crucial for Android WebView / TWA / Mobile Chrome)
+  // Attempt 2 (Android native WebView app): navigate directly to a data: URI so the
+  // setDownloadListener configured in MainActivity.kt can intercept and save the file via
+  // DownloadManager/MediaStore. Blob object URLs are invisible to a plain native WebView
+  // (they only exist inside the page context), so this is the reliable path for Android.
+  if (isAndroid && activeDataUrl && activeDataUrl.startsWith('data:')) {
+    try {
+      window.location.href = activeDataUrl;
+      return;
+    } catch (navErr) {
+      console.warn('Android data URI navigation failed, falling back to blob anchor:', navErr);
+    }
+  }
+
+  // Attempt 3: Synchronous Blob Object URL trigger via DOM Anchor element (mobile browsers / fallback)
   // NEVER use window.open with Data URIs on Android WebViews as it gets blocked!
   if (activeBlob) {
     try {
@@ -182,7 +205,7 @@ export async function downloadPdfOrFile(options: DownloadOptions): Promise<void>
     }
   }
 
-  // Attempt 3: Direct HTTP/HTTPS link download if activeBlob could not be generated
+  // Attempt 4: Direct HTTP/HTTPS link download if activeBlob could not be generated
   if (options.url && (options.url.startsWith('http://') || options.url.startsWith('https://'))) {
     try {
       const link = document.createElement('a');
