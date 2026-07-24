@@ -31,10 +31,10 @@ export async function generatePolicyPdf(currentUser: Usuario): Promise<void> {
   let y = marginTop;
 
   // Color Palette
-  const emeraldPrimary = [4, 120, 87]; // #047857
-  const darkGray = [31, 41, 55]; // #1f2937
-  const textMuted = [107, 114, 128]; // #6b7280
-  const lightBg = [243, 244, 246]; // #f3f4f6
+  const emeraldPrimary: [number, number, number] = [4, 120, 87]; // #047857
+  const darkGray: [number, number, number] = [31, 41, 55]; // #1f2937
+  const textMuted: [number, number, number] = [107, 114, 128]; // #6b7280
+  const lightBg: [number, number, number] = [243, 244, 246]; // #f3f4f6
 
   const simulatedIp = (currentUser as any).ipAceiteLGPD || '177.34.0.130';
   const issueDate = new Date().toLocaleString('pt-BR');
