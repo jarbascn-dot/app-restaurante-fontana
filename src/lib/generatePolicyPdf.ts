@@ -235,5 +235,6 @@ export async function generatePolicyPdf(currentUser: Usuario): Promise<void> {
     pdfDoc: doc,
     filename,
     title: 'Política de Privacidade LGPD — Construtora Fontana',
+    mimeType: 'application/pdf',
   });
 }

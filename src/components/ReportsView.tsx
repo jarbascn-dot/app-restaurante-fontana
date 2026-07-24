@@ -580,10 +580,11 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
         pdfDoc: doc,
         filename: `${filename}.pdf`,
         title: filename,
+        mimeType: 'application/pdf',
       });
     } catch (err: any) {
-            console.error('Erro ao gerar/baixar PDF:', err);
-            alert(err?.message || 'Não foi possível baixar o PDF. Por favor, tente novamente.');
+      console.error('Erro ao gerar/baixar PDF:', err);
+      alert(err?.message || 'Não foi possível baixar o PDF. Por favor, tente novamente.');
     } finally {
       setIsGeneratingPdf(null);
     }

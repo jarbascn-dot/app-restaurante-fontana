@@ -327,10 +327,11 @@ export default function ColaboradorView({
       const isDataUrl = sourceUrl.startsWith('data:');
       await downloadPdfOrFile({
         blob: cachedCardapioBlob,
-            dataUrl: cachedCardapioDataUrl || (isDataUrl ? sourceUrl : undefined),
-                  url: sourceUrl,
+        dataUrl: cachedCardapioDataUrl || (isDataUrl ? sourceUrl : undefined),
+        url: sourceUrl,
         filename,
         title: 'Cardápio Semanal — Fontana',
+        mimeType: 'application/pdf',
       });
     } catch (e: any) {
       console.error('Erro ao gerar download do cardápio:', e);
