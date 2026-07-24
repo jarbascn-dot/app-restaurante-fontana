@@ -5,8 +5,8 @@
 
 import React, { useState } from 'react';
 import { Usuario, Reserva, ReservaStatus, Feriado, SystemSettings, Obra, Perfil } from '../types';
-import { Calendar as CalendarIcon, Check, X, ShieldAlert, Clock, RefreshCw, FileText, Download, AlertTriangle, MousePointerClick, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
-import { downloadPdfOrFile } from '../lib/downloadHelper';
+import { Calendar as CalendarIcon, Check, X, ShieldAlert, Clock, RefreshCw, FileText, Download, AlertTriangle, MousePointerClick, ChevronLeft, ChevronRight, Sparkles, Loader2 } from 'lucide-react';
+import { downloadPdfOrFile, dataUrlToBlob, blobToDataUrl } from '../lib/downloadHelper';
 
 interface Refeicao {
   pratoPrincipal: string;
@@ -253,43 +253,88 @@ export default function ColaboradorView({
   };
 
 
+  const colaboradorObra = obras.find(o => o.id === currentUser.idObraPadrao);
+  const [cachedCardapioBlob, setCachedCardapioBlob] = useState<Blob | null>(null);
+  const [isFetchingCardapioBlob, setIsFetchingCardapioBlob] = useState(false);
+  const [cachedCardapioDataUrl, setCachedCardapioDataUrl] = useState<string | null>(null);
+
+  // Pre-fetch remote cardapio or convert dataUrl to Blob in advance so the download button uses a ready Blob synchronously
+  React.useEffect(() => {
+    const cardapioUrl = colaboradorObra?.cardapioUrl;
+    if (!cardapioUrl) {
+      setCachedCardapioBlob(null);
+      setCachedCardapioDataUrl(null);
+      setIsFetchingCardapioBlob(false);
+      return;
+    }
+
+    if (cardapioUrl.startsWith('data:')) {
+      try {
+        const b = dataUrlToBlob(cardapioUrl);
+        setCachedCardapioBlob(b);
+        setCachedCardapioDataUrl(cardapioUrl);
+      } catch (e) {
+        console.warn('Failed to parse dataUrlToBlob for cardapioUrl:', e);
+        setCachedCardapioBlob(null);
+        setCachedCardapioDataUrl(null);
+      }
+      setIsFetchingCardapioBlob(false);
+      return;
+    }
+
+    if (cardapioUrl.startsWith('http://') || cardapioUrl.startsWith('https://')) {
+      let cancelled = false;
+      setIsFetchingCardapioBlob(true);
+      fetch(cardapioUrl)
+        .then(res => {
+          if (!res.ok) throw new Error(`Status ${res.status}`);
+          return res.blob();
+        })
+        .then(b => {
+          if (!cancelled) {
+            setCachedCardapioBlob(b);
+                                  blobToDataUrl(b)
+                                                .then(du => { if (!cancelled) setCachedCardapioDataUrl(du); })
+                                                              .catch(() => {})
+                                                                            .finally(() => { if (!cancelled) setIsFetchingCardapioBlob(false); });
+          }
+        })
+        .catch(err => {
+          if (!cancelled) {
+            console.warn('Pre-fetch do cardápio falhou:', err);
+            setCachedCardapioBlob(null);
+            setCachedCardapioDataUrl(null);
+            setIsFetchingCardapioBlob(false);
+          }
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [colaboradorObra?.cardapioUrl]);
+
   // Helper: Download a file reliably on all browsers and mobile WebViews (Google Play apps), using Web Share API or safe anchor triggers.
   const downloadCardapioFile = async (sourceUrl: string, filename: string) => {
     try {
       if (!sourceUrl) return;
 
-      let blob: Blob | null = null;
-      let mime = 'application/pdf';
-
-      if (sourceUrl.startsWith('data:')) {
-        await downloadPdfOrFile({
-          dataUrl: sourceUrl,
-          filename,
-          title: 'Cardápio Semanal — Fontana',
-        });
+      if (isFetchingCardapioBlob) {
+        alert('O arquivo do cardápio ainda está sendo preparado. Aguarde um instante...');
         return;
-      } else if (sourceUrl.startsWith('http://') || sourceUrl.startsWith('https://')) {
-        try {
-          const resp = await fetch(sourceUrl);
-          if (resp.ok) {
-            blob = await resp.blob();
-            if (blob.type) mime = blob.type;
-          }
-        } catch (fetchErr) {
-          console.warn('Fetch failed for cardapio URL, falling back to direct open:', fetchErr);
-        }
       }
 
+      const isDataUrl = sourceUrl.startsWith('data:');
       await downloadPdfOrFile({
-        blob,
-        url: sourceUrl,
+        blob: cachedCardapioBlob,
+            dataUrl: cachedCardapioDataUrl || (isDataUrl ? sourceUrl : undefined),
+                  url: sourceUrl,
         filename,
-        mimeType: mime,
         title: 'Cardápio Semanal — Fontana',
       });
-    } catch (e) {
-      console.error('Erro ao gerar download do cardápio', e);
-      alert('Erro ao baixar o arquivo. Tente novamente.');
+    } catch (e: any) {
+      console.error('Erro ao gerar download do cardápio:', e);
+      alert(e?.message || 'Erro ao baixar o arquivo do cardápio. Tente novamente.');
     }
   };
   
@@ -1036,13 +1081,27 @@ export default function ColaboradorView({
                         
                         <button
                           type="button"
+                          disabled={isFetchingCardapioBlob}
                           onClick={() => downloadCardapioFile(colaboradorObra.cardapioUrl, colaboradorObra.cardapioNome || 'cardapio.pdf')}
-                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs rounded-lg transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                          className={`w-full py-2.5 text-white font-bold text-xs rounded-lg transition shadow-xs flex items-center justify-center gap-2 ${
+                            isFetchingCardapioBlob
+                              ? 'bg-emerald-400 cursor-not-allowed opacity-80'
+                              : 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 cursor-pointer'
+                          }`}
                           title="Baixar arquivo do cardápio diretamente"
                           id="btn-download-cardapio-direto"
                         >
-                          <Download className="h-4 w-4 shrink-0" />
-                          <span>Baixar Cardápio PDF</span>
+                          {isFetchingCardapioBlob ? (
+                            <>
+                              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                              <span>Preparando Cardápio...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Download className="h-4 w-4 shrink-0" />
+                              <span>Baixar Cardápio PDF</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>
