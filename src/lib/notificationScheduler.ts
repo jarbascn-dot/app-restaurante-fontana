@@ -100,7 +100,9 @@ export async function scheduleNotification(
   time: string,
   title: string,
   body: string,
-  email?: string
+  email?: string,
+  timing?: 'todos_dias' | 'seg_sex',
+  idObraPadrao?: string
 ) {
   const userParam = email || 'guest';
 
@@ -129,6 +131,8 @@ export async function scheduleNotification(
 
                                     await updateDoc(docRef, {
                                                   scheduledTime: time,
+                                                  timing: timing || 'todos_dias',
+                                                  idObraPadrao: idObraPadrao || null,
                                                   updatedAt: new Date().toISOString(),
                                                   ...((isNewDay || timeChanged) ? { sent: false, lastSentDate: null,  errorAt: null, errorMessage: null } : {})
                                     });
@@ -142,6 +146,8 @@ export async function scheduleNotification(
                                                   link: '/',
                                                   daily: true,
                                                   scheduledTime: time,
+                                                  timing: timing || 'todos_dias',
+                                                  idObraPadrao: idObraPadrao || null,
                                                   sent: false,
                                       lastSentDate: null,
                                                   updatedAt: new Date().toISOString()
