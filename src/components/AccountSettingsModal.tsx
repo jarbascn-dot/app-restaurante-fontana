@@ -250,7 +250,9 @@ export default function AccountSettingsModal({
         notifyTime,
         'SGR Fontana',
         `Lembrete SGR: configure seus agendamentos no app antes do horário limite!`,
-        currentUser.email
+        currentUser.email,
+        notifyTiming,
+        currentUser.idObraPadrao
       );
     }
 
