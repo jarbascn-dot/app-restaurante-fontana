@@ -23,10 +23,10 @@ function getFirebaseAdmin() {
           const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
           const projectId = process.env.FIREBASE_PROJECT_ID || firebaseConfig.projectId;
 
-      let serviceAccount: any = null;
+          let serviceAccount: any = null;
 
-      if (serviceAccountEnv) {
-              try {
+          if (serviceAccountEnv) {
+                try {
                         const cleaned = serviceAccountEnv.trim().replace(/^['"]|['"]$/g, '');
                         serviceAccount = JSON.parse(cleaned);
               } catch (e: any) {
@@ -52,7 +52,7 @@ function getFirebaseAdmin() {
                         adminApp = initializeApp({
                                     credential: cert(serviceAccount)
                         });
-                        console.log('[Admin] Initialized Firebase Admin SDK with service account credentials.');
+                console.log('[Admin] Initialized Firebase Admin SDK with service account credentials.');
               } catch (err: any) {
                         console.error('[Admin] Error initializing Firebase Admin with credentials:', err);
                         throw new Error(`Failed to initialize Firebase Admin with credentials: ${err.message}`);
@@ -129,7 +129,28 @@ try {
     }
   });
 
-  const results = { sent: 0, skipped: 0, errors: 0 };
+  // 2b. Fetch users and holidays so recurring ("daily") reminders can honor the
+  // user's chosen schedule ("todos_dias" vs "seg_sex") and be suppressed on
+  // holidays, exactly like the day-of-week preference configured in the app.
+  const usersSnapshot = await db.collection('usuarios').get();
+  const usersByEmail = new Map<string, any>();
+  usersSnapshot.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+    const data = doc.data();
+    if (data.email) {
+      usersByEmail.set(String(data.email).toLowerCase(), data);
+    }
+  });
+
+  const feriadosSnapshot = await db.collection('feriados').get();
+  const feriados: any[] = [];
+  feriadosSnapshot.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => feriados.push(doc.data()));
+
+  // Day of week in Brasília timezone, used to skip Saturdays/Sundays for
+  // users who picked "De Segunda a Sexta-Feira" (seg_sex).
+  const weekdaySaoPaulo = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short' }).format(new Date());
+  const isWeekendSaoPaulo = weekdaySaoPaulo === 'Sat' || weekdaySaoPaulo === 'Sun';
+
+  const results = { sent: 0, skipped: 0, skippedSchedule: 0, errors: 0 };
   const batch = db.batch();
 
   // Current time-of-day and calendar date in Brasília timezone. The date is
@@ -157,6 +178,32 @@ try {
 
   if (notification.scheduledTime && nowSaoPaulo < notification.scheduledTime) {
     continue;
+  }
+
+  // Recurring reminders must respect the user's chosen day-of-week option
+  // ("todos_dias" vs "seg_sex") and be suppressed on holidays. The queue
+  // item may already carry its own timing/idObraPadrao (set at scheduling
+  // time); fall back to the user profile for older docs that predate this.
+  if (isDaily) {
+    const user = usersByEmail.get(String(notification.userId).toLowerCase());
+    const timing = notification.timing || user?.alertaTiming || 'todos_dias';
+    const idObraPadrao = notification.idObraPadrao || user?.idObraPadrao;
+
+    if (timing === 'seg_sex' && isWeekendSaoPaulo) {
+      results.skippedSchedule++;
+      continue;
+    }
+
+    const isHolidayForUser = feriados.some((f: any) => {
+      if (f.data !== todaySaoPaulo) return false;
+      if (!f.abrangencia || f.abrangencia === 'nacional') return true;
+      return f.idObras?.includes(idObraPadrao) ?? false;
+    });
+
+    if (isHolidayForUser) {
+      results.skippedSchedule++;
+      continue;
+    }
   }
 
   if (!token) {
@@ -209,7 +256,7 @@ try {
 
   await batch.commit();
 
-  console.log(`[FCM Daemon] Done. Sent: ${results.sent}, Skipped: ${results.skipped}, Errors: ${results.errors}`);
+  console.log(`[FCM Daemon] Done. Sent: ${results.sent}, Skipped: ${results.skipped}, SkippedSchedule: ${results.skippedSchedule}, Errors: ${results.errors}`);
 
   return res.status(200).json({
     success: true,
