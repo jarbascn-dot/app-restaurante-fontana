@@ -96,7 +96,7 @@ class MainActivity : AppCompatActivity() {
         request.addRequestHeader("User-Agent", userAgent)
         request.setDescription("Baixando documento SGR...")
         request.setTitle(fileName)
-        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_NOTIFY_COMPLETED)
+        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
         request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
 
         val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
