@@ -26,11 +26,6 @@ if (serviceAccountEnv) {
     });
   }
 } else {
-  app = initializeApp({
-    projectId: firebaseConfig.projectId
-  });
-}
-} else {
   app = existingApps[0];
 }
 
@@ -83,10 +78,32 @@ export const handler: Handler = async (event, context) => {
       }
     });
 
+  // 2b. Fetch users and holidays so recurring ("daily") reminders can honor the
+  // user's chosen schedule ("todos_dias" vs "seg_sex") and be suppressed on
+  // holidays, exactly like the day-of-week preference configured in the app.
+  const usersSnapshot = await db.collection('usuarios').get();
+  const usersByEmail = new Map<string, any>();
+  usersSnapshot.forEach(doc => {
+    const data = doc.data();
+    if (data.email) {
+      usersByEmail.set(String(data.email).toLowerCase(), data);
+    }
+  });
+
+  const feriadosSnapshot = await db.collection('feriados').get();
+  const feriados: any[] = [];
+  feriadosSnapshot.forEach(doc => feriados.push(doc.data()));
+
+  // Day of week in Brasília timezone, used to skip Saturdays/Sundays for
+  // users who picked "De Segunda a Sexta-Feira" (seg_sex).
+  const weekdaySaoPaulo = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short' }).format(new Date());
+  const isWeekendSaoPaulo = weekdaySaoPaulo === 'Sat' || weekdaySaoPaulo === 'Sun';
+
   const results = {
     total: docsById.size,
     sent: 0,
     skippedNoToken: 0,
+    skippedSchedule: 0,
     failed: 0
   };
 
@@ -120,6 +137,33 @@ export const handler: Handler = async (event, context) => {
 
     if (notification.scheduledTime && nowSaoPaulo < notification.scheduledTime) {
       continue;
+    }
+
+    // Recurring reminders must respect the user's chosen day-of-week option
+    // ("todos_dias" vs "seg_sex") and be suppressed on holidays. The queue
+    // item may already carry its own timing/idObraPadrao (set at
+    // scheduling time); fall back to the user profile for older docs that
+    // predate this field.
+    if (isDaily) {
+      const user = usersByEmail.get(String(userId).toLowerCase());
+      const timing = notification.timing || user?.alertaTiming || 'todos_dias';
+      const idObraPadrao = notification.idObraPadrao || user?.idObraPadrao;
+
+      if (timing === 'seg_sex' && isWeekendSaoPaulo) {
+        results.skippedSchedule++;
+        continue;
+      }
+
+      const isHolidayForUser = feriados.some((f: any) => {
+        if (f.data !== todaySaoPaulo) return false;
+        if (!f.abrangencia || f.abrangencia === 'nacional') return true;
+        return f.idObras?.includes(idObraPadrao) ?? false;
+      });
+
+      if (isHolidayForUser) {
+        results.skippedSchedule++;
+        continue;
+      }
     }
 
     const token = userTokens[userId];
