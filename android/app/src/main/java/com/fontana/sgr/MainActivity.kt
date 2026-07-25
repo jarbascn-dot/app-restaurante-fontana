@@ -108,7 +108,7 @@ class MainActivity : AppCompatActivity() {
     }
   }
 
-  private fun saveBytesToDownloads(bytes: ByteArray, fileName: String, mimeType: String) {
+  fun saveBytesToDownloads(bytes: ByteArray, fileName: String, mimeType: String) {
     try {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         val resolver = contentResolver
@@ -146,6 +146,17 @@ class MainActivity : AppCompatActivity() {
     fun setCurrentUser(email: String?) {
       if (email.isNullOrBlank()) return
       SGRFirebaseMessagingService.saveCurrentUserEmail(context, email)
+    }
+    @JavascriptInterface
+    fun downloadBase64File(base64Data: String, fileName: String, mimeType: String) {
+      activity.runOnUiThread {
+        try {
+          val bytes = Base64.decode(base64Data, Base64.DEFAULT)
+          activity.saveBytesToDownloads(bytes, fileName, mimeType)
+        } catch (e: Exception) {
+          Toast.makeText(context, "Erro ao baixar arquivo: " + e.message, Toast.LENGTH_SHORT).show()
+        }
+      }
     }
     @JavascriptInterface
     fun isBiometricAvailable(): Boolean {
