@@ -575,11 +575,13 @@ export default function App() {
           timeStr,
           'SGR Fontana',
           `Lembrete: consulte e agende sua refeição antes das ${settings?.horarioLimite || '10:00'}!`,
-          currentUser.email
+          currentUser.email,
+          currentUser.alertaTiming,
+          currentUser.idObraPadrao
         ).catch(err => console.warn('[App Setup] Reschedule failed:', err));
       }
     }
-  }, [isLogged, currentUser?.email, currentUser?.alertaEnabled, currentUser?.alertaTime, settings?.horarioLimite]);
+  }, [isLogged, currentUser?.email, currentUser?.alertaEnabled, currentUser?.alertaTime, currentUser?.alertaTiming, currentUser?.idObraPadrao,  settings?.horarioLimite]);
 
 
   // Helper helper to generate system logs
