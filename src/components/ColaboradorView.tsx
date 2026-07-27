@@ -628,6 +628,18 @@ export default function ColaboradorView({
     }
   });
 
+  // Obra e valores unitários da refeição para o colaborador (última reserva no mês ou padrão da obra vinculada)
+  const latestReservaInMonth = [...userMonthReservas]
+    .filter(r => r.status === ReservaStatus.Reservado)
+    .sort((a, b) => b.data.localeCompare(a.data))[0];
+
+  const activeObraId = latestReservaInMonth?.idObraNoDia || currentUser.idObraPadrao;
+  const activeObraObj = obras.find(o => o.id === activeObraId);
+
+  const unitPrice = activeObraObj?.valorRefeicao && activeObraObj.valorRefeicao > 0 ? activeObraObj.valorRefeicao : settings.valorRefeicaoPropria;
+  const unitDiscount = activeObraObj?.valorDescontoColaborador ?? 0;
+  const unitCompanyPay = Math.max(0, unitPrice - unitDiscount);
+
   const formattedTodayText = (() => {
     try {
       const d = new Date(todayDate + 'T12:00:00');
@@ -671,6 +683,24 @@ export default function ColaboradorView({
             <div className="p-1.5 bg-rose-50 text-rose-800 rounded flex flex-col justify-center min-h-[64px]" title="Valor total de desconto em folha do período">
               <span className="block text-sm font-extrabold">R$ {totalDescontoReservado.toFixed(2)}</span>
               <span className="text-[9px] font-medium text-rose-500">Desc. Folha</span>
+            </div>
+          </div>
+
+          {/* Cartão com o valor unitário da refeição */}
+          <div className="mt-2.5 p-2 bg-white rounded-lg border border-neutral-200/90 shadow-2xs space-y-1" id="card-valor-unitario-refeicao">
+            <div className="flex justify-between items-center text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-500 pb-1 border-b border-neutral-100">
+              <span>🍽️ Val. Unitário Refeição</span>
+              <span className="text-[9px] text-neutral-400 font-normal">Custo: R$ {unitPrice.toFixed(2)}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-center pt-0.5">
+              <div className="p-1.5 bg-emerald-50/90 rounded border border-emerald-100/80" title="Valor unitário pago pela empresa por refeição">
+                <span className="block text-[9px] font-bold text-emerald-800">Pago p/ Empresa</span>
+                <span className="block text-xs font-black text-emerald-700">R$ {unitCompanyPay.toFixed(2)}</span>
+              </div>
+              <div className="p-1.5 bg-amber-50/90 rounded border border-amber-100/80" title="Valor unitário descontado do colaborador por refeição">
+                <span className="block text-[9px] font-bold text-amber-800">Desc. Colaborador</span>
+                <span className="block text-xs font-black text-amber-700">R$ {unitDiscount.toFixed(2)}</span>
+              </div>
             </div>
           </div>
           
