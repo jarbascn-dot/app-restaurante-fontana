@@ -19,7 +19,7 @@ interface ReportsViewProps {
 }
 
 export default function ReportsView({ reservas, usuarios, obras, empresas, settings, todayDate }: ReportsViewProps) {
-  const [reportType, setReportType] = useState<'diario' | 'mensal' | 'financeiro' | 'folha' | 'desconto' | 'empresa'>('diario');
+  const [reportType, setReportType] = useState<'diario' | 'mensal' | 'financeiro' | 'folha' | 'desconto' | 'empresa' | 'mesAmes'>('diario');
 
   // Daily Filter
   const [filterDailyObra, setFilterDailyObra] = useState<string>('all');
@@ -56,6 +56,13 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
   const [empresaStart, setEmpresaStart] = useState(getMonthStart(todayDate));
   const [empresaEnd, setEmpresaEnd] = useState(getMonthEnd(todayDate));
   const [filterEmpresaObra, setFilterEmpresaObra] = useState<string>('all');
+
+  // Month-by-Month Meals Report Filters
+  const [filterMesEmpresa, setFilterMesEmpresa] = useState<string>('all');
+  const [filterMesColaborador, setFilterMesColaborador] = useState<string>('all');
+  const [filterMesObra, setFilterMesObra] = useState<string>('all');
+  const [mesStart, setMesStart] = useState<string>(`${todayDate.substring(0, 4)}-01`);
+  const [mesEnd, setMesEnd] = useState<string>(todayDate.substring(0, 7));
 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
 
@@ -492,6 +499,12 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
         const pct = r.quantidadeReservas > 0 ? ((r.quantidadeConsumidas / r.quantidadeReservas) * 100).toFixed(1) + '%' : '0%';
         return [r.nome, r.tipo, String(r.quantidadeReservas), String(r.quantidadeConsumidas), pct];
       });
+    } else if (reportType === 'mesAmes') {
+      titleText = `RELATÓRIO MENSAL DE REFEIÇÕES RESERVADAS (${mesStart} a ${mesEnd})`;
+      headers = ['MÊS/ANO REF.', 'QTD. RESERVADA', 'VALOR PAGO EMPRESA', 'VALOR DESCONTADO COLAB.'];
+      colWidths = [45, 47, 47, 47];
+      const rows = getMesAMesRows();
+      tableData = rows.map(r => [formatMesRef(r.mes), String(r.quantidade), `R$ ${r.valorPago.toFixed(2)}`, `R$ ${r.valorDescontado.toFixed(2)}`]);
     }
 
     doc.setFontSize(10.5);
@@ -1069,7 +1082,59 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
     return rows;
   };
 
-  // --- HEURISTIC CALCULATORS ---
+    // 6. MONTH-BY-MONTH RESERVED MEALS REPORT (Filterable by Empresa, Colaborador, Obra and Period)
+  const getMesAMesRows = () => {
+    const filtered = reservas.filter(r => {
+      if (r.status !== ReservaStatus.Reservado) return false;
+      const mesRef = r.data.substring(0, 7);
+      if (mesRef < mesStart || mesRef > mesEnd) return false;
+
+      const isVisitor = r.idUsuario.startsWith('visitante-');
+      const user = isVisitor ? undefined : getUsuario(r.idUsuario);
+      if (!isVisitor && !user) return false;
+
+      if (filterMesColaborador !== 'all' && r.idUsuario !== filterMesColaborador) return false;
+
+      if (filterMesEmpresa !== 'all') {
+        if (isVisitor) return false;
+        if (user && user.idEmpresa !== filterMesEmpresa) return false;
+      }
+
+      const oId = r.idObraNoDia || (user ? user.idObraPadrao : undefined);
+      if (filterMesObra !== 'all' && oId !== filterMesObra) return false;
+
+      return true;
+    });
+
+    const grouped: Record<string, { mes: string; quantidade: number; valorPago: number; valorDescontado: number }> = {};
+
+    filtered.forEach(r => {
+      const isVisitor = r.idUsuario.startsWith('visitante-');
+      const user = isVisitor ? undefined : getUsuario(r.idUsuario);
+      const oId = r.idObraNoDia || (user ? user.idObraPadrao : undefined);
+      const oObj = oId ? getObra(oId) : undefined;
+
+      const price = oObj?.valorRefeicao && oObj.valorRefeicao > 0 ? oObj.valorRefeicao : settings.valorRefeicaoPropria;
+      const discount = isVisitor ? 0 : (oObj?.valorDescontoColaborador ?? 0);
+
+      const mesRef = r.data.substring(0, 7);
+      if (!grouped[mesRef]) {
+        grouped[mesRef] = { mes: mesRef, quantidade: 0, valorPago: 0, valorDescontado: 0 };
+      }
+      grouped[mesRef].quantidade += 1;
+      grouped[mesRef].valorPago += price;
+      grouped[mesRef].valorDescontado += discount;
+    });
+
+    return Object.values(grouped).sort((a, b) => a.mes.localeCompare(b.mes));
+  };
+
+  const formatMesRef = (m: string) => {
+    const [y, mm] = m.split('-');
+    return `${mm}/${y}`;
+  };
+
+// --- HEURISTIC CALCULATORS ---
 
   const totalFinanceiro = getFinancialRows().reduce((acc, row) => acc + row.valorTotal, 0);
   const totalRefeicoesFinanceiro = getFinancialRows().reduce((acc, row) => acc + row.qtd, 0);
@@ -1130,6 +1195,17 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
       const pctGeral = totReservas > 0 ? ((totConsumidas / totReservas) * 100).toFixed(1) + '%' : '0%';
       body += `\n\n"TOTAL";"";${totReservas};${totConsumidas};"${pctGeral}"\n`;
       fn = `SGR-Relatorio-Reservas-por-Empresa-${empresaStart}-a-${empresaEnd}.csv`;
+    } else if (reportType === 'mesAmes') {
+      headers = 'Mês/Ano Referência;Quantidade Reservada;Valor Total Pago pela Empresa;Valor Descontado do Funcionário\n';
+      const rows = getMesAMesRows();
+      body = rows.map(r =>
+        `"${formatMesRef(r.mes)}";${r.quantidade};${fNum(r.valorPago)};${fNum(r.valorDescontado)}`
+      ).join('\n');
+      const totQuantidadeMes = rows.reduce((acc, r) => acc + r.quantidade, 0);
+      const totValorPagoMes = rows.reduce((acc, r) => acc + r.valorPago, 0);
+      const totValorDescontadoMes = rows.reduce((acc, r) => acc + r.valorDescontado, 0);
+      body += `\n\n"TOTAL";${totQuantidadeMes};${fNum(totValorPagoMes)};${fNum(totValorDescontadoMes)}\n`;
+      fn = `SGR-Relatorio-Mensal-Refeicoes-${mesStart}-a-${mesEnd}.csv`;
     } else {
       headers = 'Nº;Colaborador;Matrícula;Obra;Empresa\n';
       const rows = getFolhaRows();
@@ -1216,6 +1292,17 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
           >
             🏢 Consumo por Empresa
           </button>
+
+              <button
+                onClick={() => setReportType('mesAmes')}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${reportType === 'mesAmes'
+                  ? 'bg-neutral-900 text-white shadow'
+                  : 'bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-300'
+                  }`}
+                id="report-type-mesames"
+              >
+                📅 Refeições por Mês
+              </button>
         </div>
 
         <button
@@ -2021,6 +2108,166 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
                   </tfoot>
                 )}
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Month-by-Month Reserved Meals Report */}
+      {reportType === 'mesAmes' && (
+        <div className="space-y-4" id="mesames-report-box">
+          <div className="bg-white p-5 rounded-xl border border-neutral-200 shadow-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Sliders className="h-4 w-4 text-emerald-600" />
+              <h3 className="text-sm font-bold text-neutral-800 uppercase tracking-widest text-[11px] font-mono">Filtros do Relatório Mês a Mês</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-[10px] text-neutral-500 uppercase font-black mb-1">Empresa</label>
+                <select
+                  value={filterMesEmpresa}
+                  onChange={(e) => setFilterMesEmpresa(e.target.value)}
+                  className="w-full text-xs border border-neutral-300 rounded px-2.5 py-1.5 bg-white text-neutral-800"
+                  id="mesames-empresa-select"
+                >
+                  <option value="all">Todas as Empresas</option>
+                  {empresas.map(e => (
+                    <option key={e.id} value={e.id}>{e.nome}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-neutral-500 uppercase font-black mb-1">Colaborador</label>
+                <select
+                  value={filterMesColaborador}
+                  onChange={(e) => setFilterMesColaborador(e.target.value)}
+                  className="w-full text-xs border border-neutral-300 rounded px-2.5 py-1.5 bg-white text-neutral-800"
+                  id="mesames-colaborador-select"
+                >
+                  <option value="all">Todos os Colaboradores</option>
+                  {usuarios.filter(u => u.perfil === 'colaborador' || u.perfil === 'admin').map(u => (
+                    <option key={u.id} value={u.id}>{u.nome}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-neutral-500 uppercase font-black mb-1">Área / Obra</label>
+                <select
+                  value={filterMesObra}
+                  onChange={(e) => setFilterMesObra(e.target.value)}
+                  className="w-full text-xs border border-neutral-300 rounded px-2.5 py-1.5 bg-white text-neutral-800"
+                  id="mesames-obra-select"
+                >
+                  <option value="all">Todas as Áreas / Obras</option>
+                  {obras.map(o => (
+                    <option key={o.id} value={o.id}>{o.nome}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-neutral-500 uppercase font-black mb-1">Período Inicial (Mês/Ano)</label>
+                <input
+                  type="month"
+                  value={mesStart}
+                  onChange={(e) => setMesStart(e.target.value)}
+                  className="w-full text-xs font-mono border border-neutral-300 rounded px-2.5 py-1.5 bg-white text-neutral-800"
+                  id="mesames-start-month"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-neutral-500 uppercase font-black mb-1">Período Final (Mês/Ano)</label>
+                <input
+                  type="month"
+                  value={mesEnd}
+                  onChange={(e) => setMesEnd(e.target.value)}
+                  className="w-full text-xs font-mono border border-neutral-300 rounded px-2.5 py-1.5 bg-white text-neutral-800"
+                  id="mesames-end-month"
+                />
+              </div>
+            </div>
+
+            <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-xs text-neutral-600">
+              💡 <strong>Relatório Mês a Mês de Refeições Reservadas:</strong> Consolida, para cada mês do período selecionado, a quantidade de refeições reservadas, o valor total pago pela empresa e o valor total descontado dos colaboradores, permitindo filtrar por empresa, colaborador e área/obra.
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-xl border border-neutral-200 shadow-sm space-y-4">
+            <div className="flex justify-between items-center pb-2 border-b border-neutral-100">
+              <span className="text-xs font-bold font-mono text-neutral-500 uppercase">Refeições Reservadas por Mês</span>
+            </div>
+
+            <div className="border border-neutral-200 rounded-xl overflow-hidden shadow-xs">
+              <table className="w-full text-left text-xs bg-white">
+                <thead className="bg-neutral-50 text-neutral-400 font-mono uppercase text-[10px] border-b border-neutral-200">
+                  <tr>
+                    <th className="p-3">Mês/Ano</th>
+                    <th className="p-3 text-center">Quantidade Reservada</th>
+                    <th className="p-3 text-right">Valor Total Pago pela Empresa</th>
+                    <th className="p-3 text-right">Valor Descontado do Funcionário</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100 text-neutral-700">
+                  {getMesAMesRows().length > 0 ? (
+                    getMesAMesRows().map((row) => (
+                      <tr key={row.mes} className="hover:bg-neutral-50 h-[16px]" style={{ height: '16px' }}>
+                        <td className="p-0.5 px-3 font-bold text-neutral-800 text-[11px] h-[16px]">{formatMesRef(row.mes)}</td>
+                        <td className="p-0.5 px-3 text-center text-[11px] font-mono text-neutral-900 font-bold h-[16px]">{row.quantidade}</td>
+                        <td className="p-0.5 px-3 text-right text-[11px] font-mono text-neutral-700 h-[16px]">R$ {row.valorPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                        <td className="p-0.5 px-3 text-right text-[11px] font-mono text-emerald-700 font-bold h-[16px]">R$ {row.valorDescontado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="p-8 text-center text-neutral-400 italic" colSpan={4}>
+                        Nenhuma refeição reservada encontrada no período e filtros selecionados.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+                {getMesAMesRows().length > 0 && (
+                  <tfoot>
+                    <tr className="bg-neutral-900 text-white font-bold h-[20px]" style={{ height: '20px' }}>
+                      <td className="p-0.5 px-3 text-[11px]">TOTAL DO PERÍODO</td>
+                      <td className="p-0.5 px-3 text-center font-mono text-[11px]">
+                        {getMesAMesRows().reduce((acc, r) => acc + r.quantidade, 0)}
+                      </td>
+                      <td className="p-0.5 px-3 text-right font-mono text-emerald-400 text-[11px]">
+                        R$ {getMesAMesRows().reduce((acc, r) => acc + r.valorPago, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-0.5 px-3 text-right font-mono text-amber-300 text-[11px]">
+                        R$ {getMesAMesRows().reduce((acc, r) => acc + r.valorDescontado, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => handleDownloadPdf('mesames-report-box', `SGR_Relatorio_Mensal_Refeicoes_${mesStart}_a_${mesEnd}`)}
+                disabled={isGeneratingPdf === 'mesames-report-box'}
+                className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs rounded-lg transition shadow-md flex items-center justify-center gap-1.5 duration-150 disabled:opacity-50 cursor-pointer"
+                id="trigger-download-mesames-pdf-btn"
+              >
+                {isGeneratingPdf === 'mesames-report-box' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>Gerando PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 shrink-0" />
+                    <span>Baixar PDF</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
