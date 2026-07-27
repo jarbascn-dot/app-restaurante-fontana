@@ -193,13 +193,6 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
         const nameTruncated = row.nome.length > 42 ? row.nome.substring(0, 42) + '...' : row.nome;
         doc.text(nameTruncated, 31, y + 5);
 
-        // Assinatura line
-        doc.setDrawColor(148, 163, 184);
-        doc.setLineWidth(0.2);
-        doc.setLineDashPattern([1, 1], 0);
-        doc.line(114, y + 5.5, 192, y + 5.5);
-        doc.setLineDashPattern([], 0);
-
         y += rowHeight;
       });
     }
@@ -289,21 +282,21 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(30, 41, 59);
 
-      doc.text('Nº', 16, y + 4.2, { align: 'center' });
-      doc.text('MATRÍCULA', 22, y + 4.2);
-      doc.text('NOME DO COLABORADOR', 40, y + 4.2);
-      doc.text('QUANT.', 104, y + 4.2, { align: 'center' });
-      doc.text('CUSTO EMPRESA', 140, y + 4.2, { align: 'right' });
-      doc.text('DESCONTO COLAB.', 168, y + 4.2, { align: 'right' });
-      doc.text('ASSINATURA', 183, y + 4.2, { align: 'center' });
+      doc.text('Nº', 15, y + 4.2, { align: 'center' });
+      doc.text('MATRÍCULA', 19, y + 4.2);
+      doc.text('NOME DO COLABORADOR', 33, y + 4.2);
+      doc.text('QUANT.', 82, y + 4.2, { align: 'center' });
+      doc.text('CUSTO EMPRESA', 108, y + 4.2, { align: 'right' });
+      doc.text('DESCONTO COLAB.', 130, y + 4.2, { align: 'right' });
+      doc.text('ASSINATURA DO COLABORADOR', 165, y + 4.2, { align: 'center' });
 
       // Dividers
-      doc.line(20, y, 20, y + 6.5);
-      doc.line(38, y, 38, y + 6.5);
-      doc.line(96, y, 96, y + 6.5);
-      doc.line(112, y, 112, y + 6.5);
-      doc.line(142, y, 142, y + 6.5);
-      doc.line(170, y, 170, y + 6.5);
+      doc.line(18, y, 18, y + 6.5);
+      doc.line(32, y, 32, y + 6.5);
+      doc.line(76, y, 76, y + 6.5);
+      doc.line(88, y, 88, y + 6.5);
+      doc.line(110, y, 110, y + 6.5);
+      doc.line(132, y, 132, y + 6.5);
 
       y = y + 6.5;
     };
@@ -341,55 +334,48 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
         doc.rect(12, y, 186, rowHeight, 'FD');
 
         // Dividers
-        doc.line(20, y, 20, y + rowHeight);
-        doc.line(38, y, 38, y + rowHeight);
-        doc.line(96, y, 96, y + rowHeight);
-        doc.line(112, y, 112, y + rowHeight);
-        doc.line(142, y, 142, y + rowHeight);
-        doc.line(170, y, 170, y + rowHeight);
+        doc.line(18, y, 18, y + rowHeight);
+        doc.line(32, y, 32, y + rowHeight);
+        doc.line(76, y, 76, y + rowHeight);
+        doc.line(88, y, 88, y + rowHeight);
+        doc.line(110, y, 110, y + rowHeight);
+        doc.line(132, y, 132, y + rowHeight);
 
         // Nº
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(7.5);
         doc.setTextColor(15, 23, 42);
-        doc.text(String(idx + 1), 16, y + 4.8, { align: 'center' });
+        doc.text(String(idx + 1), 15, y + 4.8, { align: 'center' });
 
         // Matrícula
         doc.setFont('courier', 'bold');
         doc.setFontSize(7.5);
         doc.setTextColor(51, 65, 85);
-        doc.text(row.matricula, 22, y + 4.8);
+        doc.text(row.matricula, 19, y + 4.8);
 
         // Nome
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(7.5);
         doc.setTextColor(15, 23, 42);
-        const nameTruncated = row.nome.length > 28 ? row.nome.substring(0, 28) + '...' : row.nome;
-        doc.text(nameTruncated.toUpperCase(), 40, y + 4.8);
+        const nameTruncated = row.nome.length > 25 ? row.nome.substring(0, 25) + '...' : row.nome;
+        doc.text(nameTruncated.toUpperCase(), 33, y + 4.8);
 
         // Quant
         doc.setFont('courier', 'bold');
         doc.setFontSize(8);
-        doc.text(String(row.quantidadeReservas), 104, y + 4.8, { align: 'center' });
+        doc.text(String(row.quantidadeReservas), 82, y + 4.8, { align: 'center' });
 
         // Custo Emp
         doc.setFont('courier', 'normal');
         doc.setFontSize(7.5);
         doc.setTextColor(71, 85, 105);
-        doc.text(`R$ ${row.custoCozinhaTotal.toFixed(2)}`, 140, y + 4.8, { align: 'right' });
+        doc.text(`R$ ${row.custoCozinhaTotal.toFixed(2)}`, 108, y + 4.8, { align: 'right' });
 
         // Desconto Colab
         doc.setFont('courier', 'bold');
         doc.setFontSize(8);
         doc.setTextColor(6, 95, 70);
-        doc.text(`R$ ${row.descontoTotalColaborador.toFixed(2)}`, 168, y + 4.8, { align: 'right' });
-
-        // Assinatura line
-        doc.setDrawColor(148, 163, 184);
-        doc.setLineWidth(0.2);
-        doc.setLineDashPattern([1, 1], 0);
-        doc.line(172, y + 5, 196, y + 5);
-        doc.setLineDashPattern([], 0);
+        doc.text(`R$ ${row.descontoTotalColaborador.toFixed(2)}`, 130, y + 4.8, { align: 'right' });
 
         y += rowHeight;
       });
@@ -408,18 +394,18 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(15, 23, 42);
-      doc.text('TOTAL GERAL:', 38, y + 5);
+      doc.text('TOTAL GERAL:', 33, y + 5);
 
       doc.setFont('courier', 'bold');
       doc.setFontSize(8.5);
-      doc.text(String(totQuant), 104, y + 5, { align: 'center' });
+      doc.text(String(totQuant), 82, y + 5, { align: 'center' });
 
       doc.setFont('courier', 'bold');
       doc.setTextColor(15, 23, 42);
-      doc.text(`R$ ${totCustoEmp.toFixed(2)}`, 140, y + 5, { align: 'right' });
+      doc.text(`R$ ${totCustoEmp.toFixed(2)}`, 108, y + 5, { align: 'right' });
 
       doc.setTextColor(6, 95, 70);
-      doc.text(`R$ ${totDescontoColab.toFixed(2)}`, 168, y + 5, { align: 'right' });
+      doc.text(`R$ ${totDescontoColab.toFixed(2)}`, 130, y + 5, { align: 'right' });
 
       y += 7.5;
     }
@@ -1715,9 +1701,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
                         <tr key={row.id} className="h-[26px] text-neutral-950 font-medium font-sans hover:bg-neutral-50/50" style={{ height: '26px' }}>
                           <td className="p-1 align-middle border-r border-neutral-350 text-center font-bold font-mono bg-neutral-50 text-[11px] h-[26px]">{index + 1}</td>
                           <td className="p-1 px-2 align-middle border-r border-neutral-350 font-bold text-[11px] h-[26px] truncate max-w-[200px]">{row.nome}</td>
-                          <td className="p-0 px-2 align-middle pr-4 h-[26px]">
-                            <div className="w-full border-b border-dashed border-neutral-400 mt-[11px] h-0"></div>
-                          </td>
+                          <td className="p-0 px-2 align-middle pr-4 h-[26px]"></td>
                         </tr>
                       ))
                     ) : (
@@ -1899,13 +1883,13 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
                 <table className="w-full text-left text-xs border border-neutral-350">
                   <thead>
                     <tr className="bg-neutral-100 text-neutral-800 border-b border-neutral-350 font-bold uppercase tracking-wider text-[9px]">
-                      <th className="p-2 border-r border-neutral-350 text-center w-10">Nº</th>
-                      <th className="p-2 border-r border-neutral-350 w-24">Matrícula</th>
-                      <th className="p-2 border-r border-neutral-350 w-44">Nome do Colaborador</th>
+                      <th className="p-2 border-r border-neutral-350 text-center w-8">Nº</th>
+                      <th className="p-2 border-r border-neutral-350 w-20">Matrícula</th>
+                      <th className="p-2 border-r border-neutral-350 w-36">Nome do Colaborador</th>
                       <th className="p-2 border-r border-neutral-350 w-16 text-center">Quant. Reservas</th>
-                      <th className="p-2 border-r border-neutral-350 w-24 text-right">Valor Custo Empresa</th>
-                      <th className="p-2 border-r border-neutral-350 w-24 text-right">Total Desconto Colab.</th>
-                      <th className="p-2 w-36 text-center">Assinatura do Colaborador</th>
+                      <th className="p-2 border-r border-neutral-350 w-20 text-right">Valor Custo Empresa</th>
+                      <th className="p-2 border-r border-neutral-350 w-20 text-right">Total Desconto Colab.</th>
+                      <th className="p-2 w-auto text-center">Assinatura do Colaborador</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-300 text-neutral-900">
@@ -1918,9 +1902,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
                           <td className="p-1 align-middle border-r border-neutral-350 text-center font-mono font-extrabold text-[11px] text-neutral-800 h-[26px]">{row.quantidadeReservas}</td>
                           <td className="p-1 px-2 align-middle border-r border-neutral-350 text-right font-mono text-[11px] text-neutral-600 h-[26px]">R$ {row.custoCozinhaTotal.toFixed(2)}</td>
                           <td className="p-1 px-2 align-middle border-r border-neutral-350 text-right font-mono font-bold text-emerald-800 text-[11px] h-[26px]">R$ {row.descontoTotalColaborador.toFixed(2)}</td>
-                          <td className="p-0 px-2 align-middle h-[26px]">
-                            <div className="w-full border-b border-dashed border-neutral-950 mt-[11px] h-0"></div>
-                          </td>
+                          <td className="p-0 px-2 align-middle h-[26px]"></td>
                         </tr>
                       ))
                     ) : (
