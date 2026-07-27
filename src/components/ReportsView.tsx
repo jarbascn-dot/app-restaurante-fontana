@@ -2022,8 +2022,8 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
               </div>
             </div>
 
-            <div className="border border-neutral-200 rounded-xl overflow-hidden shadow-xs">
-              <table className="w-full text-left text-xs bg-white">
+            <div className="border border-neutral-200 rounded-xl overflow-x-auto shadow-xs">
+              <table className="w-full min-w-[580px] text-left text-xs bg-white">
                 <thead className="bg-neutral-50 text-neutral-400 font-mono uppercase text-[10px] border-b border-neutral-200">
                   <tr>
                     <th className="p-3">Nome da Empresa</th>
@@ -2183,24 +2183,24 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
               <span className="text-xs font-bold font-mono text-neutral-500 uppercase">Refeições Reservadas por Mês</span>
             </div>
 
-            <div className="border border-neutral-200 rounded-xl overflow-hidden shadow-xs">
-              <table className="w-full text-left text-xs bg-white">
+            <div className="border border-neutral-200 rounded-xl overflow-x-auto shadow-xs">
+              <table className="w-full min-w-[560px] text-left text-xs bg-white">
                 <thead className="bg-neutral-50 text-neutral-400 font-mono uppercase text-[10px] border-b border-neutral-200">
                   <tr>
-                    <th className="p-3">Mês/Ano</th>
-                    <th className="p-3 text-center">Quantidade Reservada</th>
-                    <th className="p-3 text-right">Valor Total Pago pela Empresa</th>
-                    <th className="p-3 text-right">Valor Descontado do Funcionário</th>
+                    <th className="p-3 whitespace-nowrap">Mês/Ano</th>
+                    <th className="p-3 text-center whitespace-nowrap">Quantidade Reservada</th>
+                    <th className="p-3 text-right whitespace-nowrap">Valor Total Pago pela Empresa</th>
+                    <th className="p-3 text-right whitespace-nowrap">Valor Descontado do Funcionário</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100 text-neutral-700">
                   {getMesAMesRows().length > 0 ? (
                     getMesAMesRows().map((row) => (
-                      <tr key={row.mes} className="hover:bg-neutral-50 h-[16px]" style={{ height: '16px' }}>
-                        <td className="p-0.5 px-3 font-bold text-neutral-800 text-[11px] h-[16px]">{formatMesRef(row.mes)}</td>
-                        <td className="p-0.5 px-3 text-center text-[11px] font-mono text-neutral-900 font-bold h-[16px]">{row.quantidade}</td>
-                        <td className="p-0.5 px-3 text-right text-[11px] font-mono text-neutral-700 h-[16px]">R$ {row.valorPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                        <td className="p-0.5 px-3 text-right text-[11px] font-mono text-emerald-700 font-bold h-[16px]">R$ {row.valorDescontado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                      <tr key={row.mes} className="hover:bg-neutral-50 h-[24px]">
+                        <td className="p-2 px-3 font-bold text-neutral-800 text-[11px] whitespace-nowrap">{formatMesRef(row.mes)}</td>
+                        <td className="p-2 px-3 text-center text-[11px] font-mono text-neutral-900 font-bold whitespace-nowrap">{row.quantidade}</td>
+                        <td className="p-2 px-3 text-right text-[11px] font-mono text-neutral-700 whitespace-nowrap">R$ {row.valorPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                        <td className="p-2 px-3 text-right text-[11px] font-mono text-emerald-700 font-bold whitespace-nowrap">R$ {row.valorDescontado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                       </tr>
                     ))
                   ) : (
@@ -2213,15 +2213,15 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
                 </tbody>
                 {getMesAMesRows().length > 0 && (
                   <tfoot>
-                    <tr className="bg-neutral-900 text-white font-bold h-[20px]" style={{ height: '20px' }}>
-                      <td className="p-0.5 px-3 text-[11px]">TOTAL DO PERÍODO</td>
-                      <td className="p-0.5 px-3 text-center font-mono text-[11px]">
+                    <tr className="bg-neutral-900 text-white font-bold h-[28px]">
+                      <td className="p-2 px-3 text-[11px] whitespace-nowrap">TOTAL DO PERÍODO</td>
+                      <td className="p-2 px-3 text-center font-mono text-[11px] whitespace-nowrap">
                         {getMesAMesRows().reduce((acc, r) => acc + r.quantidade, 0)}
                       </td>
-                      <td className="p-0.5 px-3 text-right font-mono text-emerald-400 text-[11px]">
+                      <td className="p-2 px-3 text-right font-mono text-emerald-400 text-[11px] whitespace-nowrap">
                         R$ {getMesAMesRows().reduce((acc, r) => acc + r.valorPago, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="p-0.5 px-3 text-right font-mono text-amber-300 text-[11px]">
+                      <td className="p-2 px-3 text-right font-mono text-amber-300 text-[11px] whitespace-nowrap">
                         R$ {getMesAMesRows().reduce((acc, r) => acc + r.valorDescontado, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
