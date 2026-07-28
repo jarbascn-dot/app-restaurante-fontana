@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { Usuario, Reserva, ReservaStatus, Feriado, SystemSettings, Obra, Perfil } from '../types';
 import { Calendar as CalendarIcon, Check, X, ShieldAlert, Clock, RefreshCw, FileText, Download, AlertTriangle, MousePointerClick, ChevronLeft, ChevronRight, Sparkles, Loader2 } from 'lucide-react';
 import { downloadPdfOrFile, dataUrlToBlob, blobToDataUrl } from '../lib/downloadHelper';
+import { generateManualPdf } from '../lib/generateManualPdf';
 
 interface Refeicao {
   pratoPrincipal: string;
@@ -197,6 +198,19 @@ export default function ColaboradorView({
 
   const [batchAction, setBatchAction] = useState<'reservar' | 'cancelar'>('reservar');
   const [showBatchResult, setShowBatchResult] = useState<string | null>(null);
+  const [isGeneratingManual, setIsGeneratingManual] = useState(false);
+
+  const handleDownloadManual = async () => {
+    try {
+      setIsGeneratingManual(true);
+      await generateManualPdf(currentUser);
+    } catch (e) {
+      console.error("Error generating manual PDF:", e);
+      alert("Erro ao gerar o PDF do manual. Tente novamente.");
+    } finally {
+      setIsGeneratingManual(false);
+    }
+  };
 
   // States for interactive range selection and cancel confirmation
   const [activePickerField, setActivePickerField] = useState<'start' | 'end' | null>(null);
@@ -654,14 +668,33 @@ export default function ColaboradorView({
       
       {/* Banner / Instructions */}
       <div className="bg-white p-5 rounded-xl border border-neutral-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-        <div className="md:col-span-2">
-          <h3 className="font-bold text-neutral-800 text-base" id="persona-welcome-title">
-            Painel do Colaborador: {currentUser.nome}
-          </h3>
-          <p className="text-xs text-neutral-600 mt-1 max-w-xl">
-            Clique diretamente no dia do calendário para inverter seu status de reserva. Para planejar férias ou semanas completas, utilize o painel de <strong>Reserva por Período</strong> ao lado.
-          </p>
-          <div className="mt-3 flex gap-4 text-xs text-neutral-600 font-medium">
+        <div className="md:col-span-2 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="font-bold text-neutral-800 text-base" id="persona-welcome-title">
+                Painel do Colaborador: {currentUser.nome}
+              </h3>
+              <button
+                type="button"
+                onClick={handleDownloadManual}
+                disabled={isGeneratingManual}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100/90 rounded-lg border border-emerald-200 text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95 disabled:opacity-50"
+                title="Baixar Manual do Colaborador em PDF com orientações de uso do aplicativo"
+                id="btn-download-manual-colaborador"
+              >
+                {isGeneratingManual ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-700" />
+                ) : (
+                  <FileText className="h-3.5 w-3.5 text-emerald-700" />
+                )}
+                <span>Manual do Colaborador (PDF)</span>
+              </button>
+            </div>
+            <p className="text-xs text-neutral-600 mt-1 max-w-xl">
+              Clique diretamente no dia do calendário para inverter seu status de reserva. Para planejar férias ou semanas completas, utilize o painel de <strong>Reserva por Período</strong> ao lado.
+            </p>
+          </div>
+          <div className="mt-3 flex gap-4 text-xs text-neutral-600 font-medium flex-wrap">
             <span>📍 Obra Vinculada: <strong>{obrasNome(currentUser.idObraPadrao)}</strong></span>
             <span>💳 Registro: <strong>{currentUser.matricula}</strong></span>
           </div>
