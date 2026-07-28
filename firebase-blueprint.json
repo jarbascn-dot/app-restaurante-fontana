@@ -39,7 +39,7 @@
         "senha": { "type": "string", "description": "Código hash ou senha de acesso criptografada no modo seguro" },
         "matricula": { "type": "string", "description": "Matrícula do trabalhador" },
         "perfil": { "type": "string", "enum": ["colaborador", "admin", "gestor", "fornecedor"], "description": "Grupo de acesso" },
-        "status": { "type": "string", "enum": ["pendente", "aprovado", "desativado"], "description": "Se habilitado no refeitório" },
+        "status": { "type": "string", "enum": ["pendente", "aprovado", "desativado", "excluido"], "description": "Se habilitado no refeitório" },
         "idEmpresa": { "type": "string", "description": "FK Empresa" },
         "idObraPadrao": { "type": "string", "description": "FK Obra" },
         "idObrasFornecedor": { "type": "array", "description": "Lista de obras visíveis caso seja fornecedor" },
