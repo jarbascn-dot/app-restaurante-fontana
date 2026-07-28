@@ -77,7 +77,7 @@ service cloud.firestore {
              data.nome is string && data.nome.size() <= 200 &&
              data.matricula is string && data.matricula.size() <= 100 &&
              (data.perfil == 'colaborador' || data.perfil == 'admin' || data.perfil == 'gestor' || data.perfil == 'fornecedor') &&
-             (data.status == 'pendente' || data.status == 'aprovado' || data.status == 'desativado') &&
+             (data.status == 'pendente' || data.status == 'aprovado' || data.status == 'desativado' || data.status == 'excluido') &&
              data.idEmpresa is string && data.idObraPadrao is string &&
              (!data.keys().hasAny(['email']) || (data.email is string && data.email.size() <= 150)) &&
              (!data.keys().hasAny(['cpf']) || (data.cpf is string && data.cpf.size() <= 20)) &&
@@ -235,9 +235,9 @@ service cloud.firestore {
 
     // FCM Tokens Collection
     match /fcmTokens/{userId} {
-      allow read: if true;
-      allow create, update: if isValidId(userId) && isValidFCMToken(incoming());
-      allow delete: if isValidId(userId);
+      allow read: if isSignedIn();
+      allow create, update: if isValidId(userId) && isOwner(userId) && isValidFCMToken(incoming());
+      allow delete: if isValidId(userId) && isOwner(userId);
     }
 
     // Notification Queue Collection
