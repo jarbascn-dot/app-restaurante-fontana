@@ -8,6 +8,7 @@ import { Usuario, Perfil, UserStatus, SystemSettings, AuditoriaLog, Obra, Empres
 import { Users, UserCheck, ShieldAlert, Sliders, FileText, Search, Settings, Save, Trash2, CheckCircle, Ban, Building2, Plus, Edit, Briefcase, X, Check, ExternalLink, Calendar, FileSpreadsheet, Smile, Camera } from 'lucide-react';
 import CameraCapture from './CameraCapture';
 import { downloadPdfOrFile } from '../lib/downloadHelper';
+import { generateManualPdf } from '../lib/generateManualPdf';
 
 interface AdminViewProps {
   usuarios: Usuario[];
@@ -295,6 +296,19 @@ export default function AdminView({
       mimeType: 'text/csv;charset=utf-8;',
       title: 'Relatório de Colaboradores — SGR Fontana',
     });
+  };
+
+  const [isGeneratingManual, setIsGeneratingManual] = useState(false);
+  const handleDownloadManual = async () => {
+    try {
+      setIsGeneratingManual(true);
+      await generateManualPdf();
+    } catch (e) {
+      console.error("Error generating manual PDF:", e);
+      alert("Erro ao gerar o PDF do manual.");
+    } finally {
+      setIsGeneratingManual(false);
+    }
   };
 
   const filteredLogs = logs.filter(l => 
@@ -795,6 +809,17 @@ export default function AdminView({
                 >
                   <FileSpreadsheet className="h-4 w-4" />
                   <span>Exportar Excel</span>
+                </button>
+
+                <button
+                  onClick={handleDownloadManual}
+                  disabled={isGeneratingManual}
+                  className="px-3.5 py-2 bg-white hover:bg-neutral-50 text-emerald-800 border border-emerald-300 font-bold text-xs rounded-lg transition shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-50"
+                  id="btn-download-manual-admin"
+                  title="Baixar Manual do Colaborador em PDF (Infográfico)"
+                >
+                  <FileText className="h-4 w-4 text-emerald-600" />
+                  <span>{isGeneratingManual ? 'Gerando...' : 'Manual do Colaborador (PDF)'}</span>
                 </button>
 
                 <div className="relative">
