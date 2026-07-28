@@ -20,7 +20,7 @@ export const COMPROMISSO_LGPD_HTML = `
   <div style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.6;">
     <h3 style="font-size: 14px; font-weight: bold; color: #047857; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; text-transform: uppercase;">1. INTRODUÇÃO E ESCOPO DA PLATAFORMA SGR</h3>
     <p style="margin-bottom: 10px; font-size: 11.5px; text-align: justify;">
-      Em estrita conformidade com a <strong>Lei Geral de Proteção de Dados Pessoais (LGPD) - Lei Federal nº 13.709/2018</strong>, a <strong>CONSTRUTORA FONTANA LTDA</strong>, por meio de seu departamento de Segurança da Informação, Tecnologia e Compliance, estabelece esta Diretiva e Política de Privacidade para regular as atividades de coleta, armazenamento, processamento e controle de dados pessoais tratados de forma eletrônica dentro do escopo do aplicativo <strong>SGR (Sistema de Gerenciamento de Refeitórios)</strong>.
+      Em estrita conformidade com a <strong>Lei Geral de Proteção de Dados Pessoais (LGPD) - Lei Federal nº 13.709/2018</strong>, a <strong>FONTANA</strong>, por meio de seu departamento de Segurança da Informação, Tecnologia e Compliance, estabelece esta Diretiva e Política de Privacidade para regular as atividades de coleta, armazenamento, processamento e controle de dados pessoais tratados de forma eletrônica dentro do escopo do aplicativo <strong>SGR (Sistema de Gerenciamento de Refeitórios)</strong>.
     </p>
     <p style="margin-bottom: 15px; font-size: 11.5px; text-align: justify;">
       A plataforma SGR foi concebida para otimizar reservas ordinárias e recorrentes de refeições de colaboradores próprios ou terceirizados envolvidos nas atividades canteiristas da empresa, atuando diretamente no refeitório técnico, promovendo o combate sistemático ao desperdício socioambiental de suprimentos alimentares e garantindo uma distribuição idônea, transparente e auditável de custos corporativos indiretos entre as frentes de obras e suas respectivas prestadoras de serviço subcontratadas.
@@ -31,9 +31,9 @@ export const COMPROMISSO_LGPD_HTML = `
       Define-se, para todos os efeitos de governança corporativa, compliance legal e responsabilidade regulatória, como Controladora exclusiva das informações e dados de agendamentos tratados neste aplicativo:
     </p>
     <ul style="list-style-type: disc; margin-left: 20px; margin-bottom: 15px; font-size: 11px; space-y: 5px;">
-      <li style="margin-bottom: 4px;"><strong>Razão Social:</strong> CONSTRUTORA FONTANA LTDA, pessoa jurídica de direito privado inscrita no CNPJ sob o nº <strong>79.667.655/0001-78</strong>.</li>
+      <li style="margin-bottom: 4px;"><strong>Identificação:</strong> FONTANA - CONSTRUTORA, pessoa jurídica de direito privado.</li>
       <li style="margin-bottom: 4px;"><strong>Endereço Físico Administrativo:</strong> Rua Domênico Sônego, 255 – Centro, Criciúma/SC - CEP 88.804-050.</li>
-      <li style="margin-bottom: 4px;"><strong>Canal de Privacidade e Proteção de Dados:</strong> As solicitações relacionadas ao tratamento de dados pessoais, ao exercício dos direitos dos titulares e às questões de privacidade poderão ser encaminhadas ao setor de Recursos Humanos da Construtora Fontana, por meio do e-mail corporativo: <strong>folha@estilofontana.com.br</strong>.</li>
+      <li style="margin-bottom: 4px;"><strong>Canal de Privacidade e Proteção de Dados:</strong> As solicitações relacionadas ao tratamento de dados pessoais, ao exercício dos direitos dos titulares e às questões de privacidade poderão ser encaminhadas ao setor de Recursos Humanos da FONTANA, por meio do e-mail corporativo: <strong>folha@estilofontana.com.br</strong>.</li>
     </ul>
 
     <h3 style="font-size: 14px; font-weight: bold; color: #047857; margin-top: 20px; margin-bottom: 8px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; text-transform: uppercase;">3. CATEGORIAS DE DADOS PESSOAIS TRATADOS NO SISTEMA</h3>
@@ -157,7 +157,7 @@ export default function LgpdConsentModal({
             </div>
             <div>
               <span className="text-[10px] uppercase font-bold tracking-widest text-neutral-400 font-mono flex items-center gap-1">
-                <Building2 className="w-3.5 h-3.5 text-red-500" /> CONSTRUTORA FONTANA LTDA
+                <Building2 className="w-3.5 h-3.5 text-red-500" /> FONTANA
               </span>
               <h2 className="font-bold text-sm leading-tight text-neutral-100">
                 Termos de Privacidade e Proteção de Dados (LGPD)
