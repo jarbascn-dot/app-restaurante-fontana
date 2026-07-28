@@ -57,7 +57,7 @@ export async function generatePolicyPdf(currentUser: Usuario): Promise<void> {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
   doc.setTextColor(...emeraldPrimary);
-  doc.text('CONSTRUTORA FONTANA LTDA', pageWidth / 2, y, { align: 'center' });
+  doc.text('FONTANA', pageWidth / 2, y, { align: 'center' });
   y += 5.5;
 
   doc.setFont('helvetica', 'bold');
@@ -69,7 +69,7 @@ export async function generatePolicyPdf(currentUser: Usuario): Promise<void> {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...textMuted);
-  doc.text('SGR — Sistema de Gerenciamento de Refeitórios', pageWidth / 2, y, { align: 'center' });
+  doc.text('SGR - Sistema de Gerenciamento de Refeitórios', pageWidth / 2, y, { align: 'center' });
   y += 7;
 
   // --- Metadata Box ---
@@ -157,14 +157,14 @@ export async function generatePolicyPdf(currentUser: Usuario): Promise<void> {
   // --- SECTIONS CONTENT ---
 
   addSectionHeader('1. INTRODUÇÃO E ESCOPO DA PLATAFORMA SGR');
-  addParagraph('Em estrita conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD) - Lei Federal nº 13.709/2018, a CONSTRUTORA FONTANA LTDA, por meio de seu departamento de Segurança da Informação, Tecnologia e Compliance, estabelece esta Diretiva e Política de Privacidade para regular as atividades de coleta, armazenamento, processamento e controle de dados pessoais tratados de forma eletrônica dentro do escopo do aplicativo SGR (Sistema de Gerenciamento de Refeitórios).');
+  addParagraph('Em estrita conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD) - Lei Federal nº 13.709/2018, a FONTANA, por meio de seu departamento de Segurança da Informação, Tecnologia e Compliance, estabelece esta Diretiva e Política de Privacidade para regular as atividades de coleta, armazenamento, processamento e controle de dados pessoais tratados de forma eletrônica dentro do escopo do aplicativo SGR (Sistema de Gerenciamento de Refeitórios).');
   addParagraph('A plataforma SGR foi concebida para otimizar reservas ordinárias e recorrentes de refeições de colaboradores próprios ou terceirizados envolvidos nas atividades canteiristas da empresa, atuando diretamente no refeitório técnico, promovendo o combate sistemático ao desperdício socioambiental de suprimentos alimentares e garantindo uma distribuição idônea, transparente e auditável de custos corporativos indiretos entre as frentes de obras e suas respectivas prestadoras de serviço subcontratadas.');
 
   addSectionHeader('2. AGENTE CONTROLADOR E CANAL DE PRIVACIDADE');
   addParagraph('Define-se, para todos os efeitos de governança corporativa, compliance legal e responsabilidade regulatória, como Controladora exclusiva das informações e dados de agendamentos tratados neste aplicativo:');
-  addBulletItem('• Razão Social:', 'CONSTRUTORA FONTANA LTDA, pessoa jurídica de direito privado inscrita no CNPJ sob o nº 79.667.655/0001-78.');
-  addBulletItem('• Endereço Físico Administrativo:', 'Rua Domênico Sônego, 255 – Centro, Criciúma/SC - CEP 88.804-050.');
-  addBulletItem('• Canal de Privacidade e Proteção de Dados:', 'As solicitações relacionadas ao tratamento de dados pessoais, ao exercício dos direitos dos titulares e às questões de privacidade poderão ser encaminhadas ao setor de Recursos Humanos da Construtora Fontana, por meio do e-mail corporativo: folha@estilofontana.com.br.');
+  addBulletItem('• Identificação:', 'FONTANA - CONSTRUTORA, pessoa jurídica de direito privado.');
+  addBulletItem('• Endereço Físico Administrativo:', 'Rua Domênico Sônego, 255 - Centro, Criciúma/SC - CEP 88.804-050.');
+  addBulletItem('• Canal de Privacidade e Proteção de Dados:', 'As solicitações relacionadas ao tratamento de dados pessoais, ao exercício dos direitos dos titulares e às questões de privacidade poderão ser encaminhadas ao setor de Recursos Humanos da FONTANA, por meio do e-mail corporativo: folha@estilofontana.com.br.');
 
   addSectionHeader('3. CATEGORIAS DE DADOS PESSOAIS TRATADOS NO SISTEMA');
   addParagraph('Para propiciar a funcionalidade legítima de refeições nos canteiros, prevenir potenciais fraudes cibernéticas de falsidade ideológica e garantir comprovação fiscal, recolhem-se e processam-se exclusivamente as seguintes categorias de dados:');
@@ -213,7 +213,7 @@ export async function generatePolicyPdf(currentUser: Usuario): Promise<void> {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
       doc.setTextColor(...textMuted);
-      doc.text('CONSTRUTORA FONTANA LTDA — POLÍTICA DE PRIVACIDADE E PROTEÇÃO DE DADOS (LGPD)', marginLeft, 12);
+      doc.text('FONTANA - POLÍTICA DE PRIVACIDADE E PROTEÇÃO DE DADOS (LGPD)', marginLeft, 12);
       doc.setDrawColor(229, 231, 235);
       doc.line(marginLeft, 14, marginLeft + contentWidth, 14);
     }
@@ -225,7 +225,7 @@ export async function generatePolicyPdf(currentUser: Usuario): Promise<void> {
     doc.setDrawColor(229, 231, 235);
     doc.line(marginLeft, pageHeight - 12, marginLeft + contentWidth, pageHeight - 12);
 
-    doc.text(`SGR FONTANA — REGISTRO DE AUDITORIA INTERNA CADASTRAL | IP: ${simulatedIp}`, marginLeft, pageHeight - 7);
+    doc.text(`SGR FONTANA - REGISTRO DE AUDITORIA INTERNA CADASTRAL | IP: ${simulatedIp}`, marginLeft, pageHeight - 7);
     doc.text(`Página ${i} de ${totalPages}`, marginLeft + contentWidth, pageHeight - 7, { align: 'right' });
   }
 
@@ -234,7 +234,7 @@ export async function generatePolicyPdf(currentUser: Usuario): Promise<void> {
   await downloadPdfOrFile({
     pdfDoc: doc,
     filename,
-    title: 'Política de Privacidade LGPD — Construtora Fontana',
+    title: 'Política de Privacidade LGPD - FONTANA',
     mimeType: 'application/pdf',
   });
 }
