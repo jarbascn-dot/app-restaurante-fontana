@@ -156,6 +156,8 @@ export default function App() {
   // Real-time flash notification banner state
   const [flashNotification, setFlashNotification] = useState<string | null>(null);
   const [backgroundPushAlert, setBackgroundPushAlert] = useState<string | null>(null);
+  const [isReativandoNotificacao, setIsReativandoNotificacao] = useState(false);
+  const [notifPendingDismissed, setNotifPendingDismissed] = useState(false);
 
   // Firestore DB status indicator
   const [dbState, setDbState] = useState<{ status: 'loading' | 'connected' | 'error'; errorMsg: string | null }>({
@@ -1375,6 +1377,21 @@ export default function App() {
     triggerFlashNotification('Sessão encerrada com sucesso.');
   };
 
+  const handleReativarNotificacao = async () => {
+    if (!currentUser) return;
+    setIsReativandoNotificacao(true);
+    try {
+      await registerFCMToken(currentUser.id, currentUser.email);
+      setCurrentUser({ ...currentUser, precisaAtivarNotificacao: false, notificacaoPendenteMotivo: undefined });
+      triggerFlashNotification('Notificações reativadas com sucesso.');
+    } catch (e) {
+      console.warn('[FCM] Falha ao reativar notificações:', e);
+      triggerFlashNotification('Não foi possível reativar as notificações. Tente novamente.');
+    } finally {
+      setIsReativandoNotificacao(false);
+    }
+  };
+
   // Login guard screen for Production Mode
   if (modoProducao && !isLogged) {
     return (
@@ -1456,6 +1473,39 @@ export default function App() {
             <X className="h-4 w-4" />
           </button>
         </div>
+      )}
+
+      {/* Notification reactivation banner - shown when backend detects missing/invalid FCM token */}
+      {currentUser?.precisaAtivarNotificacao && !notifPendingDismissed && (
+      <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] w-full max-w-sm bg-neutral-950/95 text-white p-4 rounded-2xl shadow-2xl border border-amber-800 flex items-start gap-3 animate-[slideDown_0.3s_cubic-bezier(0.16,1,0.3,1)]" id="notif-pending-banner">
+        <div className="bg-amber-600 rounded-lg p-2 text-white shrink-0 shadow-inner">
+        <BellRing className="h-4.5 w-4.5 text-white animate-pulse" />
+      </div>
+      <div className="flex-1 min-w-0 pr-1 text-left">
+      <div className="flex justify-between items-center mb-1">
+      <span className="text-[10px] font-bold text-neutral-400 tracking-wider uppercase font-mono">SGR FONTANA • Notificações</span>
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+      </div>
+      <p className="text-xs leading-normal font-medium text-neutral-100">
+      Suas notificações push estão desativadas{currentUser?.notificacaoPendenteMotivo === 'token_invalido' ? ' (token expirado)' : ''}. Reative para continuar recebendo alertas.
+      </p>
+      <div className="flex gap-2 mt-2">
+      <button
+      onClick={handleReativarNotificacao}
+      disabled={isReativandoNotificacao}
+      className="text-[11px] font-bold bg-amber-600 hover:bg-amber-500 transition px-2.5 py-1 rounded-full text-white disabled:opacity-60 cursor-pointer"
+                >
+                {isReativandoNotificacao ? 'Reativando...' : 'Reativar'}
+                 </button>
+                 <button
+      onClick={() => setNotifPendingDismissed(true)}
+                 className="text-[11px] font-semibold text-neutral-400 hover:text-white transition px-2.5 py-1 rounded-full hover:bg-white/10 cursor-pointer"
+        >
+                 Dispensar
+                </button>
+                 </div>
+                 </div>
+      </div>
       )}
 
       {/* Database offline/error feedback alert */}
