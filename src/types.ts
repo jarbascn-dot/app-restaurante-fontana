@@ -65,6 +65,8 @@ export interface Usuario {
   alertaChannel?: string;
   requerTrocaSenha?: boolean;
   fcmToken?: string;
+  precisaAtivarNotificacao?: boolean; // true quando o backend detecta token ausente/inválido
+  notificacaoPendenteMotivo?: 'sem_token' | 'token_invalido';
 }
 
 export interface Reserva {
