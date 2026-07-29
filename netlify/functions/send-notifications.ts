@@ -86,7 +86,7 @@ export const handler: Handler = async (event, context) => {
   usersSnapshot.forEach(doc => {
     const data = doc.data();
     if (data.email) {
-      usersByEmail.set(String(data.email).toLowerCase(), data);
+      usersByEmail.set(String(data.email).toLowerCase(), { ...data, id: doc.id });
     }
   });
 
@@ -170,6 +170,14 @@ export const handler: Handler = async (event, context) => {
 
     if (!token) {
       console.warn(`[FCM Daemon] No registered token found for userId: ${userId}. Skipping notification.`);
+      const userNoToken = usersByEmail.get(String(userId).toLowerCase());
+      if (userNoToken?.id) {
+        batch.set(db.collection('usuarios').doc(userNoToken.id), {
+          precisaAtivarNotificacao: true,
+          notificacaoPendenteMotivo: 'sem_token',
+          notificacaoPendenteDesde: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
       batch.update(docRef, {
         sent: true,
         ...(isDaily ? { lastSentDate: todaySaoPaulo } : {}),
@@ -215,7 +223,16 @@ export const handler: Handler = async (event, context) => {
       err.code === 'messaging/invalid-registration-token'
       ) {
       console.log(`[FCM Daemon] Token for userId: ${userId} is expired/invalid. Removing token from database.`);
-      await db.collection('fcmTokens').doc(userId).delete();
+      const fcmDocId = String(userId).trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+      await db.collection('fcmTokens').doc(fcmDocId).delete();
+      const userInvalido = usersByEmail.get(String(userId).toLowerCase());
+      if (userInvalido?.id) {
+        batch.set(db.collection('usuarios').doc(userInvalido.id), {
+          precisaAtivarNotificacao: true,
+          notificacaoPendenteMotivo: 'token_invalido',
+          notificacaoPendenteDesde: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
     }
 
     batch.update(docRef, {
