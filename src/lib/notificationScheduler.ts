@@ -269,7 +269,7 @@ function runLocalFallback(time: string, title: string, body: string) {
  * Registers the FCM token for the current user in Firestore.
  * This enables server-side notifications via Firebase Cloud Messaging.
  */
-export async function registerFCMToken(userId: string): Promise<void> {
+export async function registerFCMToken(userId: string, email?: string): Promise<void> {
   try {
     if (typeof Notification === 'undefined') {
       console.warn('[FCM] Notification API is not supported in this browser.');
@@ -288,7 +288,18 @@ export async function registerFCMToken(userId: string): Promise<void> {
     await setDoc(doc(db, 'usuarios', userId), {
       fcmToken: token,
     }, { merge: true });
-    console.log('[FCM] Token registered successfully in usuarios collection for user:', userId);
+    if (email) {
+      const emailLower = email.trim().toLowerCase();
+      const docId = emailLower.replace(/[^a-zA-Z0-9]/g, '_');
+      await setDoc(doc(db, 'fcmTokens', docId), {
+        token,
+        userId: emailLower,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      console.log('[FCM] Token registered successfully in fcmTokens collection for:', emailLower);
+    } else {
+      console.warn('[FCM] No email provided; token was NOT written to fcmTokens collection (push notifications will not work).');
+    }
   } catch (err) {
     console.error('[FCM] Failed to register token:', err);
   }
