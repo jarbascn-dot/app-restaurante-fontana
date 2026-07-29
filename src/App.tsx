@@ -1386,7 +1386,7 @@ export default function App() {
             localStorage.setItem('sgr_is_logged', 'true');
             localStorage.setItem('sgr_logged_user_id', user.id);
             setCurrentUser(user);
-          registerFCMToken(user.id);
+          registerFCMToken(user.id, user.email);
             setIsLogged(true);
             triggerFlashNotification(`Bem-vindo, ${user.nome}! Identificação efetuada com sucesso.`);
           }}
