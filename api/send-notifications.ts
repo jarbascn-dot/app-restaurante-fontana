@@ -137,7 +137,7 @@ try {
   usersSnapshot.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
     const data = doc.data();
     if (data.email) {
-      usersByEmail.set(String(data.email).toLowerCase(), data);
+      usersByEmail.set(String(data.email).toLowerCase(), { ...data, id: doc.id });
     }
   });
 
@@ -208,6 +208,14 @@ try {
 
   if (!token) {
     console.warn(`[FCM] No token found for userId: ${notification.userId}. Skipping.`);
+      const userNoToken = usersByEmail.get(String(notification.userId).toLowerCase());
+      if (userNoToken?.id) {
+          batch.set(db.collection('usuarios').doc(userNoToken.id), {
+              precisaAtivarNotificacao: true,
+              notificacaoPendenteMotivo: 'sem_token',
+              notificacaoPendenteDesde: FieldValue.serverTimestamp(),
+          }, { merge: true });
+      }
     batch.update(doc.ref, {
       sent: true,
       ...(isDaily ? { lastSentDate: todaySaoPaulo } : {}),
@@ -244,6 +252,19 @@ try {
     results.sent++;
   } catch (sendError: any) {
     console.error(`[FCM] Error sending to token ${token}:`, sendError.message);
+      const invalidTokenCodes = ['messaging/registration-token-not-registered', 'messaging/invalid-registration-token'];
+      if (invalidTokenCodes.includes(sendError.code)) {
+          const fcmDocId = String(notification.userId).trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+          batch.delete(db.collection('fcmTokens').doc(fcmDocId));
+          const userInvalido = usersByEmail.get(String(notification.userId).toLowerCase());
+          if (userInvalido?.id) {
+              batch.set(db.collection('usuarios').doc(userInvalido.id), {
+                  precisaAtivarNotificacao: true,
+                  notificacaoPendenteMotivo: 'token_invalido',
+                  notificacaoPendenteDesde: FieldValue.serverTimestamp(),
+              }, { merge: true });
+          }
+      }
     batch.update(doc.ref, {
       sent: true,
       ...(isDaily ? { lastSentDate: todaySaoPaulo } : {}),
