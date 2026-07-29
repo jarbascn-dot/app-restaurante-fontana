@@ -287,6 +287,8 @@ export async function registerFCMToken(userId: string, email?: string): Promise<
     }
     await setDoc(doc(db, 'usuarios', userId), {
       fcmToken: token,
+      precisaAtivarNotificacao: false,
+      notificacaoPendenteMotivo: null,
     }, { merge: true });
     if (email) {
       const emailLower = email.trim().toLowerCase();
