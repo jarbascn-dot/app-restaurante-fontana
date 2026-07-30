@@ -13,6 +13,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.messaging.FirebaseMessagingService
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.RemoteMessage
 import com.fontana.sgr.MainActivity
 
@@ -189,5 +190,50 @@ class SGRFirebaseMessagingService : FirebaseMessagingService() {
           Log.e(TAG, "Failed to sync pending FCM token", e)
         }
     }
+
+    /**
+     * Forces a resync of the CURRENT FCM token to Firestore, even if it is not "new".
+      *
+       * onNewToken() above only fires when Firebase issues a brand-new token (a rare event,
+        * e.g. app reinstall or token rotation). If the backend invalidates/removes the
+         * fcmTokens/{docId} document after a delivery failure (see api/send-notifications.ts),
+          * nothing would ever recreate it without this, because the existing token on the device
+           * never changes. This is called automatically on every app launch (MainActivity.onCreate)
+            * so the fix is self-healing for every user without any manual action, and is also
+             * exposed via SGRNativeBridge.reativarNotificacoes() so the "Reativar" banner button
+              * can trigger it immediately for visual feedback.
+               */
+               fun resyncCurrentToken(context: Context, onResult: ((Boolean) -> Unit)? = null) {
+                 val email = getCurrentUserEmail(context)
+                 if (email == null) {
+                   Log.w(TAG, "resyncCurrentToken: no current user email known yet.")
+                   onResult?.invoke(false)
+                   return
+                 }
+                 FirebaseMessaging.getInstance().token
+                 .addOnSuccessListener { token ->
+                   val docId = sanitizeEmailForDocId(email)
+                   val data = hashMapOf(
+                     "token" to token,
+                     "userId" to email,
+                     "updatedAt" to FieldValue.serverTimestamp()
+                     )
+                   FirebaseFirestore.getInstance().collection("fcmTokens").document(docId)
+                   .set(data, SetOptions.merge())
+                   .addOnSuccessListener {
+                     Log.d(TAG, "Token resynced on demand to fcmTokens/" + docId)
+                     clearPendingToken(context)
+                     onResult?.invoke(true)
+                   }
+                   .addOnFailureListener { e ->
+                     Log.e(TAG, "Failed to resync token on demand", e)
+                     onResult?.invoke(false)
+                   }
+                 }
+                 .addOnFailureListener { e ->
+                   Log.e(TAG, "Failed to fetch current FCM token for resync", e)
+                   onResult?.invoke(false)
+                 }
+               }
   }
 }
