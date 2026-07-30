@@ -61,6 +61,10 @@ class MainActivity : AppCompatActivity() {
     MealNotificationManager.checkAndRequestNotificationsPermission(this)
 
     SGRFirebaseMessagingService.registerPendingTokenIfNeeded(this)
+    // Force-resync do token FCM ATUAL a cada abertura do app (mesmo que nao seja "novo"),
+    // pois onNewToken() so dispara quando o Firebase emite um token novo (raro). Isso
+    // corrige sozinho o caso em que o backend invalidou/removeu o doc em fcmTokens.
+    SGRFirebaseMessagingService.resyncCurrentToken(this)
   }
 
   override fun onBackPressed() {
@@ -146,6 +150,15 @@ class MainActivity : AppCompatActivity() {
     fun setCurrentUser(email: String?) {
       if (email.isNullOrBlank()) return
       SGRFirebaseMessagingService.saveCurrentUserEmail(context, email)
+    }
+    @JavascriptInterface
+    fun reativarNotificacoes() {
+      SGRFirebaseMessagingService.resyncCurrentToken(context) { success ->
+        webView.post {
+          val js = "window.dispatchEvent(new CustomEvent('sgr-native-notif-resync-result', { detail: { success: " + success + " } }));"
+          webView.evaluateJavascript(js, null)
+        }
+      }
     }
     @JavascriptInterface
     fun downloadBase64File(base64Data: String, fileName: String, mimeType: String) {
