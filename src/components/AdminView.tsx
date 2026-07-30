@@ -5,10 +5,12 @@
 
 import React, { useState, useRef } from 'react';
 import { Usuario, Perfil, UserStatus, SystemSettings, AuditoriaLog, Obra, Empresa, Feriado, Reserva, ReservaStatus } from '../types';
-import { Users, UserCheck, ShieldAlert, Sliders, FileText, Search, Settings, Save, Trash2, CheckCircle, Ban, Building2, Plus, Edit, Briefcase, X, Check, ExternalLink, Calendar, FileSpreadsheet, Smile, Camera } from 'lucide-react';
+import { Users, UserCheck, ShieldAlert, Sliders, FileText, Search, Settings, Save, Trash2, CheckCircle, Ban, Building2, Plus, Edit, Briefcase, X, Check, ExternalLink, Calendar, FileSpreadsheet, Smile, Camera, Eye, Download, Loader2 } from 'lucide-react';
 import CameraCapture from './CameraCapture';
 import { downloadPdfOrFile } from '../lib/downloadHelper';
 import { generateManualPdf } from '../lib/generateManualPdf';
+import { ManualModal } from './ManualModal';
+import { CardapioModal } from './CardapioModal';
 
 interface AdminViewProps {
   usuarios: Usuario[];
@@ -130,6 +132,10 @@ export default function AdminView({
   const [tempPdfContent, setTempPdfContent] = useState('');
   const [tempPdfName, setTempPdfName] = useState('');
   const [tempPdfSize, setTempPdfSize] = useState<number | null>(null);
+
+  // Modals for Manual and Cardapio Preview
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [adminCardapioModalObra, setAdminCardapioModalObra] = useState<Obra | null>(null);
 
   // Empresa local state
   const [editingEmpresaId, setEditingEmpresaId] = useState<string | null>(null);
@@ -811,16 +817,31 @@ export default function AdminView({
                   <span>Exportar Excel</span>
                 </button>
 
-                <button
-                  onClick={handleDownloadManual}
-                  disabled={isGeneratingManual}
-                  className="px-3.5 py-2 bg-white hover:bg-neutral-50 text-emerald-800 border border-emerald-300 font-bold text-xs rounded-lg transition shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-50"
-                  id="btn-download-manual-admin"
-                  title="Baixar Manual do Colaborador em PDF (Infográfico)"
-                >
-                  <FileText className="h-4 w-4 text-emerald-600" />
-                  <span>{isGeneratingManual ? 'Gerando...' : 'Manual do Colaborador (PDF)'}</span>
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => setIsManualModalOpen(true)}
+                    className="px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                    id="btn-view-manual-admin"
+                    title="Visualizar Manual do Colaborador na tela"
+                  >
+                    <Eye className="h-4 w-4" />
+                    <span>Manual do Colaborador</span>
+                  </button>
+
+                  <button
+                    onClick={handleDownloadManual}
+                    disabled={isGeneratingManual}
+                    className="p-2 bg-white hover:bg-neutral-50 text-emerald-800 border border-emerald-300 font-bold text-xs rounded-lg transition shadow-2xs cursor-pointer shrink-0 disabled:opacity-50"
+                    id="btn-download-manual-admin-quick"
+                    title="Baixar diretamente o Manual do Colaborador em PDF"
+                  >
+                    {isGeneratingManual ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-emerald-700" />
+                    ) : (
+                      <Download className="h-4 w-4 text-emerald-700" />
+                    )}
+                  </button>
+                </div>
 
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-neutral-400" />
@@ -2085,15 +2106,25 @@ export default function AdminView({
                                 <td className="p-3 text-right">
                                   <div className="flex justify-end items-center gap-1.5">
                                     {o.cardapioUrl && (
-                                      <a
-                                        href={o.cardapioUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="p-1 text-neutral-500 hover:text-neutral-800 bg-neutral-100 hover:bg-neutral-200 rounded border border-neutral-200 transition"
-                                        title="Baixar ou abrir em outra aba"
-                                      >
-                                        <ExternalLink className="h-3.5 w-3.5" />
-                                      </a>
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => setAdminCardapioModalObra(o)}
+                                          className="p-1 text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 rounded border border-emerald-200 transition cursor-pointer"
+                                          title="Visualizar Cardápio da Obra na Tela"
+                                        >
+                                          <Eye className="h-3.5 w-3.5" />
+                                        </button>
+                                        <a
+                                          href={o.cardapioUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="p-1 text-neutral-500 hover:text-neutral-800 bg-neutral-100 hover:bg-neutral-200 rounded border border-neutral-200 transition"
+                                          title="Baixar ou abrir em outra aba"
+                                        >
+                                          <ExternalLink className="h-3.5 w-3.5" />
+                                        </a>
+                                      </>
                                     )}
                                     {deletingMenuObraId === o.id ? (
                                       <div className="flex items-center gap-1 animate-pulse">
@@ -3288,6 +3319,22 @@ export default function AdminView({
           </div>
         </div>
       )}
+
+      {/* Modals for Manual and Cardápio Preview */}
+      <ManualModal
+        isOpen={isManualModalOpen}
+        onClose={() => setIsManualModalOpen(false)}
+      />
+
+      <CardapioModal
+        isOpen={!!adminCardapioModalObra}
+        onClose={() => setAdminCardapioModalObra(null)}
+        cardapioUrl={adminCardapioModalObra?.cardapioUrl}
+        cardapioNome={adminCardapioModalObra?.cardapioNome}
+        obraNome={adminCardapioModalObra?.nome}
+        cardapioAtualizadoEm={adminCardapioModalObra?.cardapioAtualizadoEm}
+      />
+
     </div>
   );
 }
