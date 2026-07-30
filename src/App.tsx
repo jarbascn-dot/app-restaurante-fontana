@@ -1380,6 +1380,27 @@ export default function App() {
   const handleReativarNotificacao = async () => {
     if (!currentUser) return;
     setIsReativandoNotificacao(true);
+    // Se o app estiver rodando dentro do wrapper Android nativo (SGRNativeBridge), o
+    // WebView puro nao suporta a API de push do navegador (Notification/PushManager),
+    // entao pedimos ao lado nativo para reenviar o token FCM atual diretamente.
+    const nativeBridge = (window as any).SGRNativeBridge;
+    if (nativeBridge && typeof nativeBridge.reativarNotificacoes === 'function') {
+      const handleNativeResync = (e: any) => {
+        window.removeEventListener('sgr-native-notif-resync-result', handleNativeResync);
+        const detail = (e && e.detail) || {};
+        setIsReativandoNotificacao(false);
+        if (detail.success) {
+          setCurrentUser({ ...currentUser, precisaAtivarNotificacao: false, notificacaoPendenteMotivo: undefined });
+          triggerFlashNotification('Notificações reativadas com sucesso.');
+        } else {
+          triggerFlashNotification('Não foi possível reativar as notificações. Tente novamente.');
+        }
+      };
+      window.addEventListener('sgr-native-notif-resync-result', handleNativeResync);
+      nativeBridge.reativarNotificacoes();
+      return;
+    }
+    setIsReativandoNotificacao(true);
     try {
       await registerFCMToken(currentUser.id, currentUser.email);
       setCurrentUser({ ...currentUser, precisaAtivarNotificacao: false, notificacaoPendenteMotivo: undefined });
