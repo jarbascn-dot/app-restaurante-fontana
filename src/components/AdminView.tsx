@@ -2110,20 +2110,12 @@ export default function AdminView({
                                         <button
                                           type="button"
                                           onClick={() => setAdminCardapioModalObra(o)}
-                                          className="p-1 text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 rounded border border-emerald-200 transition cursor-pointer"
-                                          title="Visualizar Cardápio da Obra na Tela"
+                                          className="p-1.5 text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition cursor-pointer flex items-center gap-1 font-bold text-xs"
+                                          title="Visualizar ou Baixar Cardápio da Obra"
                                         >
                                           <Eye className="h-3.5 w-3.5" />
+                                          <span className="hidden sm:inline">Visualizar</span>
                                         </button>
-                                        <a
-                                          href={o.cardapioUrl}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="p-1 text-neutral-500 hover:text-neutral-800 bg-neutral-100 hover:bg-neutral-200 rounded border border-neutral-200 transition"
-                                          title="Baixar ou abrir em outra aba"
-                                        >
-                                          <ExternalLink className="h-3.5 w-3.5" />
-                                        </a>
                                       </>
                                     )}
                                     {deletingMenuObraId === o.id ? (
