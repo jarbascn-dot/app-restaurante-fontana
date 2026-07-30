@@ -5,9 +5,11 @@
 
 import React, { useState } from 'react';
 import { Usuario, Reserva, ReservaStatus, Feriado, SystemSettings, Obra, Perfil } from '../types';
-import { Calendar as CalendarIcon, Check, X, ShieldAlert, Clock, RefreshCw, FileText, Download, AlertTriangle, MousePointerClick, ChevronLeft, ChevronRight, Sparkles, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Check, X, ShieldAlert, Clock, RefreshCw, FileText, Download, AlertTriangle, MousePointerClick, ChevronLeft, ChevronRight, Sparkles, Loader2, Eye } from 'lucide-react';
 import { downloadPdfOrFile, dataUrlToBlob, blobToDataUrl } from '../lib/downloadHelper';
 import { generateManualPdf } from '../lib/generateManualPdf';
+import { ManualModal } from './ManualModal';
+import { CardapioModal } from './CardapioModal';
 
 interface Refeicao {
   pratoPrincipal: string;
@@ -360,6 +362,10 @@ export default function ColaboradorView({
   const [newPdfContent, setNewPdfContent] = useState(''); // holds either a base64 or URL
   const [dragOverCardapio, setDragOverCardapio] = useState(false);
 
+  // Modals for Manual and Cardapio Preview
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [isCardapioModalOpen, setIsCardapioModalOpen] = useState(false);
+
   // Quick Upload Cardapio handlers
   const handleQuickUploadFile = (file: File) => {
     if (file.type !== 'application/pdf') {
@@ -674,21 +680,33 @@ export default function ColaboradorView({
               <h3 className="font-bold text-neutral-800 text-base" id="persona-welcome-title">
                 Painel do Colaborador: {currentUser.nome}
               </h3>
-              <button
-                type="button"
-                onClick={handleDownloadManual}
-                disabled={isGeneratingManual}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100/90 rounded-lg border border-emerald-200 text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95 disabled:opacity-50"
-                title="Baixar Manual do Colaborador em PDF com orientações de uso do aplicativo"
-                id="btn-download-manual-colaborador"
-              >
-                {isGeneratingManual ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-700" />
-                ) : (
-                  <FileText className="h-3.5 w-3.5 text-emerald-700" />
-                )}
-                <span>Manual do Colaborador (PDF)</span>
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setIsManualModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95"
+                  title="Visualizar Manual do Colaborador na tela com opçoes de leitura e download em PDF"
+                  id="btn-view-manual-colaborador"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  <span>Manual do Colaborador</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadManual}
+                  disabled={isGeneratingManual}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 rounded-lg border border-emerald-200 text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95 disabled:opacity-50"
+                  title="Baixar diretamente o arquivo em PDF do Manual"
+                  id="btn-download-manual-colaborador-quick"
+                >
+                  {isGeneratingManual ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-700" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5 text-emerald-700" />
+                  )}
+                  <span className="hidden sm:inline">Baixar PDF</span>
+                </button>
+              </div>
             </div>
             <p className="text-xs text-neutral-600 mt-1 max-w-xl">
               Clique diretamente no dia do calendário para inverter seu status de reserva. Para planejar férias ou semanas completas, utilize o painel de <strong>Reserva por Período</strong> ao lado.
@@ -1143,30 +1161,43 @@ export default function ColaboradorView({
                           </div>
                         </div>
                         
-                        <button
-                          type="button"
-                          disabled={isFetchingCardapioBlob}
-                          onClick={() => downloadCardapioFile(colaboradorObra.cardapioUrl, colaboradorObra.cardapioNome || 'cardapio.pdf')}
-                          className={`w-full py-2.5 text-white font-bold text-xs rounded-lg transition shadow-xs flex items-center justify-center gap-2 ${
-                            isFetchingCardapioBlob
-                              ? 'bg-emerald-400 cursor-not-allowed opacity-80'
-                              : 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 cursor-pointer'
-                          }`}
-                          title="Baixar arquivo do cardápio diretamente"
-                          id="btn-download-cardapio-direto"
-                        >
-                          {isFetchingCardapioBlob ? (
-                            <>
-                              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-                              <span>Preparando Cardápio...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Download className="h-4 w-4 shrink-0" />
-                              <span>Baixar Cardápio PDF</span>
-                            </>
-                          )}
-                        </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setIsCardapioModalOpen(true)}
+                            className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-bold text-xs rounded-lg transition shadow-2xs flex items-center justify-center gap-2 cursor-pointer"
+                            title="Visualizar o cardápio oficial diretamente na tela"
+                            id="btn-view-cardapio-tela"
+                          >
+                            <Eye className="h-4 w-4 shrink-0" />
+                            <span>Visualizar na Tela</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isFetchingCardapioBlob}
+                            onClick={() => downloadCardapioFile(colaboradorObra.cardapioUrl, colaboradorObra.cardapioNome || 'cardapio.pdf')}
+                            className={`w-full py-2.5 font-bold text-xs rounded-lg transition shadow-2xs flex items-center justify-center gap-2 ${
+                              isFetchingCardapioBlob
+                                ? 'bg-emerald-100 text-emerald-700 cursor-not-allowed opacity-80 border border-emerald-200'
+                                : 'bg-emerald-50 hover:bg-emerald-100/90 text-emerald-800 border border-emerald-200 cursor-pointer'
+                            }`}
+                            title="Baixar arquivo do cardápio diretamente em PDF"
+                            id="btn-download-cardapio-direto"
+                          >
+                            {isFetchingCardapioBlob ? (
+                              <>
+                                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                                <span>Preparando...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Download className="h-4 w-4 shrink-0 text-emerald-700" />
+                                <span>Baixar PDF</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -1364,6 +1395,21 @@ export default function ColaboradorView({
         </div>
       )}
 
+      {/* Modals for Manual and Cardápio Preview */}
+      <ManualModal
+        isOpen={isManualModalOpen}
+        onClose={() => setIsManualModalOpen(false)}
+        currentUser={currentUser}
+      />
+
+      <CardapioModal
+        isOpen={isCardapioModalOpen}
+        onClose={() => setIsCardapioModalOpen(false)}
+        cardapioUrl={obras.find(o => o.id === currentUser.idObraPadrao)?.cardapioUrl}
+        cardapioNome={obras.find(o => o.id === currentUser.idObraPadrao)?.cardapioNome}
+        obraNome={obras.find(o => o.id === currentUser.idObraPadrao)?.nome}
+        cardapioAtualizadoEm={obras.find(o => o.id === currentUser.idObraPadrao)?.cardapioAtualizadoEm}
+      />
 
     </div>
   );
