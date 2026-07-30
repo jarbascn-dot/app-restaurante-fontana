@@ -1,10 +1,10 @@
-/**
+**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
 
 import React, { useState } from 'react';
-import { X, FileText, Download, ExternalLink, AlertTriangle, Loader2, Check, RefreshCw } from 'lucide-react';
+import { X, FileText, Download, ExternalLink, AlertTriangle, Loader2, Check, RefreshCw, Maximize2, Minimize2, ChevronLeft } from 'lucide-react';
 import { downloadPdfOrFile } from '../lib/downloadHelper';
 
 interface CardapioModalProps {
@@ -25,6 +25,7 @@ export const CardapioModal: React.FC<CardapioModalProps> = ({
   cardapioAtualizadoEm,
 }) => {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   if (!isOpen) return null;
 
@@ -50,19 +51,95 @@ export const CardapioModal: React.FC<CardapioModalProps> = ({
 
   const handleOpenNewTab = () => {
     if (!cardapioUrl) return;
-    if (cardapioUrl.startsWith('data:')) {
-      const win = window.open();
-      if (win) {
-        win.document.write(
-          `<iframe src="${cardapioUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`
-        );
-      } else {
-        handleDownload();
+    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    // Na visualização em celulares e WebViews de aplicativos móveis (Android/iOS),
+    // o uso de window.open com data: URIs ou novas abas sem barra de navegação resulta em telas brancas inoperáveis.
+    // Ativamos o modo Tela Cheia embutido diretamente no app com botão seguro de "Voltar"!
+    if (isMobile || cardapioUrl.startsWith('data:')) {
+      setIsFullscreen(true);
+      return;
+    }
+
+    try {
+      const win = window.open(cardapioUrl, '_blank', 'noopener,noreferrer');
+      if (!win) {
+        setIsFullscreen(true);
       }
-    } else {
-      window.open(cardapioUrl, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      console.warn('Falha ao abrir em nova aba, ativando tela cheia interna:', e);
+      setIsFullscreen(true);
     }
   };
+
+  // MODO TELA CHEIA (Para celulares / WebViews sem risco de travamento em tela branca)
+  if (isFullscreen && cardapioUrl) {
+    return (
+      <div className="fixed inset-0 z-[100] bg-neutral-900 text-white flex flex-col h-screen w-screen overflow-hidden animate-in fade-in duration-200" id="cardapio-fullscreen-overlay">
+        {/* Barra Superior em Tela Cheia com Botão Claro de Voltar */}
+        <div className="bg-emerald-950 text-white px-4 py-3 flex items-center justify-between border-b border-emerald-800 shrink-0 gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsFullscreen(false)}
+              className="px-3.5 py-2 bg-emerald-800 hover:bg-emerald-700 active:bg-emerald-900 text-white font-bold text-xs sm:text-sm rounded-xl transition flex items-center gap-2 cursor-pointer shadow-xs border border-emerald-700 shrink-0"
+              id="btn-fullscreen-back-app"
+            >
+              <ChevronLeft className="h-4 w-4 stroke-[3]" />
+              <span>← Voltar ao App</span>
+            </button>
+            <div className="truncate hidden sm:block">
+              <h4 className="text-xs sm:text-sm font-bold text-white truncate max-w-md">
+                {obraNome} — {cardapioNome}
+              </h4>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
+              title="Baixar o arquivo em PDF"
+              id="btn-fullscreen-download-pdf"
+            >
+              {isDownloading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  <span>Baixando...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 shrink-0" />
+                  <span>Baixar PDF</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsFullscreen(false)}
+              className="p-2 text-emerald-200 hover:text-white hover:bg-emerald-800/80 rounded-xl transition cursor-pointer"
+              title="Sair do modo tela cheia"
+              id="btn-fullscreen-exit"
+            >
+              <Minimize2 className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* PDF Visualizer iframe 100% Container */}
+        <div className="flex-1 w-full h-full bg-neutral-800 relative">
+          <iframe
+            src={cardapioUrl}
+            className="w-full h-full border-0 bg-white"
+            title={`Cardápio Ampliado ${obraNome}`}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200" id="cardapio-modal-overlay">
@@ -98,11 +175,11 @@ export const CardapioModal: React.FC<CardapioModalProps> = ({
                   type="button"
                   onClick={handleOpenNewTab}
                   className="px-3 py-2 bg-emerald-800 hover:bg-emerald-700 active:bg-emerald-850 text-emerald-100 hover:text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shrink-0"
-                  title="Abrir o cardápio em uma nova aba do navegador"
+                  title="Ampliar o cardápio em tela cheia no aplicativo ou navegador"
                   id="btn-modal-cardapio-newtab-top"
                 >
-                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                  <span className="hidden sm:inline">Abrir em Nova Aba</span>
+                  <Maximize2 className="h-3.5 w-3.5 shrink-0" />
+                  <span className="hidden sm:inline">Tela Cheia / Expandir</span>
                 </button>
 
                 <button
@@ -174,15 +251,16 @@ export const CardapioModal: React.FC<CardapioModalProps> = ({
               <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900 flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-emerald-950">📌 Dica:</span>
-                  <span>Caso o documento PDF não carregue na caixa acima, você pode visualizá-lo em tela cheia ou baixar o arquivo.</span>
+                  <span>Você pode visualizar o cardápio em tela cheia com botão de retorno seguro ou baixar o arquivo em PDF.</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={handleOpenNewTab}
-                    className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline cursor-pointer"
+                    className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline cursor-pointer flex items-center gap-1"
                   >
-                    Abrir em Nova Aba
+                    <Maximize2 className="h-3.5 w-3.5" />
+                    <span>Expandir Tela Cheia</span>
                   </button>
                 </div>
               </div>
@@ -228,8 +306,8 @@ export const CardapioModal: React.FC<CardapioModalProps> = ({
                   className="px-4 py-2 bg-neutral-800 hover:bg-neutral-900 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer"
                   id="btn-modal-cardapio-newtab-footer"
                 >
-                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                  <span>Abrir em Nova Aba</span>
+                  <Maximize2 className="h-3.5 w-3.5 shrink-0" />
+                  <span>Tela Cheia / Expandir</span>
                 </button>
 
                 <button
