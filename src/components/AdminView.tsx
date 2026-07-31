@@ -5,7 +5,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Usuario, Perfil, UserStatus, SystemSettings, AuditoriaLog, Obra, Empresa, Feriado, Reserva, ReservaStatus } from '../types';
-import { Users, UserCheck, ShieldAlert, Sliders, FileText, Search, Settings, Save, Trash2, CheckCircle, Ban, Building2, Plus, Edit, Briefcase, X, Check, ExternalLink, Calendar, FileSpreadsheet, Smile, Camera, Eye, Download, Loader2 } from 'lucide-react';
+import { Users, UserCheck, ShieldAlert, Sliders, FileText, Search, Settings, Save, Trash2, CheckCircle, Ban, Building2, Plus, Edit, Briefcase, X, Check, ExternalLink, Calendar, FileSpreadsheet, Smile, Camera, Eye, Download, Loader2, Sparkles } from 'lucide-react';
 import CameraCapture from './CameraCapture';
 import { downloadPdfOrFile } from '../lib/downloadHelper';
 import { generateManualPdf } from '../lib/generateManualPdf';
@@ -132,6 +132,7 @@ export default function AdminView({
   const [tempPdfContent, setTempPdfContent] = useState('');
   const [tempPdfName, setTempPdfName] = useState('');
   const [tempPdfSize, setTempPdfSize] = useState<number | null>(null);
+  const [isParsingCardapioAi, setIsParsingCardapioAi] = useState(false);
 
   // Modals for Manual and Cardapio Preview
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -2035,26 +2036,65 @@ export default function AdminView({
                         <div className="flex items-center gap-2 pt-2 animate-[fadeIn_0.1s_ease]">
                           <button
                             type="button"
-                            onClick={() => {
+                            disabled={isParsingCardapioAi}
+                            onClick={async () => {
                               const targetObra = obras.find(o => o.id === cardapioObraId);
                               if (!targetObra) return;
+                              
+                              setIsParsingCardapioAi(true);
+                              let extractedText = '';
+                              let extractedDias: any[] = [];
+
+                              try {
+                                const parseRes = await fetch('/api/gemini/parse-cardapio', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    cardapioUrl: tempPdfContent,
+                                    cardapioNome: tempPdfName || 'cardapio.pdf'
+                                  })
+                                });
+                                const parseData = await parseRes.json();
+                                if (parseData.success) {
+                                  extractedText = parseData.text || '';
+                                  extractedDias = parseData.dias || [];
+                                }
+                              } catch (e) {
+                                console.warn('Erro ao processar com IA Gemini ao salvar:', e);
+                              } finally {
+                                setIsParsingCardapioAi(false);
+                              }
                               
                               onSaveObra({
                                 ...targetObra,
                                 cardapioUrl: tempPdfContent,
                                 cardapioNome: tempPdfName || 'cardapio.pdf',
-                                cardapioAtualizadoEm: new Date().toISOString()
+                                cardapioAtualizadoEm: new Date().toISOString(),
+                                cardapioTextoIa: extractedText,
+                                cardapioDias: extractedDias
                               });
                               
+                              alert(`Cardápio da obra "${targetObra.nome}" processado pela IA Gemini e publicado com sucesso!`);
+
                               // Reset state
                               setCardapioObraId('');
                               setTempPdfContent('');
                               setTempPdfName('');
                               setTempPdfSize(null);
                             }}
-                            className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-black transition text-center flex items-center justify-center gap-1.5 animate-pulse"
+                            className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white rounded-xl text-xs font-black transition text-center flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-60"
                           >
-                            <Check className="h-4 w-4" /> Salvar Cardápio PDF
+                            {isParsingCardapioAi ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                                <span>Processando PDF com IA e Salvando...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="h-4 w-4 shrink-0" />
+                                <span>Salvar e Indexar Cardápio com IA Gemini</span>
+                              </>
+                            )}
                           </button>
                         </div>
                       )}
@@ -3325,6 +3365,10 @@ export default function AdminView({
         cardapioNome={adminCardapioModalObra?.cardapioNome}
         obraNome={adminCardapioModalObra?.nome}
         cardapioAtualizadoEm={adminCardapioModalObra?.cardapioAtualizadoEm}
+        cardapioTextoIa={adminCardapioModalObra?.cardapioTextoIa}
+        cardapioDias={adminCardapioModalObra?.cardapioDias}
+        obra={adminCardapioModalObra || undefined}
+        onSaveObra={onSaveObra}
       />
 
     </div>
