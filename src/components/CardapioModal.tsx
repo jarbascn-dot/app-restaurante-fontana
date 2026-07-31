@@ -1,11 +1,12 @@
-**
+/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
 
 import React, { useState } from 'react';
-import { X, FileText, Download, ExternalLink, AlertTriangle, Loader2, Check, RefreshCw, Maximize2, Minimize2, ChevronLeft } from 'lucide-react';
+import { X, FileText, Download, AlertTriangle, Loader2, Check, Maximize2, Minimize2, ChevronLeft } from 'lucide-react';
 import { downloadPdfOrFile } from '../lib/downloadHelper';
+import { PdfCanvasViewer } from './PdfCanvasViewer';
 
 interface CardapioModalProps {
   isOpen: boolean;
@@ -129,12 +130,13 @@ export const CardapioModal: React.FC<CardapioModalProps> = ({
           </div>
         </div>
 
-        {/* PDF Visualizer iframe 100% Container */}
-        <div className="flex-1 w-full h-full bg-neutral-800 relative">
-          <iframe
-            src={cardapioUrl}
-            className="w-full h-full border-0 bg-white"
-            title={`Cardápio Ampliado ${obraNome}`}
+        {/* PDF Canvas Viewer Container */}
+        <div className="flex-1 w-full h-full bg-neutral-900 relative">
+          <PdfCanvasViewer
+            pdfUrl={cardapioUrl}
+            title={`${obraNome} — ${cardapioNome}`}
+            onDownload={handleDownload}
+            isDownloading={isDownloading}
           />
         </div>
       </div>
@@ -238,12 +240,13 @@ export const CardapioModal: React.FC<CardapioModalProps> = ({
                 )}
               </div>
 
-              {/* Embedded PDF iframe */}
-              <div className="flex-1 min-h-[480px] sm:min-h-[560px] bg-neutral-900 rounded-xl border border-neutral-300 overflow-hidden shadow-inner relative flex flex-col">
-                <iframe
-                  src={cardapioUrl}
-                  className="w-full h-full flex-1 rounded-xl border-0 bg-white"
-                  title={`Cardápio ${obraNome}`}
+              {/* Embedded PDF Canvas Viewer */}
+              <div className="flex-1 min-h-[440px] sm:min-h-[520px] bg-neutral-900 rounded-xl border border-neutral-300 overflow-hidden shadow-inner relative flex flex-col">
+                <PdfCanvasViewer
+                  pdfUrl={cardapioUrl}
+                  title={`${obraNome} — ${cardapioNome}`}
+                  onDownload={handleDownload}
+                  isDownloading={isDownloading}
                 />
               </div>
 
