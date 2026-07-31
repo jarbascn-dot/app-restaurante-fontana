@@ -13,7 +13,9 @@
         "idFornecedorPrincipal": { "type": "string", "description": "ID do fornecedor de alimentação principal correspondente" },
         "cardapioUrl": { "type": "string", "description": "URL ou DataURL Base64 contendo o arquivo PDF do cardápio" },
         "cardapioNome": { "type": "string", "description": "Nome original do arquivo importado" },
-        "cardapioAtualizadoEm": { "type": "string", "format": "date-time", "description": "Timestamp ISO útil do upload do cardápio" }
+        "cardapioAtualizadoEm": { "type": "string", "format": "date-time", "description": "Timestamp ISO útil do upload do cardápio" },
+        "cardapioTextoIa": { "type": "string", "description": "Texto markdown extraído pelo Gemini" },
+        "cardapioDias": { "type": "array", "description": "Estrutura detalhada de pratos por dia da semana" }
       },
       "required": ["id", "nome", "centroCusto", "ativa"]
     },
