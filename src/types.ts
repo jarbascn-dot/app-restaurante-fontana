@@ -22,6 +22,19 @@ export enum ReservaStatus {
   Cancelado = 'cancelado',
 }
 
+export interface CardapioDia {
+  data?: string;
+  diaSemana: string;
+  pratoPrincipal: string;
+  opcaoVegetariana?: string;
+  guarnicao?: string;
+  acompanhamentos?: string;
+  saladas?: string;
+  sobremesa?: string;
+  suco?: string;
+  observacoes?: string;
+}
+
 export interface Obra {
   id: string;
   nome: string;
@@ -33,6 +46,8 @@ export interface Obra {
   cardapioUrl?: string;
   cardapioNome?: string;
   cardapioAtualizadoEm?: string;
+  cardapioTextoIa?: string;
+  cardapioDias?: CardapioDia[];
 }
 
 export interface Empresa {
@@ -65,8 +80,6 @@ export interface Usuario {
   alertaChannel?: string;
   requerTrocaSenha?: boolean;
   fcmToken?: string;
-  precisaAtivarNotificacao?: boolean; // true quando o backend detecta token ausente/inválido
-  notificacaoPendenteMotivo?: 'sem_token' | 'token_invalido';
 }
 
 export interface Reserva {
