@@ -23,6 +23,7 @@ interface CardapioModalProps {
 const DEFAULT_DAYS_FALLBACK: CardapioDia[] = [
   {
     diaSemana: 'Segunda-feira',
+    data: '03/08/2026',
     pratoPrincipal: 'Filezinho de Frango Grelhado Suculento ao Limão',
     opcaoVegetariana: 'Omelete com Ervas e Queijo',
     guarnicao: 'Purê de Batatas Cremoso',
@@ -33,6 +34,7 @@ const DEFAULT_DAYS_FALLBACK: CardapioDia[] = [
   },
   {
     diaSemana: 'Terça-feira',
+    data: '04/08/2026',
     pratoPrincipal: 'Iscas de Carne Acebolada ao Molho Gravy',
     opcaoVegetariana: 'Lasanha de Berinjela e Abobrinha',
     guarnicao: 'Mandioca Frita Macia',
@@ -43,6 +45,7 @@ const DEFAULT_DAYS_FALLBACK: CardapioDia[] = [
   },
   {
     diaSemana: 'Quarta-feira',
+    data: '05/08/2026',
     pratoPrincipal: 'Feijoada Tradicional Fontana (Com bacon e calabresa)',
     opcaoVegetariana: 'Feijoada Vegetariana de Cogumelos e Tofu',
     guarnicao: 'Couve Refogada no Alho & Laranja',
@@ -53,6 +56,7 @@ const DEFAULT_DAYS_FALLBACK: CardapioDia[] = [
   },
   {
     diaSemana: 'Quinta-feira',
+    data: '06/08/2026',
     pratoPrincipal: 'Strogonoff de Frango com Champignon',
     opcaoVegetariana: 'Strogonoff de Cogumelos Frescos',
     guarnicao: 'Batata Palha Crocante',
@@ -63,6 +67,7 @@ const DEFAULT_DAYS_FALLBACK: CardapioDia[] = [
   },
   {
     diaSemana: 'Sexta-feira',
+    data: '07/08/2026',
     pratoPrincipal: 'Filé de Peixe Empanado Crocante com Molho Tártaro',
     opcaoVegetariana: 'Moqueca de Banana da Terra',
     guarnicao: 'Batata Rústica Assada com Alecrim',
@@ -80,32 +85,26 @@ const checkIfIsToday = (dayData: CardapioDia | null | undefined): boolean => {
   const now = new Date();
   const dayStr = String(now.getDate()).padStart(2, '0');
   const monthStr = String(now.getMonth() + 1).padStart(2, '0');
+  const yearStr = String(now.getFullYear());
+  const ddmmyyyy = `${dayStr}/${monthStr}/${yearStr}`; // e.g. "31/07/2026"
   const ddmm = `${dayStr}/${monthStr}`; // e.g. "31/07"
   const ddmmShort = `${now.getDate()}/${now.getMonth() + 1}`; // e.g. "31/7"
 
-  // If the day object has a explicit date (e.g., "07/08" or "31/07")
+  // 1. If the day object has an explicit date string
   if (dayData.data) {
     const cleanData = dayData.data.trim();
-    if (cleanData.includes(ddmm) || cleanData.includes(ddmmShort)) {
+    if (
+      cleanData.includes(ddmmyyyy) ||
+      cleanData.includes(ddmm) ||
+      cleanData.includes(ddmmShort)
+    ) {
       return true;
     }
-    // If the date string is present (e.g. "07/08") and does NOT match today ("31/07"), it is NOT today!
+    // If explicit date exists and does NOT match today, it's definitely NOT today!
     return false;
   }
 
-  // Fallback: If no explicit date string exists, match weekday if today is weekday
-  const weekDaysMap: Record<string, number> = {
-    'segunda': 1, 'terça': 2, 'terca': 2, 'quarta': 3, 'quinta': 4, 'sexta': 5
-  };
-  const todayDayNumber = now.getDay(); // 0 = Sun, 1 = Mon ... 5 = Fri, 6 = Sat
-  const lowerDia = (dayData.diaSemana || '').toLowerCase();
-  
-  for (const [key, num] of Object.entries(weekDaysMap)) {
-    if (lowerDia.includes(key) && num === todayDayNumber) {
-      return true;
-    }
-  }
-
+  // 2. If no explicit date field exists in dayData, return false to avoid false HOJE badges
   return false;
 };
 
@@ -336,22 +335,23 @@ export const CardapioModal: React.FC<CardapioModalProps> = ({
                 </button>
 
                 {/* Centered Selected Day Display */}
-                <div className="text-center flex-1 min-w-0 px-2 py-1">
+                <div className="text-center flex-1 min-w-0 px-2 py-1 flex flex-col items-center justify-center">
                   <div className="flex items-center justify-center gap-2 flex-wrap">
                     <h4 className="text-base sm:text-lg font-extrabold text-neutral-900 truncate">
                       {currentDayData.diaSemana}
                     </h4>
-                    {currentDayData.data && (
-                      <span className="text-xs sm:text-sm font-semibold text-neutral-500">
-                        ({currentDayData.data})
-                      </span>
-                    )}
                     {isTodaySelected && (
                       <span className="bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full animate-pulse shadow-2xs">
                         HOJE
                       </span>
                     )}
                   </div>
+                  {currentDayData.data && (
+                    <div className="mt-1 text-xs font-bold text-emerald-900 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-lg inline-flex items-center gap-1.5 shadow-2xs">
+                      <Calendar className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      <span>Data: <strong>{currentDayData.data}</strong></span>
+                    </div>
+                  )}
                 </div>
 
                 <button
