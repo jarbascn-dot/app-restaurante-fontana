@@ -7,10 +7,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { Download, ZoomIn, ZoomOut, AlertTriangle, Loader2, ChevronLeft, ChevronRight, RotateCw, FileText } from 'lucide-react';
 
-// Configure pdf.js worker URL dynamically from cdnjs matching installed pdfjs-dist version
+// Configure pdf.js worker URL dynamically from jsDelivr / unpkg matching installed pdfjs-dist version
 try {
   if (typeof window !== 'undefined' && pdfjsLib) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+    const v = pdfjsLib.version || '4.10.38';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${v}/build/pdf.worker.min.mjs`;
   }
 } catch (e) {
   console.warn('Failed to set pdfjs workerSrc:', e);
