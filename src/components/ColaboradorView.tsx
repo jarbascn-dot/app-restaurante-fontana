@@ -1409,6 +1409,10 @@ export default function ColaboradorView({
         cardapioNome={obras.find(o => o.id === currentUser.idObraPadrao)?.cardapioNome}
         obraNome={obras.find(o => o.id === currentUser.idObraPadrao)?.nome}
         cardapioAtualizadoEm={obras.find(o => o.id === currentUser.idObraPadrao)?.cardapioAtualizadoEm}
+        cardapioTextoIa={obras.find(o => o.id === currentUser.idObraPadrao)?.cardapioTextoIa}
+        cardapioDias={obras.find(o => o.id === currentUser.idObraPadrao)?.cardapioDias}
+        obra={obras.find(o => o.id === currentUser.idObraPadrao)}
+        onSaveObra={onSaveObra}
       />
 
     </div>
