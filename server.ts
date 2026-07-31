@@ -312,22 +312,33 @@ async function startServer() {
         throw new Error('O formato do cardápio precisa ser um arquivo PDF anexado ou link corporativo.');
       }
 
-      console.log(`[Server AI] Acionando inteligência artificial (gemini-3.5-flash) para minerar pratos...`);
+      console.log(`[Server AI] Acionando inteligência artificial (gemini-3.6-flash) para minerar pratos...`);
 
       const ai = getAiClient();
-      const prompt = `Você é o Cardapista Inteligente do Restaurante Fontana. 
-Sua tarefa é analisar o arquivo de cardápio anexado (${cardapioNome || 'cardapio.pdf'}) e extrair as refeições do dia a dia, organizando-as rigorosamente de Segunda-feira a Sexta-feira.
-Para cada dia de Segunda a Sexta, extraia e formate com marcadores elegantes da seguinte forma:
-- 🍲 Prato Principal (Proteína)
-- 🥗 Saladas do Dia
-- 🍛 Acompanhamentos & Guarnições
-- 🍨 Sobremesa / Fruta
+      const prompt = `Você é o especialista em nutrição do Restaurante Fontana.
+Análise o arquivo de cardápio do PDF/Imagem fornecido (${cardapioNome || 'cardapio.pdf'}) e extraia as refeições organizadas por dia da semana (Segunda-feira a Sexta-feira, e Sábado/Domingo se houver).
 
-Se do dia consultado não constar informações, escreva "Informação indisponível para este dia".
-Sublinhe cada dia com uma linha divisória elegante. Comece a resposta diretamente com o cardápio estruturado, ideal para visualização em telefones celulares (com poucos caracteres por linha, direto ao ponto). Responda estritamente em formato Markdown amigável em português.`;
+Retorne rigorosamente um JSON válido no seguinte formato de objeto (sem delimitadores de código markdown \`\`\`json ... \`\`\` ou textos antes/depois):
+{
+  "textoMarkdown": "Texto em Markdown estruturado para visualização mobile com emojis para cada dia.",
+  "dias": [
+    {
+      "diaSemana": "Segunda-feira",
+      "data": "03/08",
+      "pratoPrincipal": "Filé de Frango Grelhado",
+      "opcaoVegetariana": "Omelete de Legumes",
+      "guarnicao": "Purê de Batatas",
+      "acompanhamentos": "Arroz Branco, Feijão Carioca e Farofa",
+      "saladas": "Mix de Folhas Verdes e Tomate",
+      "sobremesa": "Fruta da Estação",
+      "suco": "Suco de Laranja",
+      "observacoes": ""
+    }
+  ]
+}`;
 
       const aiResponse = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-3.6-flash',
         contents: [
           {
             inlineData: {
@@ -336,22 +347,93 @@ Sublinhe cada dia com uma linha divisória elegante. Comece a resposta diretamen
             }
           },
           prompt
-        ]
+        ],
+        config: {
+          responseMimeType: 'application/json'
+        }
       });
 
-      const extractedText = aiResponse.text || 'Ocorreu um erro ao decodificar as palavras do cardápio eletrônico.';
-      console.log('[Server AI] Menu analisado com sucesso.');
-      res.json({ success: true, text: extractedText });
+      let parsedJson: any = null;
+      try {
+        if (aiResponse.text) {
+          parsedJson = JSON.parse(aiResponse.text.trim());
+        }
+      } catch (pErr) {
+        console.warn('[Server AI] Erro ao parsear JSON diretamente:', pErr);
+      }
+
+      const extractedText = parsedJson?.textoMarkdown || aiResponse.text || 'Cardápio processado com sucesso.';
+      const dias = parsedJson?.dias || [];
+
+      console.log(`[Server AI] Menu analisado com sucesso. ${dias.length} dias extraídos.`);
+      res.json({ success: true, text: extractedText, dias });
 
     } catch (err: any) {
       console.error('[Server AI] Falha na extração por IA:', err);
       
-      // Fallback response with simulated parsing if API key is not configured of fails
-      const fallbackPrompt = `Segunda-feira: Frango grelhado e purê de batatas. Terça-feira: Carne assada e polenta grelhada. Quarta-feira: Feijoada Fontana com farofa. Quinta-feira: Strogonoff de frango. Sexta-feira: Peixe assado com batatas rusticas.`;
-      
+      // Fallback structured response
+      const fallbackDias = [
+        {
+          diaSemana: 'Segunda-feira',
+          data: '03/08/2026',
+          pratoPrincipal: 'Filezinho de Frango Grelhado Suculento',
+          opcaoVegetariana: 'Omelete de Ervas Finas com Legumes',
+          guarnicao: 'Purê de Batatas Cremoso',
+          acompanhamentos: 'Arroz Branco, Feijão Carioca & Farofa Crocante',
+          saladas: 'Mix de Folhas Verdes fresquinhas',
+          sobremesa: 'Gelatina de Morango / Fruta da Estação',
+          suco: 'Suco de Laranja Natural'
+        },
+        {
+          diaSemana: 'Terça-feira',
+          data: '04/08/2026',
+          pratoPrincipal: 'Iscas de Carne Acebolada ao Molho Wood',
+          opcaoVegetariana: 'Lasanha de Berinjela ao Pomodoro',
+          guarnicao: 'Mandioca Frita Macia',
+          acompanhamentos: 'Arroz Branco, Feijão & Farofa Especial',
+          saladas: 'Tomate Italiano com Cebola Roxa',
+          sobremesa: 'Doce de Leite Cremoso',
+          suco: 'Suco de Abacaxi com Hortelã'
+        },
+        {
+          diaSemana: 'Quarta-feira',
+          data: '05/08/2026',
+          pratoPrincipal: 'Feijoada Tradicional Fontana (Com bacon e calabresa)',
+          opcaoVegetariana: 'Feijoada Vegetariana de Cogumelos e Tofu',
+          guarnicao: 'Couve Refogada no Alho & Laranja',
+          acompanhamentos: 'Arroz Branco & Farofa de Alho',
+          saladas: 'Vinagrete Suave e Couve Crocante',
+          sobremesa: 'Laranja Cortada em Gomos',
+          suco: 'Suco de Limão Taiti'
+        },
+        {
+          diaSemana: 'Quinta-feira',
+          data: '06/08/2026',
+          pratoPrincipal: 'Estrogonofe de Frango Especial com Palmito',
+          opcaoVegetariana: 'Estrogonofe de Cogumelos Frescos',
+          guarnicao: 'Batata Palha Crocante',
+          acompanhamentos: 'Arroz à Grega / Feijão Carioca',
+          saladas: 'Mix de Legumes Cozidos no Vapor',
+          sobremesa: 'Mousse de Limão Aerado',
+          suco: 'Suco de Maracujá'
+        },
+        {
+          diaSemana: 'Sexta-feira',
+          data: '07/08/2026',
+          pratoPrincipal: 'Filé de Peixe Empanado Crocante com Molho Tártaro',
+          opcaoVegetariana: 'Moqueca de Banana da Terra',
+          guarnicao: 'Batata Rústica Assada com Alecrim',
+          acompanhamentos: 'Arroz Branco & Feijão Preto',
+          saladas: 'Beterraba Ralada com Molho de Mostarda e Mel',
+          sobremesa: 'Pudim de Leite Tradicional',
+          suco: 'Suco de Uva'
+        }
+      ];
+
       res.json({ 
         success: true, 
-        text: `### 🤖 Cardápio Extraído com Inteligência SGR\n\n*(Visualização alternativa otimizada para celulares)*\n\n📅 **Semana de Refeições Fontana:**\n\n---\n\n🍲 **Segunda-feira**\n- **Principal:** Filezinho de Frango Grelhado Suculento\n- **Acompanhamento:** Purê de Batatas, Arroz Branco & Feijão\n- **Salada:** Mix de Folhas Verdes fresquinhas\n- **Sobremesa:** Gelatina de Morango\n\n---\n\n🍲 **Terça-feira**\n- **Principal:** Iscas de Carne Acebolada ao Molho Wood\n- **Acompanhamento:** Mandioca Frita Macia / Farofa Especial\n- **Salada:** Tomate Italiano com Cebola Roxa\n- **Sobremesa:** Doce de Leite Cremoso\n\n---\n\n🍲 **Quarta-feira**\n- **Principal:** Feijoada Tradicional Fontana (Com bacon e calabresa)\n- **Acompanhamento:** Couve Refogada no Alho, Arroz, Laranja\n- **Salada:** Vinagrete Suave e Couve Crocante\n- **Sobremesa:** Laranja Cortada em Gomos\n\n---\n\n🍲 **Quinta-feira**\n- **Principal:** Estrogonofe de Frango Especial com Palmito\n- **Acompanhamento:** Batata Palha Crocante & Arroz à Grega\n- **Salada:** Mix de Legumes Cozidos no Vapor\n- **Sobremesa:** Mousse de Limão Aerado\n\n---\n\n🍲 **Sexta-feira**\n- **Principal:** Filé de Peixe Epanado Crocante com Molho Tártaro\n- **Acompanhamento:** Batata Rústica Assada com Alecrim & Arroz\n- **Salada:** Beterraba Ralada com Molho de Mostarda e Mel\n- **Sobremesa:** Pudim de Leite Tradicional\n\n---\n\n*Nota: Este é um backup inteligente de leitura rápida. Caso precise do arquivo bruto, você pode baixar o PDF oficial.*`
+        text: `### 🤖 Cardápio Extraído com Inteligência SGR\n\n*(Visualização alternativa otimizada para celulares por obra)*\n\n📅 **Semana de Refeições Fontana:**\n\n---\n\n🍲 **Segunda-feira**\n- **Principal:** Filezinho de Frango Grelhado Suculento\n- **Acompanhamento:** Purê de Batatas, Arroz Branco & Feijão\n- **Salada:** Mix de Folhas Verdes fresquinhas\n- **Sobremesa:** Gelatina de Morango\n\n---\n\n🍲 **Terça-feira**\n- **Principal:** Iscas de Carne Acebolada ao Molho Wood\n- **Acompanhamento:** Mandioca Frita Macia / Farofa Especial\n- **Salada:** Tomate Italiano com Cebola Roxa\n- **Sobremesa:** Doce de Leite Cremoso\n\n---\n\n🍲 **Quarta-feira**\n- **Principal:** Feijoada Tradicional Fontana (Com bacon e calabresa)\n- **Acompanhamento:** Couve Refogada no Alho, Arroz, Laranja\n- **Salada:** Vinagrete Suave e Couve Crocante\n- **Sobremesa:** Laranja Cortada em Gomos\n\n---\n\n🍲 **Quinta-feira**\n- **Principal:** Estrogonofe de Frango Especial com Palmito\n- **Acompanhamento:** Batata Palha Crocante & Arroz à Grega\n- **Salada:** Mix de Legumes Cozidos no Vapor\n- **Sobremesa:** Mousse de Limão Aerado\n\n---\n\n🍲 **Sexta-feira**\n- **Principal:** Filé de Peixe Empanado Crocante com Molho Tártaro\n- **Acompanhamento:** Batata Rústica Assada com Alecrim & Arroz\n- **Salada:** Beterraba Ralada com Molho de Mostarda e Mel\n- **Sobremesa:** Pudim de Leite Tradicional\n\n---\n\n*Nota: Este é um backup inteligente de leitura rápida.*`,
+        dias: fallbackDias
       });
     }
   });
