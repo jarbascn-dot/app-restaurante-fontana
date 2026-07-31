@@ -50,7 +50,7 @@ service cloud.firestore {
     // Entity Schema Validators
     function isValidObra(data) {
       return data.keys().hasAll(['id', 'nome', 'centroCusto', 'ativa']) && 
-             data.keys().size() <= 10 &&
+             data.keys().size() <= 12 &&
              data.id is string && data.id.size() <= 128 &&
              data.nome is string && data.nome.size() <= 200 &&
              data.centroCusto is string && data.centroCusto.size() <= 100 &&
@@ -59,7 +59,9 @@ service cloud.firestore {
              (!data.keys().hasAny(['idFornecedorPrincipal']) || data.idFornecedorPrincipal is string) &&
              (!data.keys().hasAny(['cardapioUrl']) || (data.cardapioUrl is string && data.cardapioUrl.size() <= 2000000)) &&
              (!data.keys().hasAny(['cardapioNome']) || (data.cardapioNome is string && data.cardapioNome.size() <= 256)) &&
-             (!data.keys().hasAny(['cardapioAtualizadoEm']) || (data.cardapioAtualizadoEm is string && data.cardapioAtualizadoEm.size() <= 128));
+             (!data.keys().hasAny(['cardapioAtualizadoEm']) || (data.cardapioAtualizadoEm is string && data.cardapioAtualizadoEm.size() <= 128)) &&
+             (!data.keys().hasAny(['cardapioTextoIa']) || (data.cardapioTextoIa is string && data.cardapioTextoIa.size() <= 500000)) &&
+             (!data.keys().hasAny(['cardapioDias']) || data.cardapioDias is list);
     }
 
     function isValidEmpresa(data) {
