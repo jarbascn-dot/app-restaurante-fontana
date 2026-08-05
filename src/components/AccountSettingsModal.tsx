@@ -562,56 +562,6 @@ export default function AccountSettingsModal({
                     )}
                   </div>
 
-                  {/* Alerta Tipo Selection UI (Sempre, Com Reserva, Sem Reserva) */}
-                  <div className="space-y-2">
-                    <label className="block text-[10px] uppercase font-bold text-neutral-600 mb-1">Gatilho de Disparo do Alerta</label>
-                    <div className="grid grid-cols-1 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setNotifyTipo('sempre')}
-                        className={`p-2.5 border rounded-lg text-left transition ${
-                          notifyTipo === 'sempre'
-                            ? 'border-emerald-500 bg-emerald-50/50 text-emerald-800 font-bold'
-                            : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
-                        }`}
-                      >
-                        <span className="block text-xs font-semibold flex items-center gap-1.5">
-                          🔔 Sempre Alertar (Padrão)
-                        </span>
-                        <span className="block text-[9px] text-neutral-500 font-normal mt-0.5">Dispara o lembrete diariamente, informando se você possui ou não refeição reservada</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setNotifyTipo('reservada')}
-                        className={`p-2.5 border rounded-lg text-left transition ${
-                          notifyTipo === 'reservada'
-                            ? 'border-emerald-500 bg-emerald-50/50 text-emerald-800 font-bold'
-                            : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
-                        }`}
-                      >
-                        <span className="block text-xs font-semibold flex items-center gap-1.5">
-                          ✅ Somente quando houver REFEIÇÃO RESERVADA
-                        </span>
-                        <span className="block text-[9px] text-neutral-500 font-normal mt-0.5">Garante e certifica que sua marmita está reservada e pronta para consumo</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setNotifyTipo('sem_reserva')}
-                        className={`p-2.5 border rounded-lg text-left transition ${
-                          notifyTipo === 'sem_reserva'
-                            ? 'border-emerald-500 bg-emerald-50/50 text-emerald-800 font-bold'
-                            : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
-                        }`}
-                      >
-                        <span className="block text-xs font-semibold flex items-center gap-1.5">
-                          ⚠️ Somente quando NÃO houver refeição reservada
-                        </span>
-                        <span className="block text-[9px] text-neutral-500 font-normal mt-0.5">Funciona como rede de segurança para alertar caso você tenha esquecido de agendar</span>
-                      </button>
-                    </div>
-                  </div>
 
                   {/* PWA background native alert limitations container */}
                   <div className="bg-amber-50 text-amber-950 text-[10px] leading-relaxed p-3 rounded-lg border border-amber-250">
