@@ -382,17 +382,6 @@ export const CardapioModal: React.FC<CardapioModalProps> = ({
                     </p>
                   </div>
 
-                  {/* Opção Vegetariana / Fit */}
-                  {currentDayData.opcaoVegetariana && (
-                    <div className="p-3.5 bg-emerald-50/30 border border-emerald-100 rounded-xl space-y-1">
-                      <div className="text-[11px] font-extrabold text-emerald-800 uppercase tracking-wider">
-                        🍃 Opção Vegetariana / Alternativa
-                      </div>
-                      <p className="text-xs font-bold text-neutral-800">
-                        {currentDayData.opcaoVegetariana}
-                      </p>
-                    </div>
-                  )}
 
                   {/* Guarnição */}
                   {currentDayData.guarnicao && (
