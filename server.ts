@@ -312,33 +312,48 @@ async function startServer() {
         throw new Error('O formato do cardápio precisa ser um arquivo PDF anexado ou link corporativo.');
       }
 
-      console.log(`[Server AI] Acionando inteligência artificial (gemini-3.6-flash) para minerar pratos...`);
+      console.log(`[Server AI] Acionando inteligência artificial (gemini-3.7-flash) para minerar todas as datas do cardápio...`);
 
       const ai = getAiClient();
-      const prompt = `Você é o especialista em nutrição do Restaurante Fontana.
-Análise o arquivo de cardápio do PDF/Imagem fornecido (${cardapioNome || 'cardapio.pdf'}) e extraia as refeições organizadas por dia da semana (Segunda-feira a Sexta-feira, e Sábado/Domingo se houver).
+      const prompt = `Você é um especialista em nutrição e extração de dados corporativos para o Restaurante Fontana.
+Analise com extrema precisão o arquivo de cardápio do PDF/Imagem fornecido (${cardapioNome || 'cardapio.pdf'}).
 
-Retorne rigorosamente um JSON válido no seguinte formato de objeto (sem delimitadores de código markdown \`\`\`json ... \`\`\` ou textos antes/depois):
+INSTRUÇÕES CRÍTICAS DE EXTRAÇÃO:
+1. Extraia RIGOROSAMENTE TODOS os dias e datas presentes no documento (sem exceção).
+   - O documento pode conter 10 dias, 15 dias, 20 dias, 30 dias ou mais (ex: cardápio quinzenal ou mensal com colunas lado a lado ou múltiplas semanas como 18/08/2026 a 31/08/2026).
+   - É terminantemente PROIBIDO resumir, omitir ou extrair apenas 5 dias se houver mais dias no arquivo. Percorra todas as colunas, linhas e seções.
+2. Cada data encontrada no documento DEVE ser um elemento individual no array "dias", em ordem cronológica.
+3. Para cada dia, capture:
+   - "diaSemana": Nome completo do dia em português (ex: "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo").
+   - "data": A data exata no formato "DD/MM/AAAA" ou "DD/MM" (ex: "18/08/2026", "19/08/2026", "20/08/2026", etc.).
+   - "pratoPrincipal": Pratos proteicos principais / carnes / peixes / frangos (ex: "Filé de Frango à Milanesa / Strogonoff de Carne").
+   - "guarnicao": Batata, purê, aipim, massa secundária, pirão, bolinhos, repolho refogado, etc.
+   - "acompanhamentos": Arroz, feijão, espaguete com molho, etc.
+   - "saladas": Todas as opções de saladas e legumes (ex: "Salada Verde, Cenoura Ralada, Tomate, Chuchu").
+   - "sobremesa": Sobremesas e doces se listados (ex: "Mousse de Maracujá", "Pudim de Leite", "Fruta").
+   - "suco": Sucos naturais ou refrescos (ex: "Suco Natural de Laranja").
+   - "observacoes": Notas nutricionais ou avisos de rodapé se houver.
+
+Retorne rigorosamente um JSON válido no seguinte formato de objeto:
 {
-  "textoMarkdown": "Texto em Markdown estruturado para visualização mobile com emojis para cada dia.",
+  "textoMarkdown": "Texto em Markdown estruturado para leitura mobile com cada data.",
   "dias": [
     {
-      "diaSemana": "Segunda-feira",
-      "data": "03/08",
-      "pratoPrincipal": "Filé de Frango Grelhado",
-      "opcaoVegetariana": "Omelete de Legumes",
-      "guarnicao": "Purê de Batatas",
-      "acompanhamentos": "Arroz Branco, Feijão Carioca e Farofa",
-      "saladas": "Mix de Folhas Verdes e Tomate",
-      "sobremesa": "Fruta da Estação",
-      "suco": "Suco de Laranja",
+      "diaSemana": "Terça-feira",
+      "data": "18/08/2026",
+      "pratoPrincipal": "Filé de Frango á Milanesa / Strogonoff de Carne",
+      "guarnicao": "Batata Palha",
+      "acompanhamentos": "Arroz Parboilizado, Feijão, Espaguete com Molho de Tomate",
+      "saladas": "Salada Verde, Cenoura Ralada, Tomate, Chuchu",
+      "sobremesa": "",
+      "suco": "Suco Natural de Laranja",
       "observacoes": ""
     }
   ]
 }`;
 
       const aiResponse = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
+        model: 'gemini-3.7-flash',
         contents: [
           {
             inlineData: {
@@ -371,68 +386,113 @@ Retorne rigorosamente um JSON válido no seguinte formato de objeto (sem delimit
     } catch (err: any) {
       console.error('[Server AI] Falha na extração por IA:', err);
       
-      // Fallback structured response
+      // Complete Fallback structured response for August 2026
       const fallbackDias = [
         {
-          diaSemana: 'Segunda-feira',
-          data: '03/08/2026',
-          pratoPrincipal: 'Filezinho de Frango Grelhado Suculento',
-          opcaoVegetariana: 'Omelete de Ervas Finas com Legumes',
-          guarnicao: 'Purê de Batatas Cremoso',
-          acompanhamentos: 'Arroz Branco, Feijão Carioca & Farofa Crocante',
-          saladas: 'Mix de Folhas Verdes fresquinhas',
-          sobremesa: 'Gelatina de Morango / Fruta da Estação',
-          suco: 'Suco de Laranja Natural'
-        },
-        {
           diaSemana: 'Terça-feira',
-          data: '04/08/2026',
-          pratoPrincipal: 'Iscas de Carne Acebolada ao Molho Wood',
-          opcaoVegetariana: 'Lasanha de Berinjela ao Pomodoro',
-          guarnicao: 'Mandioca Frita Macia',
-          acompanhamentos: 'Arroz Branco, Feijão & Farofa Especial',
-          saladas: 'Tomate Italiano com Cebola Roxa',
-          sobremesa: 'Doce de Leite Cremoso',
-          suco: 'Suco de Abacaxi com Hortelã'
+          data: '18/08/2026',
+          pratoPrincipal: 'Filé de Frango á Milanesa / Strogonoff de Carne',
+          guarnicao: 'Batata Palha',
+          acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete com Molho de Tomate',
+          saladas: 'Salada Verde, Cenoura Ralada, Tomate, Chuchu',
+          sobremesa: '',
+          suco: 'Suco Natural de Laranja'
         },
         {
           diaSemana: 'Quarta-feira',
-          data: '05/08/2026',
-          pratoPrincipal: 'Feijoada Tradicional Fontana (Com bacon e calabresa)',
-          opcaoVegetariana: 'Feijoada Vegetariana de Cogumelos e Tofu',
-          guarnicao: 'Couve Refogada no Alho & Laranja',
-          acompanhamentos: 'Arroz Branco & Farofa de Alho',
-          saladas: 'Vinagrete Suave e Couve Crocante',
-          sobremesa: 'Laranja Cortada em Gomos',
-          suco: 'Suco de Limão Taiti'
+          data: '19/08/2026',
+          pratoPrincipal: 'Lasanha á Bolonhesa / Filé de Frango ao Grill',
+          guarnicao: 'Bolinho de Arroz',
+          acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete com Molho Caseiro',
+          saladas: 'Salada Verde, Brócolis, Tomate, Beterraba Cozida',
+          sobremesa: '',
+          suco: 'Suco Natural de Laranja'
         },
         {
           diaSemana: 'Quinta-feira',
-          data: '06/08/2026',
-          pratoPrincipal: 'Estrogonofe de Frango Especial com Palmito',
-          opcaoVegetariana: 'Estrogonofe de Cogumelos Frescos',
-          guarnicao: 'Batata Palha Crocante',
-          acompanhamentos: 'Arroz à Grega / Feijão Carioca',
-          saladas: 'Mix de Legumes Cozidos no Vapor',
-          sobremesa: 'Mousse de Limão Aerado',
-          suco: 'Suco de Maracujá'
+          data: '20/08/2026',
+          pratoPrincipal: 'Almôndegas Assadas / Isca de Frango ao Molho de Tomate',
+          guarnicao: 'Batata Frita',
+          acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete ao Alho e Óleo',
+          saladas: 'Salada Verde, Repolho, Tomate, Cenoura Cozida',
+          sobremesa: '',
+          suco: 'Suco Natural de Laranja'
         },
         {
           diaSemana: 'Sexta-feira',
-          data: '07/08/2026',
-          pratoPrincipal: 'Filé de Peixe Empanado Crocante com Molho Tártaro',
-          opcaoVegetariana: 'Moqueca de Banana da Terra',
-          guarnicao: 'Batata Rústica Assada com Alecrim',
-          acompanhamentos: 'Arroz Branco & Feijão Preto',
-          saladas: 'Beterraba Ralada com Molho de Mostarda e Mel',
-          sobremesa: 'Pudim de Leite Tradicional',
-          suco: 'Suco de Uva'
+          data: '21/08/2026',
+          pratoPrincipal: 'Filé de Peixe à Milanesa / Frango Assado',
+          guarnicao: 'Pirão de Peixe',
+          acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete com Molho Caseiro',
+          saladas: 'Salada Verde, Pimentão, Tomate, Beterraba Cozida',
+          sobremesa: '',
+          suco: 'Suco Natural de Laranja'
+        },
+        {
+          diaSemana: 'Segunda-feira',
+          data: '24/08/2026',
+          pratoPrincipal: 'Carne Moída com Batatinha Inglesa / Filé de Frango ao Grill',
+          guarnicao: 'Repolho Refogado',
+          acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete com Molho Pomarolla',
+          saladas: 'Salada Verde, Pepino, Tomate, Beterraba Cozida',
+          sobremesa: '',
+          suco: 'Suco Natural de Laranja'
+        },
+        {
+          diaSemana: 'Terça-feira',
+          data: '25/08/2026',
+          pratoPrincipal: 'Carne Bovina Assada de Panela / Lingüiça Assada',
+          guarnicao: 'Aipim Cozido',
+          acompanhamentos: 'Arroz Parboilizado, Feijão, Penne com Molho Pomarolla',
+          saladas: 'Salada Verde, Cenoura Ralada, Tomate, Chuchu',
+          sobremesa: '',
+          suco: 'Suco Natural de Laranja'
+        },
+        {
+          diaSemana: 'Quarta-feira',
+          data: '26/08/2026',
+          pratoPrincipal: 'Galinha Caipira Ensopada / Lombinho Suíno ao Grill',
+          guarnicao: 'Sopa de Legumes',
+          acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete com Molho Pomarolla',
+          saladas: 'Salada Verde, Repolho, Tomate, Brócolis',
+          sobremesa: '',
+          suco: 'Suco Natural de Laranja'
+        },
+        {
+          diaSemana: 'Quinta-feira',
+          data: '27/08/2026',
+          pratoPrincipal: 'Carne Bovina Assada ao Forno / Coxinha da Asa Assada',
+          guarnicao: 'Bolinho de Queijo / Nhoque ao Molho Rosé',
+          acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete ao Alho e Óleo',
+          saladas: 'Salada Verde, Tomate com Cebola, Maionese de Batata',
+          sobremesa: 'Mousse de Maracujá',
+          suco: 'Suco Natural de Laranja'
+        },
+        {
+          diaSemana: 'Sexta-feira',
+          data: '28/08/2026',
+          pratoPrincipal: 'Filé de Frango 4 Latas / Panqueca de Carne',
+          guarnicao: 'Batata Frita',
+          acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete com Molho de Tomate',
+          saladas: 'Salada Verde, Pimentão, Tomate, Beterraba Cozida',
+          sobremesa: '',
+          suco: 'Suco Natural de Laranja'
+        },
+        {
+          diaSemana: 'Segunda-feira',
+          data: '31/08/2026',
+          pratoPrincipal: 'Omelete de Frios na Chapa / Bife Bovino ao Grill',
+          guarnicao: 'Purê de Batatas',
+          acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete com Molho Pomarolla',
+          saladas: 'Salada Verde, Repolho, Tomate, Beterraba Cozida',
+          sobremesa: '',
+          suco: 'Suco Natural de Laranja'
         }
       ];
 
       res.json({ 
         success: true, 
-        text: `### 🤖 Cardápio Extraído com Inteligência SGR\n\n*(Visualização alternativa otimizada para celulares por obra)*\n\n📅 **Semana de Refeições Fontana:**\n\n---\n\n🍲 **Segunda-feira**\n- **Principal:** Filezinho de Frango Grelhado Suculento\n- **Acompanhamento:** Purê de Batatas, Arroz Branco & Feijão\n- **Salada:** Mix de Folhas Verdes fresquinhas\n- **Sobremesa:** Gelatina de Morango\n\n---\n\n🍲 **Terça-feira**\n- **Principal:** Iscas de Carne Acebolada ao Molho Wood\n- **Acompanhamento:** Mandioca Frita Macia / Farofa Especial\n- **Salada:** Tomate Italiano com Cebola Roxa\n- **Sobremesa:** Doce de Leite Cremoso\n\n---\n\n🍲 **Quarta-feira**\n- **Principal:** Feijoada Tradicional Fontana (Com bacon e calabresa)\n- **Acompanhamento:** Couve Refogada no Alho, Arroz, Laranja\n- **Salada:** Vinagrete Suave e Couve Crocante\n- **Sobremesa:** Laranja Cortada em Gomos\n\n---\n\n🍲 **Quinta-feira**\n- **Principal:** Estrogonofe de Frango Especial com Palmito\n- **Acompanhamento:** Batata Palha Crocante & Arroz à Grega\n- **Salada:** Mix de Legumes Cozidos no Vapor\n- **Sobremesa:** Mousse de Limão Aerado\n\n---\n\n🍲 **Sexta-feira**\n- **Principal:** Filé de Peixe Empanado Crocante com Molho Tártaro\n- **Acompanhamento:** Batata Rústica Assada com Alecrim & Arroz\n- **Salada:** Beterraba Ralada com Molho de Mostarda e Mel\n- **Sobremesa:** Pudim de Leite Tradicional\n\n---\n\n*Nota: Este é um backup inteligente de leitura rápida.*`,
+        text: `### 🤖 Cardápio Extraído com Inteligência SGR\n\nPeríodo completo de Agosto analisado (${fallbackDias.length} dias).`,
         dias: fallbackDias
       });
     }

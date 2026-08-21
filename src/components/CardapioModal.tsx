@@ -22,59 +22,104 @@ interface CardapioModalProps {
 
 const DEFAULT_DAYS_FALLBACK: CardapioDia[] = [
   {
-    diaSemana: 'Segunda-feira',
-    data: '03/08/2026',
-    pratoPrincipal: 'Filezinho de Frango Grelhado Suculento ao Limão',
-    opcaoVegetariana: 'Omelete com Ervas e Queijo',
-    guarnicao: 'Purê de Batatas Cremoso',
-    acompanhamentos: 'Arroz Branco, Feijão Carioca & Farofa Crocante',
-    saladas: 'Mix de Folhas Verdes, Tomate e Pepino',
-    sobremesa: 'Gelatina de Morango / Fruta da Estação',
-    suco: 'Suco de Laranja Natural'
-  },
-  {
     diaSemana: 'Terça-feira',
-    data: '04/08/2026',
-    pratoPrincipal: 'Iscas de Carne Acebolada ao Molho Gravy',
-    opcaoVegetariana: 'Lasanha de Berinjela e Abobrinha',
-    guarnicao: 'Mandioca Frita Macia',
-    acompanhamentos: 'Arroz Branco, Feijão Preto & Farofa Especial',
-    saladas: 'Tomate Italiano com Cebola Roxa e Orégano',
-    sobremesa: 'Doce de Leite Cremoso com Queijo',
-    suco: 'Suco de Abacaxi com Hortelã'
+    data: '18/08/2026',
+    pratoPrincipal: 'Filé de Frango á Milanesa / Strogonoff de Carne',
+    guarnicao: 'Batata Palha',
+    acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete com Molho de Tomate',
+    saladas: 'Salada Verde, Cenoura Ralada, Tomate, Chuchu',
+    sobremesa: '',
+    suco: 'Suco Natural de Laranja'
   },
   {
     diaSemana: 'Quarta-feira',
-    data: '05/08/2026',
-    pratoPrincipal: 'Feijoada Tradicional Fontana (Com bacon e calabresa)',
-    opcaoVegetariana: 'Feijoada Vegetariana de Cogumelos e Tofu',
-    guarnicao: 'Couve Refogada no Alho & Laranja',
-    acompanhamentos: 'Arroz Branco & Farofa de Alho',
-    saladas: 'Vinagrete Suave e Couve Crocante',
-    sobremesa: 'Laranja Cortada em Gomos',
-    suco: 'Suco de Limão Taiti'
+    data: '19/08/2026',
+    pratoPrincipal: 'Lasanha á Bolonhesa / Filé de Frango ao Grill',
+    guarnicao: 'Bolinho de Arroz',
+    acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete com Molho Caseiro',
+    saladas: 'Salada Verde, Brócolis, Tomate, Beterraba Cozida',
+    sobremesa: '',
+    suco: 'Suco Natural de Laranja'
   },
   {
     diaSemana: 'Quinta-feira',
-    data: '06/08/2026',
-    pratoPrincipal: 'Strogonoff de Frango com Champignon',
-    opcaoVegetariana: 'Strogonoff de Cogumelos Frescos',
-    guarnicao: 'Batata Palha Crocante',
-    acompanhamentos: 'Arroz à Grega / Feijão Carioca',
-    saladas: 'Mix de Legumes Cozidos no Vapor (Cenoura, Vagem, Brócolis)',
-    sobremesa: 'Mousse de Limão Aerado',
-    suco: 'Suco de Maracujá'
+    data: '20/08/2026',
+    pratoPrincipal: 'Almôndegas Assadas / Isca de Frango ao Molho de Tomate',
+    guarnicao: 'Batata Frita',
+    acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete ao Alho e Óleo',
+    saladas: 'Salada Verde, Repolho, Tomate, Cenoura Cozida',
+    sobremesa: '',
+    suco: 'Suco Natural de Laranja'
   },
   {
     diaSemana: 'Sexta-feira',
-    data: '07/08/2026',
-    pratoPrincipal: 'Filé de Peixe Empanado Crocante com Molho Tártaro',
-    opcaoVegetariana: 'Moqueca de Banana da Terra',
-    guarnicao: 'Batata Rústica Assada com Alecrim',
-    acompanhamentos: 'Arroz Branco & Feijão Preto',
-    saladas: 'Beterraba Ralada com Molho de Mostarda e Mel',
-    sobremesa: 'Pudim de Leite Tradicional',
-    suco: 'Suco de Uva'
+    data: '21/08/2026',
+    pratoPrincipal: 'Filé de Peixe à Milanesa / Frango Assado',
+    guarnicao: 'Pirão de Peixe',
+    acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete com Molho Caseiro',
+    saladas: 'Salada Verde, Pimentão, Tomate, Beterraba Cozida',
+    sobremesa: '',
+    suco: 'Suco Natural de Laranja'
+  },
+  {
+    diaSemana: 'Segunda-feira',
+    data: '24/08/2026',
+    pratoPrincipal: 'Carne Moída com Batatinha Inglesa / Filé de Frango ao Grill',
+    guarnicao: 'Repolho Refogado',
+    acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete com Molho Pomarolla',
+    saladas: 'Salada Verde, Pepino, Tomate, Beterraba Cozida',
+    sobremesa: '',
+    suco: 'Suco Natural de Laranja'
+  },
+  {
+    diaSemana: 'Terça-feira',
+    data: '25/08/2026',
+    pratoPrincipal: 'Carne Bovina Assada de Panela / Lingüiça Assada',
+    guarnicao: 'Aipim Cozido',
+    acompanhamentos: 'Arroz Parboilizado, Feijão, Penne com Molho Pomarolla',
+    saladas: 'Salada Verde, Cenoura Ralada, Tomate, Chuchu',
+    sobremesa: '',
+    suco: 'Suco Natural de Laranja'
+  },
+  {
+    diaSemana: 'Quarta-feira',
+    data: '26/08/2026',
+    pratoPrincipal: 'Galinha Caipira Ensopada / Lombinho Suíno ao Grill',
+    guarnicao: 'Sopa de Legumes',
+    acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete com Molho Pomarolla',
+    saladas: 'Salada Verde, Repolho, Tomate, Brócolis',
+    sobremesa: '',
+    suco: 'Suco Natural de Laranja'
+  },
+  {
+    diaSemana: 'Quinta-feira',
+    data: '27/08/2026',
+    pratoPrincipal: 'Carne Bovina Assada ao Forno / Coxinha da Asa Assada',
+    guarnicao: 'Bolinho de Queijo / Nhoque ao Molho Rosé',
+    acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete ao Alho e Óleo',
+    saladas: 'Salada Verde, Tomate com Cebola, Maionese de Batata',
+    sobremesa: 'Mousse de Maracujá',
+    suco: 'Suco Natural de Laranja'
+  },
+  {
+    diaSemana: 'Sexta-feira',
+    data: '28/08/2026',
+    pratoPrincipal: 'Filé de Frango 4 Latas / Panqueca de Carne',
+    guarnicao: 'Batata Frita',
+    acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete com Molho de Tomate',
+    saladas: 'Salada Verde, Pimentão, Tomate, Beterraba Cozida',
+    sobremesa: '',
+    suco: 'Suco Natural de Laranja'
+  },
+  {
+    diaSemana: 'Segunda-feira',
+    data: '31/08/2026',
+    pratoPrincipal: 'Omelete de Frios na Chapa / Bife Bovino ao Grill',
+    guarnicao: 'Purê de Batatas',
+    acompanhamentos: 'Arroz Parboilizado, Feijão, Espaguete com Molho Pomarolla',
+    saladas: 'Salada Verde, Repolho, Tomate, Beterraba Cozida',
+    sobremesa: '',
+    suco: 'Suco Natural de Laranja'
   }
 ];
 
@@ -321,6 +366,53 @@ export const CardapioModal: React.FC<CardapioModalProps> = ({
           {activeTab === 'dia' ? (
             <div className="space-y-4">
               
+              {/* Quick Date Selector Horizontal Strip */}
+              {displayDias.length > 1 && (
+                <div className="bg-white rounded-2xl border border-neutral-200 p-2.5 shadow-2xs space-y-1.5">
+                  <div className="flex items-center justify-between px-1 text-[11px] text-neutral-500 font-semibold">
+                    <span className="flex items-center gap-1.5 text-neutral-700">
+                      <Calendar className="h-3.5 w-3.5 text-emerald-600" />
+                      <span>Selecione a Data ({displayDias.length} dias disponíveis):</span>
+                    </span>
+                    <span className="font-mono text-[10px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200/60">
+                      Dia {selectedDayIndex + 1} de {displayDias.length}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 no-scrollbar scroll-smooth">
+                    {displayDias.map((d, idx) => {
+                      const isSelected = idx === selectedDayIndex;
+                      const isToday = checkIfIsToday(d);
+                      const shortWeek = d.diaSemana ? d.diaSemana.substring(0, 3) : '';
+                      const displayDate = d.data ? d.data.replace(/\/20\d{2}$/, '') : `Dia ${idx + 1}`;
+
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setSelectedDayIndex(idx)}
+                          className={`shrink-0 px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center min-w-[58px] cursor-pointer border ${
+                            isSelected
+                              ? 'bg-emerald-800 text-white border-emerald-900 shadow-xs'
+                              : isToday
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                              : 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100 hover:text-neutral-900'
+                          }`}
+                          title={`${d.diaSemana} - ${d.data || ''}`}
+                        >
+                          <span className="text-[10px] font-mono leading-none tracking-tight">
+                            {displayDate}
+                          </span>
+                          <span className={`text-[9px] uppercase font-bold leading-tight mt-0.5 ${isSelected ? 'text-emerald-200' : 'text-neutral-400'}`}>
+                            {shortWeek}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Centered Date Navigator with Left and Right Arrows */}
               <div className="bg-white rounded-2xl border border-neutral-200 p-2 sm:p-3 shadow-xs flex items-center justify-between gap-2">
                 <button
