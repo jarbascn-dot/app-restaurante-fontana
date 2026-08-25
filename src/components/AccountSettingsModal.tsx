@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Usuario, AuditoriaLog, SystemSettings } from '../types';
-import { X, KeyRound, Bell, Smartphone, ShieldCheck, Check, Eye, EyeOff, Volume2, Sparkles, FileText, Download } from 'lucide-react';
+import { X, KeyRound, Bell, Smartphone, ShieldCheck, Check, Eye, EyeOff, Volume2, Sparkles, FileText, Download, Sun, Moon, Clock, Calendar, CheckCircle2 } from 'lucide-react';
 import { scheduleNotification } from '../lib/notificationScheduler';
 import { COMPROMISSO_LGPD_HTML } from './LgpdConsentModal';
 import { comparePassword } from '../lib/passwordUtils';
@@ -21,6 +21,55 @@ interface AccountSettingsModalProps {
   appendAuditLog: (operacao: string, userNome?: string, userEmail?: string) => void;
   onTriggerFlash: (msg: string) => void;
   settings: SystemSettings;
+}
+
+// Optimized Cron-Job Windows (Mon-Fri, 5-minute intervals)
+export const MANHA_SLOTS: string[] = [
+  '06:00', '06:05', '06:10', '06:15', '06:20', '06:25', '06:30', '06:35', '06:40', '06:45', '06:50', '06:55',
+  '07:00', '07:05', '07:10', '07:15', '07:20', '07:25', '07:30', '07:35', '07:40', '07:45', '07:50', '07:55',
+  '08:00', '08:05', '08:10', '08:15', '08:20', '08:25', '08:30', '08:35', '08:40', '08:45', '08:50', '08:55'
+];
+
+export const NOITE_SLOTS: string[] = [
+  '18:00', '18:05', '18:10', '18:15', '18:20', '18:25', '18:30', '18:35', '18:40', '18:45', '18:50', '18:55',
+  '19:00', '19:05', '19:10', '19:15', '19:20', '19:25', '19:30', '19:35', '19:40', '19:45', '19:50', '19:55',
+  '20:00', '20:05', '20:10', '20:15', '20:20', '20:25', '20:30', '20:35', '20:40', '20:45', '20:50', '20:55',
+  '21:00', '21:05', '21:10', '21:15', '21:20', '21:25', '21:30', '21:35', '21:40', '21:45', '21:50', '21:55',
+  '22:00'
+];
+
+export const ALL_VALID_SLOTS = [...MANHA_SLOTS, ...NOITE_SLOTS];
+
+export function normalizeNotifyTime(timeStr?: string): string {
+  if (!timeStr) return '07:30';
+  if (ALL_VALID_SLOTS.includes(timeStr)) return timeStr;
+
+  const [hStr, mStr] = timeStr.split(':');
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  if (isNaN(h) || isNaN(m)) return '07:30';
+
+  const totalMin = h * 60 + m;
+  let closest = '07:30';
+  let minDiff = Infinity;
+
+  for (const slot of ALL_VALID_SLOTS) {
+    const [sh, sm] = slot.split(':').map(Number);
+    const sMin = sh * 60 + sm;
+    const diff = Math.abs(sMin - totalMin);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = slot;
+    }
+  }
+
+  return closest;
+}
+
+export function getPeriodForTime(timeStr: string): 'manha' | 'noite' {
+  const [h] = timeStr.split(':').map(Number);
+  if (h >= 18 && h <= 22) return 'noite';
+  return 'manha';
 }
 
 export default function AccountSettingsModal({
@@ -47,11 +96,16 @@ export default function AccountSettingsModal({
   const [notifyEnabled, setNotifyEnabled] = useState(() => {
     return currentUser.alertaEnabled ?? (localStorage.getItem(`sgr_notify_enabled_${currentUser.email}`) === 'true');
   });
-  const [notifyTiming, setNotifyTiming] = useState(() => {
-    return currentUser.alertaTiming ?? (localStorage.getItem(`sgr_notify_timing_${currentUser.email}`) as 'todos_dias' | 'seg_sex' | null) ?? 'todos_dias';
+  const [notifyTiming, setNotifyTiming] = useState<'todos_dias' | 'seg_sex'>(() => {
+    return 'seg_sex';
   });
   const [notifyTime, setNotifyTime] = useState(() => {
-    return currentUser.alertaTime ?? localStorage.getItem(`sgr_notify_time_${currentUser.email}`) ?? '22:30';
+    const rawTime = currentUser.alertaTime ?? localStorage.getItem(`sgr_notify_time_${currentUser.email}`) ?? '07:30';
+    return normalizeNotifyTime(rawTime);
+  });
+  const [selectedPeriod, setSelectedPeriod] = useState<'manha' | 'noite'>(() => {
+    const rawTime = currentUser.alertaTime ?? localStorage.getItem(`sgr_notify_time_${currentUser.email}`) ?? '07:30';
+    return getPeriodForTime(normalizeNotifyTime(rawTime));
   });
   const [notifyChannel, setNotifyChannel] = useState(() => {
     return currentUser.alertaChannel ?? localStorage.getItem(`sgr_notify_channel_${currentUser.email}`) ?? 'push';
@@ -71,13 +125,15 @@ export default function AccountSettingsModal({
   useEffect(() => {
     if (isOpen && currentUser) {
       const dbEnabled = currentUser.alertaEnabled ?? (localStorage.getItem(`sgr_notify_enabled_${currentUser.email}`) === 'true');
-      const dbTiming = currentUser.alertaTiming ?? (localStorage.getItem(`sgr_notify_timing_${currentUser.email}`) as 'todos_dias' | 'seg_sex' | null) ?? 'todos_dias';
-      const dbTime = currentUser.alertaTime ?? localStorage.getItem(`sgr_notify_time_${currentUser.email}`) ?? '22:30';
+      const dbTimeRaw = currentUser.alertaTime ?? localStorage.getItem(`sgr_notify_time_${currentUser.email}`) ?? '07:30';
+      const dbTimeNorm = normalizeNotifyTime(dbTimeRaw);
       const dbChannel = currentUser.alertaChannel ?? localStorage.getItem(`sgr_notify_channel_${currentUser.email}`) ?? 'push';
       const dbTipo = currentUser.alertaTipo ?? (localStorage.getItem(`sgr_notify_tipo_${currentUser.email}`) as 'reservada' | 'sem_reserva' | 'sempre' | null) ?? 'sempre';
+      
       setNotifyEnabled(dbEnabled);
-      setNotifyTiming(dbTiming);
-      setNotifyTime(dbTime);
+      setNotifyTiming('seg_sex');
+      setNotifyTime(dbTimeNorm);
+      setSelectedPeriod(getPeriodForTime(dbTimeNorm));
       setNotifyChannel(dbChannel);
       setNotifyTipo(dbTipo);
     }
@@ -235,9 +291,12 @@ export default function AccountSettingsModal({
   };
 
   const handleSaveNotifySettings = () => {
+    const finalTime = normalizeNotifyTime(notifyTime);
+    const finalTiming: 'seg_sex' = 'seg_sex';
+
     localStorage.setItem(`sgr_notify_enabled_${currentUser.email}`, String(notifyEnabled));
-    localStorage.setItem(`sgr_notify_timing_${currentUser.email}`, notifyTiming);
-    localStorage.setItem(`sgr_notify_time_${currentUser.email}`, notifyTime);
+    localStorage.setItem(`sgr_notify_timing_${currentUser.email}`, finalTiming);
+    localStorage.setItem(`sgr_notify_time_${currentUser.email}`, finalTime);
     localStorage.setItem(`sgr_notify_channel_${currentUser.email}`, notifyChannel);
     localStorage.setItem(`sgr_notify_tipo_${currentUser.email}`, notifyTipo);
 
@@ -247,20 +306,20 @@ export default function AccountSettingsModal({
     if (notifyEnabled) {
       // Schedule background & foreground native system alerts for iOS & Android
       scheduleNotification(
-        notifyTime,
+        finalTime,
         'SGR Fontana',
         `Lembrete SGR: configure seus agendamentos no app antes do horário limite!`,
         currentUser.email,
-        notifyTiming,
+        finalTiming,
         currentUser.idObraPadrao
       );
     }
 
     if (onUpdateNotifications) {
-      onUpdateNotifications(notifyEnabled, notifyTiming as 'todos_dias' | 'seg_sex', notifyTime, notifyTipo);
+      onUpdateNotifications(notifyEnabled, finalTiming, finalTime, notifyTipo);
     } else {
       appendAuditLog(
-        `Configuração de Lembrete de Refeição alterada: ${notifyEnabled ? 'Ativo' : 'Inativo'} (${notifyTiming === 'todos_dias' ? 'Todos os Dias' : 'De Segunda a Sexta-Feira'} às ${notifyTime}, tipo: ${notifyTipo})`,
+        `Configuração de Lembrete de Refeição alterada: ${notifyEnabled ? 'Ativo' : 'Inativo'} (De Segunda a Sexta-Feira às ${finalTime}, tipo: ${notifyTipo})`,
         currentUser.nome,
         currentUser.email
       );
@@ -479,67 +538,151 @@ export default function AccountSettingsModal({
               </div>
 
               {notifyEnabled && (
-                <div className="space-y-4 border-l-2 border-emerald-500 pl-4 py-1 animate-[fadeIn_0.25s_ease] space-y-3">
+                <div className="space-y-4 border-l-2 border-emerald-500 pl-4 py-1 animate-[fadeIn_0.25s_ease]">
                   
-                  {/* Timing Option Radio Buttons */}
+                  {/* Frequency Badge (Fixed to Business Days / Seg-Sex) */}
+                  <div className="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl">
+                    <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs mb-1">
+                      <Calendar className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Frequência: De Segunda a Sexta-Feira</span>
+                      <span className="ml-auto text-[10px] bg-emerald-200/80 text-emerald-900 font-bold px-2 py-0.5 rounded-full">
+                        Dias Úteis
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-800/90 leading-tight">
+                      Os alertas são sincronizados com o cron de alta performance do sistema, operando exclusivamente nos dias de expediente e fornecimento de refeições.
+                    </p>
+                  </div>
+
+                  {/* Window Selection (Manhã vs Noite) */}
                   <div>
-                    <label className="block text-[10px] uppercase font-bold text-neutral-600 mb-2">Quando deseja ser alertado?</label>
+                    <label className="block text-[10px] uppercase font-bold text-neutral-600 mb-2">Turno do Lembrete</label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={() => setNotifyTiming('todos_dias')}
-                        className={`p-2.5 border rounded-lg text-left transition ${
-                          notifyTiming === 'todos_dias'
-                            ? 'border-emerald-500 bg-emerald-50/50 text-emerald-800 font-bold'
+                        onClick={() => {
+                          setSelectedPeriod('manha');
+                          if (!MANHA_SLOTS.includes(notifyTime)) {
+                            setNotifyTime('07:30');
+                          }
+                        }}
+                        className={`p-3 border rounded-xl text-left transition flex flex-col gap-1 ${
+                          selectedPeriod === 'manha'
+                            ? 'border-emerald-500 bg-emerald-50/60 text-emerald-900 font-bold shadow-xs'
                             : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
                         }`}
                       >
-                        <span className="block text-xs font-semibold">Todos os Dias</span>
-                        <span className="block text-[9px] text-neutral-500 font-normal mt-0.5">Alerta enviado todos os dias, sem exceção</span>
+                        <div className="flex items-center gap-1.5">
+                          <Sun className={`w-4 h-4 ${selectedPeriod === 'manha' ? 'text-amber-500' : 'text-neutral-400'}`} />
+                          <span className="text-xs font-bold">Turno Matinal</span>
+                        </div>
+                        <span className="text-[10px] text-neutral-500 font-normal">
+                          06:00 às 08:55 (mesmo dia)
+                        </span>
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => setNotifyTiming('seg_sex')}
-                        className={`p-2.5 border rounded-lg text-left transition ${
-                          notifyTiming === 'seg_sex'
-                            ? 'border-emerald-500 bg-emerald-50/50 text-emerald-800 font-bold'
+                        onClick={() => {
+                          setSelectedPeriod('noite');
+                          if (!NOITE_SLOTS.includes(notifyTime)) {
+                            setNotifyTime('19:30');
+                          }
+                        }}
+                        className={`p-3 border rounded-xl text-left transition flex flex-col gap-1 ${
+                          selectedPeriod === 'noite'
+                            ? 'border-emerald-500 bg-emerald-50/60 text-emerald-900 font-bold shadow-xs'
                             : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
                         }`}
                       >
-                        <span className="block text-xs font-semibold">De Segunda a Sexta-Feira</span>
-                        <span className="block text-[9px] text-neutral-500 font-normal mt-0.5">Alerta enviado apenas em dias úteis (segunda a sexta)</span>
+                        <div className="flex items-center gap-1.5">
+                          <Moon className={`w-4 h-4 ${selectedPeriod === 'noite' ? 'text-indigo-500' : 'text-neutral-400'}`} />
+                          <span className="text-xs font-bold">Turno Noturno</span>
+                        </div>
+                        <span className="text-[10px] text-neutral-500 font-normal">
+                          18:00 às 22:00 (véspera)
+                        </span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Alarm Clock Hour Settings */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-neutral-600 mb-1">Horário de disparo do Alerta</label>
-                      <input
-                        type="time"
-                        value={notifyTime}
-                        onChange={(e) => setNotifyTime(e.target.value)}
-                        className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-xs bg-white text-neutral-800 font-mono font-bold text-center"
-                      />
+                  {/* Exact Time Selection (5-minute intervals) */}
+                  <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] uppercase font-bold text-neutral-700 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-neutral-500" />
+                        Horário de Disparo (Passo de 5 min)
+                      </label>
+                      <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded border border-emerald-200">
+                        {notifyTime}
+                      </span>
                     </div>
 
+                    {/* Quick Preset Buttons */}
                     <div>
-                      <label className="block text-[10px] uppercase font-bold text-neutral-600 mb-1">Formato de recebimento</label>
+                      <span className="block text-[10px] text-neutral-500 mb-1.5">Atalhos sugeridos:</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedPeriod === 'manha' ? (
+                          ['06:30', '07:00', '07:30', '08:00', '08:30'].map((slot) => (
+                            <button
+                              key={slot}
+                              type="button"
+                              onClick={() => setNotifyTime(slot)}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition ${
+                                notifyTime === slot
+                                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                                  : 'bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-100'
+                              }`}
+                            >
+                              {slot}
+                            </button>
+                          ))
+                        ) : (
+                          ['18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '22:00'].map((slot) => (
+                            <button
+                              key={slot}
+                              type="button"
+                              onClick={() => setNotifyTime(slot)}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition ${
+                                notifyTime === slot
+                                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                                  : 'bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-100'
+                              }`}
+                            >
+                              {slot}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Full 5-minute Slot Select Dropdown */}
+                    <div>
+                      <label className="block text-[10px] text-neutral-500 mb-1">
+                        Ou selecione o minuto exato ({selectedPeriod === 'manha' ? '06:00 a 08:55' : '18:00 a 22:00'}):
+                      </label>
                       <select
-                        value="push"
-                        disabled
-                        className="w-full px-2 py-2 border border-neutral-200 rounded-lg text-xs bg-neutral-50 text-neutral-500 font-medium cursor-not-allowed"
+                        value={notifyTime}
+                        onChange={(e) => setNotifyTime(e.target.value)}
+                        className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-xs bg-white text-neutral-800 font-mono font-bold"
                       >
-                        <option value="push">Notificação Push (FCM / PWA)</option>
+                        {(selectedPeriod === 'manha' ? MANHA_SLOTS : NOITE_SLOTS).map((slot) => (
+                          <option key={slot} value={slot}>
+                            {slot} {slot === '07:30' ? '(Padrão Matinal)' : slot === '19:30' ? '(Padrão Noturno)' : ''}
+                          </option>
+                        ))}
                       </select>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-[10px] text-neutral-500 pt-0.5">
+                      <Sparkles className="w-3 h-3 text-amber-500 shrink-0" />
+                      <span>Cron otimizado a cada 5 minutos para máxima economia de leitura no banco de dados.</span>
                     </div>
                   </div>
 
                   {/* Server Push status indicator */}
                   <div className="flex items-center justify-between p-2.5 bg-neutral-100 rounded-lg border border-neutral-200">
-                    <span className="font-bold text-neutral-700">Status Push neste Celular:</span>
+                    <span className="font-bold text-neutral-700 text-xs">Status Push neste Celular:</span>
                     {pushStatus === 'checking' && (
                       <span className="px-2 py-0.5 text-[9px] font-mono text-neutral-500 bg-neutral-200 animate-pulse rounded font-bold uppercase">
                         🔍 Verificando...
