@@ -210,12 +210,34 @@ export async function scheduleNotification(
       console.warn('[Scheduler] Não há um service worker controlador pronto.');
     }
 
-    // Automagically register background Push Subscription to guarantee sleep-proof notifications
+    // Automagically register background Push Subscription & FCM Token to guarantee sleep-proof notifications
     if (email) {
       const emailLower = email.toLowerCase().trim();
       subscribeUserToPush(emailLower).catch(err => console.warn('[Scheduler] Auto-push enrollment failed:', err));
-      
 
+      // Retrieve & persist Firebase Cloud Messaging (FCM) Token directly
+      getFCMToken().then(async (fcmToken) => {
+        if (fcmToken) {
+          console.log('[Scheduler] FCM Token obtido com sucesso:', fcmToken);
+          try {
+            // 1. Sync token to the user document in 'usuarios'
+            const userDocRef = doc(db, 'usuarios', emailLower);
+            await setDoc(userDocRef, { fcmToken, updatedAt: serverTimestamp() }, { merge: true });
+
+            // 2. Also attach token to notificationQueue doc for instant server cron dispatch
+            const queueDocId = `daily_${emailLower.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            const queueDocRef = doc(db, 'notificationQueue', queueDocId);
+            await setDoc(queueDocRef, { fcmToken, updatedAt: new Date().toISOString() }, { merge: true });
+            console.log('[Scheduler] FCM Token sincronizado nas coleções usuarios e notificationQueue');
+          } catch (tokenSaveErr) {
+            console.warn('[Scheduler] Erro ao sincronizar FCM token no Firestore:', tokenSaveErr);
+          }
+        } else {
+          console.warn('[Scheduler] FCM Token não retornado (navegador ou permissão ausente).');
+        }
+      }).catch(fcmErr => {
+        console.warn('[Scheduler] Falha na obtenção do FCM Token:', fcmErr);
+      });
     }
 
   } catch (error) {
@@ -269,7 +291,7 @@ function runLocalFallback(time: string, title: string, body: string) {
  * Registers the FCM token for the current user in Firestore.
  * This enables server-side notifications via Firebase Cloud Messaging.
  */
-export async function registerFCMToken(userId: string, email?: string): Promise<void> {
+export async function registerFCMToken(userId: string): Promise<void> {
   try {
     if (typeof Notification === 'undefined') {
       console.warn('[FCM] Notification API is not supported in this browser.');
@@ -287,21 +309,8 @@ export async function registerFCMToken(userId: string, email?: string): Promise<
     }
     await setDoc(doc(db, 'usuarios', userId), {
       fcmToken: token,
-      precisaAtivarNotificacao: false,
-      notificacaoPendenteMotivo: null,
     }, { merge: true });
-    if (email) {
-      const emailLower = email.trim().toLowerCase();
-      const docId = emailLower.replace(/[^a-zA-Z0-9]/g, '_');
-      await setDoc(doc(db, 'fcmTokens', docId), {
-        token,
-        userId: emailLower,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
-      console.log('[FCM] Token registered successfully in fcmTokens collection for:', emailLower);
-    } else {
-      console.warn('[FCM] No email provided; token was NOT written to fcmTokens collection (push notifications will not work).');
-    }
+    console.log('[FCM] Token registered successfully in usuarios collection for user:', userId);
   } catch (err) {
     console.error('[FCM] Failed to register token:', err);
   }
