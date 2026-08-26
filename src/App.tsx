@@ -712,6 +712,8 @@ export default function App() {
       delete (cleanUser as any).alertasTime;
       delete (cleanUser as any).alertasTipo;
       delete (cleanUser as any).alertaChannel;
+      (cleanUser as any).notificacaoPendenteMotivo = null;
+      (cleanUser as any).precisaAtivarNotificacao = false;
 
       // Optimistically update local states
       setUsuarios(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
