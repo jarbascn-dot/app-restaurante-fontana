@@ -26,7 +26,7 @@ import {
   INITIAL_LOGS 
 } from './data/mockData';
 
-import { db } from './firebase';
+import { db, setupTokenRefreshListener } from './firebase';
 import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { 
   saveToFirestore, 
@@ -517,6 +517,7 @@ export default function App() {
   // Synchronise and reschedule system alarms whenever session updates
   useEffect(() => {
     if (isLogged && currentUser && currentUser.email) {
+      setupTokenRefreshListener(currentUser.email).catch(err => console.warn('[App Setup] FCM setup listener failed:', err));
       const enabled = currentUser.alertaEnabled ?? (localStorage.getItem(`sgr_notify_enabled_${currentUser.email}`) === 'true');
       if (enabled) {
         const timeStr = currentUser.alertaTime ?? localStorage.getItem(`sgr_notify_time_${currentUser.email}`) ?? '19:00';
@@ -729,6 +730,8 @@ export default function App() {
           if (docSnap.exists()) {
             await updateDoc(docRef, {
               scheduledTime: time,
+              notificacaoPendenteMotivo: null,
+              precisaAtivarNotificacao: false,
               updatedAt: new Date().toISOString()
             });
             console.log('[App] Updated existing notificationQueue doc with new scheduledTime:', time);
@@ -741,6 +744,8 @@ export default function App() {
               link: '/',
               daily: true,
               scheduledTime: time,
+              notificacaoPendenteMotivo: null,
+              precisaAtivarNotificacao: false,
               sent: true,
               updatedAt: new Date().toISOString()
             };

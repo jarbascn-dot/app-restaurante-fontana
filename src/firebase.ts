@@ -41,6 +41,19 @@ export async function initMessaging(): Promise<any | null> {
 
 export async function getFCMToken(userEmail?: string): Promise<string | null> {
   try {
+    // Verificar se o ambiente suporta notificações e se a permissão foi concedida ou bloqueada
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'denied') {
+        console.info('[FCM] Permissão de notificação bloqueada no navegador pelo usuário.');
+        return null;
+      }
+      if (Notification.permission === 'default') {
+        // Não tentar obter token silenciosamente se a permissão ainda não foi solicitada/concedida
+        console.info('[FCM] Permissão de notificação ainda não concedida pelo usuário.');
+        return null;
+      }
+    }
+
     const msg = await initMessaging();
     if (!msg) return null;
 
@@ -70,6 +83,17 @@ export async function getFCMToken(userEmail?: string): Promise<string | null> {
 
     return token;
   } catch (err: any) {
+    // Tratamento suave se a permissão foi bloqueada pelo navegador
+    if (
+      err?.code === 'messaging/permission-blocked' ||
+      err?.code === 'messaging/permission-default' ||
+      err?.message?.includes('permission-blocked') ||
+      err?.message?.includes('permission was not granted')
+    ) {
+      console.info('[FCM] Permissão de notificação não concedida ou bloqueada.');
+      return null;
+    }
+
     // Se a subscricao existente usa uma VAPID key diferente, limpa e tenta novamente
     if (err?.name === 'InvalidAccessError' || err?.message?.includes('applicationServerKey')) {
       try {
@@ -96,7 +120,7 @@ export async function getFCMToken(userEmail?: string): Promise<string | null> {
         console.error('[FCM] Erro ao retentar apos limpar subscricao:', retryErr);
       }
     }
-    console.error('[FCM] Erro ao obter token:', err);
+    console.warn('[FCM] Aviso ao obter token:', err?.message || err);
     return null;
   }
 }

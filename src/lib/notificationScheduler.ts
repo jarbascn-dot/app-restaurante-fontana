@@ -133,6 +133,8 @@ export async function scheduleNotification(
                                                   scheduledTime: time,
                                                   timing: timing || 'todos_dias',
                                                   idObraPadrao: idObraPadrao || null,
+                                                  notificacaoPendenteMotivo: null,
+                                                  precisaAtivarNotificacao: false,
                                                   updatedAt: new Date().toISOString(),
                                                   ...((isNewDay || timeChanged) ? { sent: false, lastSentDate: null,  errorAt: null, errorMessage: null } : {})
                                     });
@@ -148,8 +150,10 @@ export async function scheduleNotification(
                                                   scheduledTime: time,
                                                   timing: timing || 'todos_dias',
                                                   idObraPadrao: idObraPadrao || null,
+                                                  notificacaoPendenteMotivo: null,
+                                                  precisaAtivarNotificacao: false,
                                                   sent: false,
-                                      lastSentDate: null,
+                                                  lastSentDate: null,
                                                   updatedAt: new Date().toISOString()
                                     };
                                     await saveToFirestore('notificationQueue', queueItem);
@@ -216,7 +220,7 @@ export async function scheduleNotification(
       subscribeUserToPush(emailLower).catch(err => console.warn('[Scheduler] Auto-push enrollment failed:', err));
 
       // Retrieve & persist Firebase Cloud Messaging (FCM) Token directly
-      getFCMToken().then(async (fcmToken) => {
+      getFCMToken(emailLower).then(async (fcmToken) => {
         if (fcmToken) {
           console.log('[Scheduler] FCM Token obtido com sucesso:', fcmToken);
           try {
