@@ -1,7 +1,7 @@
 /**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
+* @license
+* SPDX-License-Identifier: Apache-2.0
+*/
 
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
@@ -69,7 +69,33 @@ export async function getFCMToken(userEmail?: string): Promise<string | null> {
     }
 
     return token;
-  } catch (err) {
+  } catch (err: any) {
+    // Se a subscricao existente usa uma VAPID key diferente, limpa e tenta novamente
+    if (err?.name === 'InvalidAccessError' || err?.message?.includes('applicationServerKey')) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await sub.unsubscribe();
+          console.log('[FCM] Subscricao antiga removida, tentando novamente...');
+        }
+        const msg2 = await initMessaging();
+        if (!msg2) return null;
+        const token = await getToken(msg2, { vapidKey: VAPID_KEY });
+        if (!token) return null;
+        if (userEmail) {
+          await setDoc(
+            doc(db, 'usuarios', userEmail),
+            { fcmToken: token, fcmTokenUpdatedAt: new Date().toISOString() },
+            { merge: true }
+          );
+          console.log('[FCM] Token salvo no Firestore para:', userEmail);
+        }
+        return token;
+      } catch (retryErr) {
+        console.error('[FCM] Erro ao retentar apos limpar subscricao:', retryErr);
+      }
+    }
     console.error('[FCM] Erro ao obter token:', err);
     return null;
   }
