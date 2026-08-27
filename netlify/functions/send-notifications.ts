@@ -1,9 +1,8 @@
-end notifications · TS
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
-import firebaseConfig from '../firebase-applet-config.json' with { type: "json" };
+import firebaseConfig from '../../firebase-applet-config.json' with { type: "json" };
  
 // Lazy-initialized Firebase Admin variables
 let adminApp: App | null = null;
