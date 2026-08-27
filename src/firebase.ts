@@ -6,7 +6,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer, setDoc } from 'firebase/firestore';
-import { getMessaging, getToken, isSupported, onMessage } from 'firebase/messaging';
+import { getMessaging, getToken, deleteToken, isSupported, onMessage } from 'firebase/messaging';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
@@ -58,7 +58,7 @@ async function saveTokenToFirestore(token: string, userEmail: string): Promise<v
   console.log('[FCM] Token salvo em usuarios e fcmTokens para:', userEmail);
 }
 
-export async function getFCMToken(userEmail?: string): Promise<string | null> {
+export async function getFCMToken(userEmail?: string, forceRefresh?: boolean): Promise<string | null> {
   try {
     // Verificar se o ambiente suporta notificações e se a permissão foi concedida ou bloqueada
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -72,8 +72,25 @@ export async function getFCMToken(userEmail?: string): Promise<string | null> {
       }
     }
 
-    const msg = await initMessaging();
+      const msg = await initMessaging();
     if (!msg) return null;
+
+    // Se forçando renovação, apaga token antigo para garantir token 100% novo
+    if (forceRefresh) {
+      try {
+        await deleteToken(msg);
+        console.log('[FCM] Token antigo deletado para forçar renovação.');
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await sub.unsubscribe();
+          console.log('[FCM] Subscription antiga removida para renovação forçada.');
+        }
+      } catch (delErr) {
+        console.warn('[FCM] Aviso ao limpar token antigo:', delErr);
+      }
+    }
+
     if (!VAPID_KEY) {
       console.warn('[FCM] VITE_FIREBASE_VAPID_KEY nao configurado.');
       return null;
