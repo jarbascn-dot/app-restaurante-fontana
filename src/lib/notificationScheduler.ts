@@ -306,7 +306,7 @@ export async function registerFCMToken(userId: string): Promise<void> {
       console.warn('[FCM] Notification permission denied.');
       return;
     }
-    const token = await getFCMToken();
+    const token = await getFCMToken(userId);
     if (!token) {
       console.warn('[FCM] Could not obtain FCM token.');
       return;

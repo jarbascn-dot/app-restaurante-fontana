@@ -48,7 +48,7 @@ async function saveTokenToFirestore(token: string, userEmail: string): Promise<v
   );
 
   // Salva em fcmTokens/{sanitized_email} para o send-notifications.ts
-  const fcmDocId = userEmail.replace(/[^a-zA-Z0-9]/g, '_');
+  const fcmDocId = userEmail.toLowerCase().trim().replace(/[^a-zA-Z0-9]/g, '_');
   await setDoc(
     doc(db, 'fcmTokens', fcmDocId),
     { token, userId: userEmail, updatedAt: new Date().toISOString() },

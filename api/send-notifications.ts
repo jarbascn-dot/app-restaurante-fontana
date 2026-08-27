@@ -125,14 +125,30 @@ try {
     const [feriadosSnapshot] = await Promise.all([
         db.collection('feriados').where('data', '==', todaySaoPaulo).get(),
         Promise.all(pendingUserIds.map(async (userId: string) => {
-            const tokenDoc = await db.collection('fcmTokens').doc(toFcmDocId(userId)).get();
-            if (tokenDoc.exists) {
-                const data = tokenDoc.data();
-                if (data?.token) {
-                    userTokens[userId] = data.token;
-                }
-            }
-        })),
+  const tokenDoc = await db.collection('fcmTokens').doc(toFcmDocId(userId)).get();
+  if (tokenDoc.exists) {
+    const data = tokenDoc.data();
+    if (data?.token) {
+      userTokens[userId] = data.token;
+      return;
+    }
+  }
+  // Fallback: busca em usuarios se fcmTokens não tiver o token
+  const userDoc = await db.collection('usuarios').doc(toFcmDocId(userId)).get();
+  if (userDoc.exists) {
+    const userData = userDoc.data();
+    if (userData?.fcmToken) {
+      userTokens[userId] = userData.fcmToken;
+      // Migração automática: salva em fcmTokens para futuras consultas
+      await db.collection('fcmTokens').doc(toFcmDocId(userId)).set({
+        token: userData.fcmToken,
+        userId: userId,
+        updatedAt: new Date().toISOString(),
+        migratedFrom: 'usuarios',
+      }, { merge: true });
+    }
+  }
+})),
         ]);
 
     const feriados: any[] = [];
