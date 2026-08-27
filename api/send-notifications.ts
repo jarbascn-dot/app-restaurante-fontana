@@ -124,7 +124,8 @@ try {
     const userTokens: Record<string, string> = {};
     const [feriadosSnapshot] = await Promise.all([
         db.collection('feriados').where('data', '==', todaySaoPaulo).get(),
-        Promise.all(pendingUserIds.map(async (userId: string) => {
+    Promise.all(pendingUserIds.map(async (userId: string) => {
+  // 1. Busca direta em fcmTokens (caminho principal)
   const tokenDoc = await db.collection('fcmTokens').doc(toFcmDocId(userId)).get();
   if (tokenDoc.exists) {
     const data = tokenDoc.data();
@@ -133,18 +134,21 @@ try {
       return;
     }
   }
-  // Fallback: busca em usuarios se fcmTokens não tiver o token
-  const userDoc = await db.collection('usuarios').doc(toFcmDocId(userId)).get();
-  if (userDoc.exists) {
-    const userData = userDoc.data();
+  // 2. Fallback: busca em usuarios pelo CAMPO email (não pelo ID do documento)
+  const usuariosQuery = await db.collection('usuarios')
+    .where('email', '==', userId)
+    .limit(1)
+    .get();
+  if (!usuariosQuery.empty) {
+    const userData = usuariosQuery.docs[0].data();
     if (userData?.fcmToken) {
       userTokens[userId] = userData.fcmToken;
-      // Migração automática: salva em fcmTokens para futuras consultas
+      // Migração automática para fcmTokens (próximas execuções usarão o caminho principal)
       await db.collection('fcmTokens').doc(toFcmDocId(userId)).set({
         token: userData.fcmToken,
         userId: userId,
         updatedAt: new Date().toISOString(),
-        migratedFrom: 'usuarios',
+        migratedFrom: 'usuarios_query',
       }, { merge: true });
     }
   }
