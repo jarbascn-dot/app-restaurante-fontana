@@ -318,4 +318,58 @@ export async function registerFCMToken(userId: string): Promise<void> {
   } catch (err) {
     console.error('[FCM] Failed to register token:', err);
   }
+  /**
+ * Verifica automaticamente se o token FCM está inválido (flag precisaAtivarNotificacao)
+ * e renova o token forçando exclusão do token antigo antes de obter um novo.
+ * Deve ser chamada no login do usuário.
+ */
+export async function autoRecoverFCMToken(userEmail: string): Promise<void> {
+  try {
+    if (!userEmail) return;
+    const emailLower = userEmail.toLowerCase().trim();
+
+    const { collection, query, where, getDocs, updateDoc, limit } = await import('firebase/firestore');
+
+    const snap = await getDocs(
+      query(collection(db, 'usuarios'), where('email', '==', emailLower), limit(1))
+    );
+    if (snap.empty) return;
+
+    const userDoc = snap.docs[0];
+    const userData = userDoc.data();
+
+    if (userData?.precisaAtivarNotificacao !== true) return;
+
+    console.log('[FCM AutoRecover] Token inválido detectado. Renovando automaticamente...');
+
+    // Força token completamente novo (deleteToken + getToken)
+    const newToken = await getFCMToken(emailLower, true);
+    if (!newToken) {
+      console.warn('[FCM AutoRecover] Não foi possível obter novo token FCM. Verifique permissões.');
+      return;
+    }
+
+    // Limpa flags de erro no documento do usuário
+    await updateDoc(userDoc.ref, {
+      precisaAtivarNotificacao: false,
+      notificacaoPendenteMotivo: null,
+      notificacaoPendenteDesde: null,
+      fcmToken: newToken,
+      fcmTokenUpdatedAt: new Date().toISOString(),
+    });
+
+    // Salva novo token em fcmTokens com chave correta (email sanitizado)
+    const fcmDocId = emailLower.replace(/[^a-zA-Z0-9]/g, '_');
+    await setDoc(doc(db, 'fcmTokens', fcmDocId), {
+      token: newToken,
+      userId: emailLower,
+      updatedAt: new Date().toISOString(),
+      autoRecoveredAt: new Date().toISOString(),
+    }, { merge: true });
+
+    console.log('[FCM AutoRecover] Token renovado com sucesso! Notificações reativadas automaticamente.');
+  } catch (err) {
+    console.warn('[FCM AutoRecover] Erro na auto-recuperação do token:', err);
+  }
+}
 }
