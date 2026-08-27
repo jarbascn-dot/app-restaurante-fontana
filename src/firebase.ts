@@ -1,7 +1,7 @@
 /**
-* @license
-* SPDX-License-Identifier: Apache-2.0
-*/
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
@@ -39,6 +39,25 @@ export async function initMessaging(): Promise<any | null> {
   }
 }
 
+async function saveTokenToFirestore(token: string, userEmail: string): Promise<void> {
+  // Salva em usuarios/{email}
+  await setDoc(
+    doc(db, 'usuarios', userEmail),
+    { fcmToken: token, fcmTokenUpdatedAt: new Date().toISOString() },
+    { merge: true }
+  );
+
+  // Salva em fcmTokens/{sanitized_email} para o send-notifications.ts
+  const fcmDocId = userEmail.replace(/[^a-zA-Z0-9]/g, '_');
+  await setDoc(
+    doc(db, 'fcmTokens', fcmDocId),
+    { token, userId: userEmail, updatedAt: new Date().toISOString() },
+    { merge: true }
+  );
+
+  console.log('[FCM] Token salvo em usuarios e fcmTokens para:', userEmail);
+}
+
 export async function getFCMToken(userEmail?: string): Promise<string | null> {
   try {
     // Verificar se o ambiente suporta notificações e se a permissão foi concedida ou bloqueada
@@ -48,39 +67,27 @@ export async function getFCMToken(userEmail?: string): Promise<string | null> {
         return null;
       }
       if (Notification.permission === 'default') {
-        // Não tentar obter token silenciosamente se a permissão ainda não foi solicitada/concedida
-        console.info('[FCM] Permissão de notificação ainda não concedida pelo usuário.');
+        console.info('[FCM] Permissão de notificação ainda não solicitada/concedida pelo usuário.');
         return null;
       }
     }
 
     const msg = await initMessaging();
     if (!msg) return null;
-
     if (!VAPID_KEY) {
       console.warn('[FCM] VITE_FIREBASE_VAPID_KEY nao configurado.');
       return null;
     }
 
     const token = await getToken(msg, { vapidKey: VAPID_KEY });
-
     if (!token) {
       console.warn('[FCM] Token FCM nao obtido - verifique permissoes e o firebase-messaging-sw.js.');
       return null;
     }
 
     if (userEmail) {
-      await setDoc(
-        doc(db, 'usuarios', userEmail),
-        {
-          fcmToken: token,
-          fcmTokenUpdatedAt: new Date().toISOString(),
-        },
-        { merge: true }
-      );
-      console.log('[FCM] Token salvo no Firestore para:', userEmail);
+      await saveTokenToFirestore(token, userEmail);
     }
-
     return token;
   } catch (err: any) {
     // Tratamento suave se a permissão foi bloqueada pelo navegador
@@ -108,12 +115,7 @@ export async function getFCMToken(userEmail?: string): Promise<string | null> {
         const token = await getToken(msg2, { vapidKey: VAPID_KEY });
         if (!token) return null;
         if (userEmail) {
-          await setDoc(
-            doc(db, 'usuarios', userEmail),
-            { fcmToken: token, fcmTokenUpdatedAt: new Date().toISOString() },
-            { merge: true }
-          );
-          console.log('[FCM] Token salvo no Firestore para:', userEmail);
+          await saveTokenToFirestore(token, userEmail);
         }
         return token;
       } catch (retryErr) {
@@ -128,9 +130,7 @@ export async function getFCMToken(userEmail?: string): Promise<string | null> {
 export async function setupTokenRefreshListener(userEmail: string): Promise<void> {
   const msg = await initMessaging();
   if (!msg) return;
-
   await getFCMToken(userEmail);
-
   onMessage(msg, (payload) => {
     console.log('[FCM] Mensagem recebida em foreground:', payload);
   });
