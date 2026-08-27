@@ -35,7 +35,7 @@ import {
   seedRequiredCollections,
   deleteFromFirestore
 } from './lib/firebaseSync';
-import { scheduleNotification, registerFCMToken } from './lib/notificationScheduler';
+import { scheduleNotification, registerFCMToken, autoRecoverFCMToken } from './lib/notificationScheduler';
 import { hashPassword, isHash } from './lib/passwordUtils';
 
 // Components
@@ -1389,12 +1389,18 @@ export default function App() {
         <LoginScreen
           usuarios={usuarios}
           settings={settings}
-          onLoginSuccess={(user) => {
-            localStorage.setItem('sgr_is_logged', 'true');
-            localStorage.setItem('sgr_logged_user_id', user.id);
-            setCurrentUser(user);
-          registerFCMToken(user.id);
-            setIsLogged(true);
+onLoginSuccess={(user) => {
+  localStorage.setItem('sgr_is_logged', 'true');
+  localStorage.setItem('sgr_logged_user_id', user.id);
+  setCurrentUser(user);
+  registerFCMToken(user.id);
+  // Auto-recuperação: renova token FCM se estiver inválido (sem ação manual)
+  if (user.email) {
+    autoRecoverFCMToken(user.email).catch(err =>
+      console.warn('[FCM] Erro na auto-recuperação no login:', err)
+    );
+  }
+  setIsLogged(true);
             triggerFlashNotification(`Bem-vindo, ${user.nome}! Identificação efetuada com sucesso.`);
           }}
           onOpenRegister={() => setIsRegisterOpen(true)}
