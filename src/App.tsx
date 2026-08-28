@@ -712,8 +712,22 @@ export default function App() {
       delete (cleanUser as any).alertasTime;
       delete (cleanUser as any).alertasTipo;
       delete (cleanUser as any).alertaChannel;
-      (cleanUser as any).notificacaoPendenteMotivo = null;
-      (cleanUser as any).precisaAtivarNotificacao = false;
+      // CORREÇÃO: Não definir campos fora do schema do isValidUsuario como null
+      // (cron pode ter gravado fcmToken: null → null is string = false → permissão negada)
+      // Em vez disso, removemos campos com valor null/undefined para não quebrar o validador
+      delete (cleanUser as any).notificacaoPendenteMotivo;
+      delete (cleanUser as any).precisaAtivarNotificacao;
+      delete (cleanUser as any).notificacaoPendenteDesde;
+      delete (cleanUser as any).fcmTokenAtualizadoEm;
+      // Remove quaisquer campos opcionais com valor null (null is string = false no Firestore rules)
+      const fieldsOptionals = ['email','cpf','senha','idObrasFornecedor','fotoBiometria','alertaEnabled',
+        'alertaTiming','alertaTime','aceitouLGPD','dataAceiteLGPD','ipAceiteLGPD',
+        'requerTrocaSenha','fcmToken','alertaTipo'];
+      fieldsOptionals.forEach(field => {
+        if ((cleanUser as any)[field] === null || (cleanUser as any)[field] === undefined) {
+          delete (cleanUser as any)[field];
+        }
+      });
 
       // Optimistically update local states
       setUsuarios(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
@@ -1393,7 +1407,9 @@ onLoginSuccess={(user) => {
   localStorage.setItem('sgr_is_logged', 'true');
   localStorage.setItem('sgr_logged_user_id', user.id);
   setCurrentUser(user);
-  registerFCMToken(user.id);
+  if (user.email) {
+  registerFCMToken(user.email);
+  }
   // Auto-recuperação: renova token FCM se estiver inválido (sem ação manual)
   if (user.email) {
     autoRecoverFCMToken(user.email).catch(err =>
