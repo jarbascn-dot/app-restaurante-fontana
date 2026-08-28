@@ -14,7 +14,7 @@ import { GoogleGenAI } from '@google/genai';
 dotenv.config();
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, getDoc, query, where, setDoc, updateDoc } from 'firebase/firestore';
 
 // Initialize Firebase for server background alarms
 const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf-8'));
@@ -254,6 +254,59 @@ async function startServer() {
   // Health check endpoint
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
+  });
+
+  // API Route - Update FCM Token for a user
+  app.post('/api/update-fcm-token', async (req, res) => {
+    const { email, token } = req.body || {};
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Campo "email" é obrigatório.' });
+    }
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ error: 'Campo "token" é obrigatório.' });
+    }
+
+    const emailLower = email.trim().toLowerCase();
+    const toFcmDocId = (uid: string) => String(uid).trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+
+    try {
+      // 1. Busca o usuário por email na coleção usuarios
+      const uRef = collection(firestoreDb, 'usuarios');
+      const q = query(uRef, where('email', '==', emailLower));
+      const snap = await getDocs(q);
+
+      if (!snap.empty) {
+        const userDocSnap = snap.docs[0];
+        await updateDoc(doc(firestoreDb, 'usuarios', userDocSnap.id), {
+          fcmToken: token,
+          precisaAtivarNotificacao: false,
+          notificacaoPendenteMotivo: null,
+        });
+      }
+
+      // 2. Salva em fcmTokens para o cron encontrar
+      await setDoc(doc(firestoreDb, 'fcmTokens', toFcmDocId(emailLower)), {
+        token,
+        userId: emailLower,
+        updatedAt: new Date().toISOString(),
+        source: 'server_api',
+      }, { merge: true });
+
+      // 3. Atualiza notificationQueue se existir
+      const queueDocId = `daily_${toFcmDocId(emailLower)}`;
+      await setDoc(doc(firestoreDb, 'notificationQueue', queueDocId), {
+        fcmToken: token,
+        notificacaoPendenteMotivo: null,
+        precisaAtivarNotificacao: false,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+
+      console.log(`[Server] FCM Token atualizado com sucesso para: ${emailLower}`);
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error('[Server] Erro ao atualizar FCM token:', err);
+      res.status(500).json({ error: 'Erro ao atualizar token', message: err.message });
+    }
   });
 
   // Lazy initialize GoogleGenAI client for safety
