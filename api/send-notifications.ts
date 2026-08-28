@@ -288,7 +288,7 @@ batch.set(db.collection('usuarios').doc(userInvalido.id), {
 precisaAtivarNotificacao: true,
 notificacaoPendenteMotivo: 'token_invalido',
 notificacaoPendenteDesde: FieldValue.serverTimestamp(),
-fcmToken: null,
+fcmToken: FieldValue.delete(), // CORREÇÃO: remove campo em vez de setar null (null quebra isValidUsuario no cliente)
 }, { merge: true });
 }
 }
