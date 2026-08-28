@@ -219,22 +219,33 @@ if (email) {
 const emailLower = email.toLowerCase().trim();
 subscribeUserToPush(emailLower).catch(err => console.warn('[Scheduler] Auto-push enrollment failed:', err));
  
-// Retrieve & persist Firebase Cloud Messaging (FCM) Token directly
+// Retrieve & persist Firebase Cloud Messaging (FCM) Token via Admin SDK endpoint
+// CORREÇÃO: escrita direta em usuarios/{email} falha (ID inválido pelo isValidId)
+// e escrita em usuarios/{docId} também falha pelas security rules.
+// Usar /api/update-fcm-token que roda com Admin SDK no servidor (bypassa as rules).
 getFCMToken(emailLower).then(async (fcmToken) => {
 if (fcmToken) {
 console.log('[Scheduler] FCM Token obtido com sucesso:', fcmToken);
 try {
-// 1. Sync token to the user document in 'usuarios'
-const userDocRef = doc(db, 'usuarios', emailLower);
-await setDoc(userDocRef, { fcmToken, updatedAt: serverTimestamp() }, { merge: true });
+// 1. Salva token via Admin SDK endpoint (bypassa Firestore security rules)
+const tokenResponse = await fetch('/api/update-fcm-token', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ email: emailLower, token: fcmToken }),
+});
+if (tokenResponse.ok) {
+console.log('[Scheduler] FCM Token salvo via API para:', emailLower);
+} else {
+console.warn('[Scheduler] API update-fcm-token retornou erro:', await tokenResponse.text().catch(() => ''));
+}
  
 // 2. Also attach token to notificationQueue doc for instant server cron dispatch
 const queueDocId = `daily_${emailLower.replace(/[^a-zA-Z0-9]/g, '_')}`;
 const queueDocRef = doc(db, 'notificationQueue', queueDocId);
 await setDoc(queueDocRef, { fcmToken, updatedAt: new Date().toISOString() }, { merge: true });
-console.log('[Scheduler] FCM Token sincronizado nas coleções usuarios e notificationQueue');
+console.log('[Scheduler] FCM Token sincronizado em notificationQueue');
 } catch (tokenSaveErr) {
-console.warn('[Scheduler] Erro ao sincronizar FCM token no Firestore:', tokenSaveErr);
+console.warn('[Scheduler] Erro ao sincronizar FCM token:', tokenSaveErr);
 }
 } else {
 console.warn('[Scheduler] FCM Token não retornado (navegador ou permissão ausente).');
@@ -292,8 +303,13 @@ runLocalFallback(time, title, body);
 /**
 * Registers the FCM token for the current user in Firestore.
 * This enables server-side notifications via Firebase Cloud Messaging.
+*
+* CORREÇÃO: recebe userEmail (não userId interno como u-jarbas) e usa
+* /api/update-fcm-token (Admin SDK) para salvar, evitando bloqueio das
+* regras de segurança do Firestore ao tentar escrever em usuarios/u-jarbas.
+* Em App.tsx, passe user.email em vez de user.id ao chamar esta função.
 */
-export async function registerFCMToken(userId: string): Promise<void> {
+export async function registerFCMToken(userEmail: string): Promise<void> {
 try {
 if (typeof Notification === 'undefined') {
 console.warn('[FCM] Notification API is not supported in this browser.');
@@ -304,15 +320,23 @@ if (permission !== 'granted') {
 console.warn('[FCM] Notification permission denied.');
 return;
 }
-const token = await getFCMToken(userId);
+const token = await getFCMToken(userEmail);
 if (!token) {
 console.warn('[FCM] Could not obtain FCM token.');
 return;
 }
-await setDoc(doc(db, 'usuarios', userId), {
-fcmToken: token,
-}, { merge: true });
-console.log('[FCM] Token registered successfully in usuarios collection for user:', userId);
+// CORREÇÃO: Escrita direta em usuarios/{id} é bloqueada pelas regras do Firestore.
+// O endpoint usa Admin SDK no servidor, que ignora as regras de segurança.
+const response = await fetch('/api/update-fcm-token', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ email: userEmail, token }),
+});
+if (response.ok) {
+console.log('[FCM] Token registered successfully for user:', userEmail);
+} else {
+console.warn('[FCM] API returned error when saving token:', await response.text());
+}
 } catch (err) {
 console.error('[FCM] Failed to register token:', err);
 }
