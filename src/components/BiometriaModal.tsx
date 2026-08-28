@@ -154,6 +154,14 @@ export default function BiometriaModal({
           if (credential && credential.rawId) {
             const base64Id = bufferToBase64(credential.rawId);
             localStorage.setItem(`sgr_credential_id_${targetEmail}`, base64Id);
+                      localStorage.setItem(`sgr_biometria_cadastrada_${targetEmail}`, 'true');
+          const existingEmails: string[] = JSON.parse(
+            localStorage.getItem('sgr_biometria_cadastrada_emails') || '[]'
+          );
+          if (!existingEmails.includes(targetEmail)) {
+            existingEmails.push(targetEmail);
+            localStorage.setItem('sgr_biometria_cadastrada_emails', JSON.stringify(existingEmails));
+          }
           }
           
           setStatus('success');
