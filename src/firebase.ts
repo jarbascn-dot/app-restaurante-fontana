@@ -46,8 +46,43 @@ export async function getFCMToken(): Promise<string | null> {
       return null;
     }
 
-    const token = await getToken(messaging, { vapidKey });
-    return token;
+    // Registra firebase-messaging-sw.js explicitamente para evitar conflito com sw.js
+    // (quando sw.js controla escopo '/', o SDK nÃ£o consegue registrar automaticamente)
+    let swRegistration: ServiceWorkerRegistration | undefined;
+    if ('serviceWorker' in navigator) {
+      try {
+        // Verificar se jÃ¡ estÃ¡ registrado pelo scriptURL
+        const allRegs = await navigator.serviceWorker.getRegistrations();
+        swRegistration = allRegs.find(r =>
+          r.active?.scriptURL?.includes('firebase-messaging-sw.js') ||
+          r.installing?.scriptURL?.includes('firebase-messaging-sw.js') ||
+          r.waiting?.scriptURL?.includes('firebase-messaging-sw.js')
+        );
+
+        if (!swRegistration) {
+          // Registrar explicitamente para garantir que o FCM o encontre
+          swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+          await navigator.serviceWorker.ready;
+          console.log('[FCM] firebase-messaging-sw.js registrado com sucesso');
+        } else {
+          console.log('[FCM] firebase-messaging-sw.js jÃ¡ registrado');
+        }
+      } catch (swErr) {
+        console.warn('[FCM] Aviso ao registrar firebase-messaging-sw.js (tentando sem registration explÃ­cito):', swErr);
+        swRegistration = undefined;
+      }
+    }
+
+    const tokenOptions: { vapidKey: string; serviceWorkerRegistration?: ServiceWorkerRegistration } = { vapidKey };
+    if (swRegistration) {
+      tokenOptions.serviceWorkerRegistration = swRegistration;
+    }
+
+    const token = await getToken(messaging, tokenOptions);
+    if (!token) {
+      console.warn('[FCM] getToken retornou token vazio â verifique VAPID key e permissÃ£o de notificaÃ§Ã£o.');
+    }
+    return token || null;
   } catch (err) {
     console.error('[FCM] Error getting token:', err);
     return null;
