@@ -154,14 +154,12 @@ export default function BiometriaModal({
           if (credential && credential.rawId) {
             const base64Id = bufferToBase64(credential.rawId);
             localStorage.setItem(`sgr_credential_id_${targetEmail}`, base64Id);
-                      localStorage.setItem(`sgr_biometria_cadastrada_${targetEmail}`, 'true');
-          const existingEmails: string[] = JSON.parse(
-            localStorage.getItem('sgr_biometria_cadastrada_emails') || '[]'
-          );
-          if (!existingEmails.includes(targetEmail)) {
-            existingEmails.push(targetEmail);
-            localStorage.setItem('sgr_biometria_cadastrada_emails', JSON.stringify(existingEmails));
-          }
+            localStorage.setItem(`sgr_biometria_cadastrada_${targetEmail}`, 'true');
+            const existingEmails: string[] = JSON.parse(localStorage.getItem('sgr_biometria_cadastrada_emails') || '[]');
+            if (!existingEmails.includes(targetEmail)) {
+              existingEmails.push(targetEmail);
+              localStorage.setItem('sgr_biometria_cadastrada_emails', JSON.stringify(existingEmails));
+            }
           }
           
           setStatus('success');
@@ -232,7 +230,11 @@ export default function BiometriaModal({
 
     // WebAuthn is completely unsupported in current browser
     setStatus('password-fallback');
-    setErrorMessage('Seu navegador/aparelho atual não possui suporte nativo à biometria FIDO2/WebAuthn.');
+    if (mode === 'register') {
+      setErrorMessage('Este app instalado não tem acesso direto ao sensor biométrico. Para usar sua digital, acesse o sistema pelo navegador Chrome (toque nos 3 pontos → "Abrir no Chrome"), ative a biometria por lá e ela funcionará automaticamente no app instalado também. Por enquanto, confirme sua senha abaixo para ativar o acesso rápido nesta conta.');
+    } else {
+      setErrorMessage('Biometria não disponível neste contexto. Digite sua senha para acessar.');
+    }
   };
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
@@ -268,6 +270,15 @@ export default function BiometriaModal({
           console.log('[Security] Senha migrada silenciosamente para hash seguro no login por biometria.');
         } catch (err) {
           console.error('[Security] Falha na migração silenciosa de senha (biometria):', err);
+        }
+      }
+
+      if (mode === 'register') {
+        localStorage.setItem(`sgr_biometria_cadastrada_${targetEmail}`, 'true');
+        const existingEmails: string[] = JSON.parse(localStorage.getItem('sgr_biometria_cadastrada_emails') || '[]');
+        if (!existingEmails.includes(targetEmail)) {
+          existingEmails.push(targetEmail);
+          localStorage.setItem('sgr_biometria_cadastrada_emails', JSON.stringify(existingEmails));
         }
       }
 
