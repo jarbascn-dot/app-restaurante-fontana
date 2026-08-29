@@ -392,6 +392,13 @@ export default function App() {
     localStorage.setItem('sgr_is_logged', String(isLogged));
   }, [isLogged]);
 
+  // Registra token FCM ao restaurar sessão do localStorage (quando app reabre sem fazer login)
+    useEffect(() => {
+          if (isLogged && currentUser?.id && currentUser?.email) {
+                  registerFCMToken(currentUser.id, currentUser.email);
+          }
+    }, [isLogged, currentUser?.email]);
+
   // Safety trigger: if simulator is disabled by Admin, force Production Mode immediately
   useEffect(() => {
     if (settings && settings.permitirSimulador === false && !modoProducao) {
