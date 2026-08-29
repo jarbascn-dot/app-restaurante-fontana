@@ -5,7 +5,7 @@
 
 import { saveToFirestore } from './firebaseSync';
 import { getFCMToken, db } from '../firebase';
-import { doc, setDoc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, getDoc, servherTimestamp } from 'firebase/firestore';
 
 let fallbackTimeoutId: any = null;
 
@@ -285,22 +285,21 @@ export async function registerFCMToken(userId: string, email?: string): Promise<
       console.warn('[FCM] Could not obtain FCM token.');
       return;
     }
-    await setDoc(doc(db, 'usuarios', userId), {
-      fcmToken: token,
-      precisaAtivarNotificacao: false,
-      notificacaoPendenteMotivo: null,
-    }, { merge: true });
+    // Salva token via Admin SDK endpoint (bypassa Firestore security rules)
     if (email) {
       const emailLower = email.trim().toLowerCase();
-      const docId = emailLower.replace(/[^a-zA-Z0-9]/g, '_');
-      await setDoc(doc(db, 'fcmTokens', docId), {
-        token,
-        userId: emailLower,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
-      console.log('[FCM] Token registered successfully in fcmTokens collection for:', emailLower);
+      const tokenResponse = await fetch('/api/update-fcm-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailLower, token }),
+      });
+      if (tokenResponse.ok) {
+        console.log('[FCM] Token salvo via API para:', emailLower);
+      } else {
+        console.warn('[FCM] API update-fcm-token retornou erro:', await tokenResponse.text());
+      }
     } else {
-      console.warn('[FCM] No email provided; token was NOT written to fcmTokens collection (push notifications will not work).');
+      console.warn('[FCM] Email nao fornecido; token NAO enviado para API.');
     }
   } catch (err) {
     console.error('[FCM] Failed to register token:', err);
