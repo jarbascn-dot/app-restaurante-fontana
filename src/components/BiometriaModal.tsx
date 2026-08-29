@@ -108,6 +108,34 @@ export default function BiometriaModal({
       setErrorMessage('Por favor, selecione ou digite o e-mail cadastrado.');
       return;
     }
+    // Se o app estiver rodando dentro do wrapper Android nativo (SGRNativeBridge),
+    // o WebView nao suporta WebAuthn/FIDO2 - usamos o BiometricPrompt nativo do
+    // Android (leitor de digital/rosto do sistema) em vez disso.
+    const nativeBridge = (window as any).SGRNativeBridge;
+    if (nativeBridge && typeof nativeBridge.isBiometricAvailable === 'function' && nativeBridge.isBiometricAvailable()) {
+        const handleNativeResult = (e: any) => {
+              window.removeEventListener('sgr-native-biometric-result', handleNativeResult);
+              const detail = (e && e.detail) || {};
+              if (detail.success) {
+                      try {
+                                localStorage.setItem(`sgr_credential_id_${targetEmail}`, 'native-android');
+                      } catch (err) {}
+                      setStatus('success');
+                      setTimeout(() => {
+                                onSuccessRef.current(targetEmail);
+                                onCloseRef.current();
+                                setStatus('idle');
+                      }, 1250);
+              } else {
+                      setStatus('password-fallback');
+                      setErrorMessage(detail.error || 'Nao foi possivel confirmar a biometria neste aparelho. Use sua senha.');
+              }
+        };
+        window.addEventListener('sgr-native-biometric-result', handleNativeResult);
+        nativeBridge.authenticateBiometric();
+        return;
+    }
+    
 
     if (mode === 'authenticate') {
       const savedBase64Id = localStorage.getItem(`sgr_credential_id_${targetEmail}`);
@@ -154,12 +182,6 @@ export default function BiometriaModal({
           if (credential && credential.rawId) {
             const base64Id = bufferToBase64(credential.rawId);
             localStorage.setItem(`sgr_credential_id_${targetEmail}`, base64Id);
-            localStorage.setItem(`sgr_biometria_cadastrada_${targetEmail}`, 'true');
-            const existingEmails: string[] = JSON.parse(localStorage.getItem('sgr_biometria_cadastrada_emails') || '[]');
-            if (!existingEmails.includes(targetEmail)) {
-              existingEmails.push(targetEmail);
-              localStorage.setItem('sgr_biometria_cadastrada_emails', JSON.stringify(existingEmails));
-            }
           }
           
           setStatus('success');
@@ -230,11 +252,7 @@ export default function BiometriaModal({
 
     // WebAuthn is completely unsupported in current browser
     setStatus('password-fallback');
-    if (mode === 'register') {
-      setErrorMessage('Este app instalado não tem acesso direto ao sensor biométrico. Para usar sua digital, acesse o sistema pelo navegador Chrome (toque nos 3 pontos → "Abrir no Chrome"), ative a biometria por lá e ela funcionará automaticamente no app instalado também. Por enquanto, confirme sua senha abaixo para ativar o acesso rápido nesta conta.');
-    } else {
-      setErrorMessage('Biometria não disponível neste contexto. Digite sua senha para acessar.');
-    }
+    setErrorMessage('Seu navegador/aparelho atual não possui suporte nativo à biometria FIDO2/WebAuthn.');
   };
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
@@ -270,15 +288,6 @@ export default function BiometriaModal({
           console.log('[Security] Senha migrada silenciosamente para hash seguro no login por biometria.');
         } catch (err) {
           console.error('[Security] Falha na migração silenciosa de senha (biometria):', err);
-        }
-      }
-
-      if (mode === 'register') {
-        localStorage.setItem(`sgr_biometria_cadastrada_${targetEmail}`, 'true');
-        const existingEmails: string[] = JSON.parse(localStorage.getItem('sgr_biometria_cadastrada_emails') || '[]');
-        if (!existingEmails.includes(targetEmail)) {
-          existingEmails.push(targetEmail);
-          localStorage.setItem('sgr_biometria_cadastrada_emails', JSON.stringify(existingEmails));
         }
       }
 

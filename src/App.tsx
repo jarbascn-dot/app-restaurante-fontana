@@ -26,7 +26,7 @@ import {
   INITIAL_LOGS 
 } from './data/mockData';
 
-import { db, setupTokenRefreshListener } from './firebase';
+import { db } from './firebase';
 import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { 
   saveToFirestore, 
@@ -35,7 +35,7 @@ import {
   seedRequiredCollections,
   deleteFromFirestore
 } from './lib/firebaseSync';
-import { scheduleNotification, registerFCMToken, autoRecoverFCMToken } from './lib/notificationScheduler';
+import { scheduleNotification, registerFCMToken } from './lib/notificationScheduler';
 import { hashPassword, isHash } from './lib/passwordUtils';
 
 // Components
@@ -517,7 +517,6 @@ export default function App() {
   // Synchronise and reschedule system alarms whenever session updates
   useEffect(() => {
     if (isLogged && currentUser && currentUser.email) {
-      setupTokenRefreshListener(currentUser.email).catch(err => console.warn('[App Setup] FCM setup listener failed:', err));
       const enabled = currentUser.alertaEnabled ?? (localStorage.getItem(`sgr_notify_enabled_${currentUser.email}`) === 'true');
       if (enabled) {
         const timeStr = currentUser.alertaTime ?? localStorage.getItem(`sgr_notify_time_${currentUser.email}`) ?? '19:00';
@@ -712,22 +711,6 @@ export default function App() {
       delete (cleanUser as any).alertasTime;
       delete (cleanUser as any).alertasTipo;
       delete (cleanUser as any).alertaChannel;
-      // CORREÇÃO: Não definir campos fora do schema do isValidUsuario como null
-      // (cron pode ter gravado fcmToken: null → null is string = false → permissão negada)
-      // Em vez disso, removemos campos com valor null/undefined para não quebrar o validador
-      delete (cleanUser as any).notificacaoPendenteMotivo;
-      delete (cleanUser as any).precisaAtivarNotificacao;
-      delete (cleanUser as any).notificacaoPendenteDesde;
-      delete (cleanUser as any).fcmTokenAtualizadoEm;
-      // Remove quaisquer campos opcionais com valor null (null is string = false no Firestore rules)
-      const fieldsOptionals = ['email','cpf','senha','idObrasFornecedor','fotoBiometria','alertaEnabled',
-        'alertaTiming','alertaTime','aceitouLGPD','dataAceiteLGPD','ipAceiteLGPD',
-        'requerTrocaSenha','fcmToken','alertaTipo'];
-      fieldsOptionals.forEach(field => {
-        if ((cleanUser as any)[field] === null || (cleanUser as any)[field] === undefined) {
-          delete (cleanUser as any)[field];
-        }
-      });
 
       // Optimistically update local states
       setUsuarios(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
@@ -746,8 +729,6 @@ export default function App() {
           if (docSnap.exists()) {
             await updateDoc(docRef, {
               scheduledTime: time,
-              notificacaoPendenteMotivo: null,
-              precisaAtivarNotificacao: false,
               updatedAt: new Date().toISOString()
             });
             console.log('[App] Updated existing notificationQueue doc with new scheduledTime:', time);
@@ -760,8 +741,6 @@ export default function App() {
               link: '/',
               daily: true,
               scheduledTime: time,
-              notificacaoPendenteMotivo: null,
-              precisaAtivarNotificacao: false,
               sent: true,
               updatedAt: new Date().toISOString()
             };
@@ -1403,20 +1382,12 @@ export default function App() {
         <LoginScreen
           usuarios={usuarios}
           settings={settings}
-onLoginSuccess={(user) => {
-  localStorage.setItem('sgr_is_logged', 'true');
-  localStorage.setItem('sgr_logged_user_id', user.id);
-  setCurrentUser(user);
-  if (user.email) {
-  registerFCMToken(user.email);
-  }
-  // Auto-recuperação: renova token FCM se estiver inválido (sem ação manual)
-  if (user.email) {
-    autoRecoverFCMToken(user.email).catch(err =>
-      console.warn('[FCM] Erro na auto-recuperação no login:', err)
-    );
-  }
-  setIsLogged(true);
+          onLoginSuccess={(user) => {
+            localStorage.setItem('sgr_is_logged', 'true');
+            localStorage.setItem('sgr_logged_user_id', user.id);
+            setCurrentUser(user);
+          registerFCMToken(user.id);
+            setIsLogged(true);
             triggerFlashNotification(`Bem-vindo, ${user.nome}! Identificação efetuada com sucesso.`);
           }}
           onOpenRegister={() => setIsRegisterOpen(true)}

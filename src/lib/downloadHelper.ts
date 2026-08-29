@@ -3,8 +3,8 @@
  * - On Desktop: Uses direct browser file download (jsPDF.save or DOM <a download> click).
  * - On Mobile / Android WebViews / TWAs:
  *   1. Prioritizes local Blob creation & synchronous URL.createObjectURL.
- *   2. On Android specifically, navigates directly to a data: URI so the
- *      native setDownloadListener configured in MainActivity.kt can intercept and save the file
+ *   2. On Android specifically, navigates directly to a data: URI so the native
+ *      setDownloadListener configured in MainActivity.kt can intercept and save the file
  *      (a blob: URL is invisible to the native WebView and gets silently discarded).
  *   3. Uses Native File Share API (navigator.share) ONLY when navigator.canShare confirms file sharing is supported.
  *   4. Uses DOM <a> element with download attribute and target="_self" to allow native Android WebView download listeners to intercept.
@@ -38,10 +38,10 @@ export function dataUrlToBlob(dataUrl: string): Blob {
 }
 
 export interface DownloadOptions {
-  pdfDoc?: any; // jsPDF instance if available
+  pdfDoc?: any;       // jsPDF instance if available
   blob?: Blob | null; // Blob if available
-  dataUrl?: string; // data: URL if available
-  url?: string; // http/https URL if available
+  dataUrl?: string;   // data: URL if available
+  url?: string;       // http/https URL if available
   filename: string;
   title?: string;
   mimeType?: string;
@@ -164,10 +164,32 @@ export async function downloadPdfOrFile(options: DownloadOptions): Promise<void>
     }
   }
 
-  // Attempt 2 (Android native WebView app): navigate directly to a data: URI so the
-  // setDownloadListener configured in MainActivity.kt can intercept and save the file via
-  // DownloadManager/MediaStore. Blob object URLs are invisible to a plain native WebView
-  // (they only exist inside the page context), so this is the reliable path for Android.
+  // Attempt 2 (Android native WebView app, via JS bridge): entrega o base64
+  // diretamente para o Kotlin (SGRNativeBridge.downloadBase64File), sem navegacao de URL.
+  // Isso evita o limite pratico de tamanho de data: URI e nao depende do
+  // DownloadListener nativo capturar a navegacao - e uma chamada de funcao direta.
+  if (isAndroid && typeof window !== 'undefined') {
+    const nativeBridge = (window as any).SGRNativeBridge;
+    if (nativeBridge && typeof nativeBridge.downloadBase64File === 'function') {
+      try {
+        let base64Payload: string | null = activeDataUrl;
+        if (!base64Payload && activeBlob) {
+          base64Payload = await blobToDataUrl(activeBlob);
+        }
+        if (base64Payload) {
+          const commaIdx = base64Payload.indexOf(',');
+          const rawBase64 = commaIdx !== -1 ? base64Payload.substring(commaIdx + 1) : base64Payload;
+          nativeBridge.downloadBase64File(rawBase64, cleanFilename, mimeType);
+          return;
+        }
+      } catch (bridgeErr) {
+        console.warn('SGRNativeBridge.downloadBase64File failed, falling back to data URI navigation:', bridgeErr);
+      }
+    }
+  }
+
+  // Attempt 3 (fallback): navega para uma data: URI para que o setDownloadListener
+  // nativo capture a navegacao (mantido para builds antigas sem a ponte atualizada).
   if (isAndroid && activeDataUrl && activeDataUrl.startsWith('data:')) {
     try {
       window.location.href = activeDataUrl;
@@ -177,7 +199,7 @@ export async function downloadPdfOrFile(options: DownloadOptions): Promise<void>
     }
   }
 
-  // Attempt 3: Synchronous Blob Object URL trigger via DOM Anchor element (mobile browsers / fallback)
+  // Attempt 4: Synchronous Blob Object URL trigger via DOM Anchor element (mobile browsers / fallback)
   // NEVER use window.open with Data URIs on Android WebViews as it gets blocked!
   if (activeBlob) {
     try {
@@ -205,7 +227,7 @@ export async function downloadPdfOrFile(options: DownloadOptions): Promise<void>
     }
   }
 
-  // Attempt 4: Direct HTTP/HTTPS link download if activeBlob could not be generated
+  // Attempt 5: Direct HTTP/HTTPS link download if activeBlob could not be generated
   if (options.url && (options.url.startsWith('http://') || options.url.startsWith('https://'))) {
     try {
       const link = document.createElement('a');

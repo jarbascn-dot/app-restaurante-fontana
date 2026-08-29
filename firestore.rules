@@ -1,55 +1,55 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
- 
+
     // 1. Global safety net - Default deny
     match /{document=**} {
       allow read, write: if false;
     }
- 
+
     // Global utility helpers
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
- 
+    
     function isSignedIn() {
       return request.auth != null;
     }
- 
+
     function incoming() {
       return request.resource.data;
     }
- 
+
     function existing() {
       return resource.data;
     }
- 
+
     // Role verification helpers via reading /usuarios/{userId}
     function isUserAdmin() {
-      return isSignedIn() &&
-             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
              get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil == 'admin';
     }
- 
+
     function isUserGestor() {
-      return isSignedIn() &&
-             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
              get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil == 'gestor';
     }
- 
+
     function isUserFornecedor() {
-      return isSignedIn() &&
-             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
              get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil == 'fornecedor';
     }
- 
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
- 
+
     // Entity Schema Validators
     function isValidObra(data) {
-      return data.keys().hasAll(['id', 'nome', 'centroCusto', 'ativa']) &&
+      return data.keys().hasAll(['id', 'nome', 'centroCusto', 'ativa']) && 
              data.keys().size() <= 12 &&
              data.id is string && data.id.size() <= 128 &&
              data.nome is string && data.nome.size() <= 200 &&
@@ -63,7 +63,7 @@ service cloud.firestore {
              (!data.keys().hasAny(['cardapioTextoIa']) || (data.cardapioTextoIa is string && data.cardapioTextoIa.size() <= 500000)) &&
              (!data.keys().hasAny(['cardapioDias']) || data.cardapioDias is list);
     }
- 
+
     function isValidEmpresa(data) {
       return data.keys().hasAll(['id', 'nome', 'tipo']) &&
              data.keys().size() <= 4 &&
@@ -71,35 +71,32 @@ service cloud.firestore {
              data.nome is string && data.nome.size() <= 200 &&
              (data.tipo == 'Propria' || data.tipo == 'Terceirizada' || data.tipo == 'Prestadora');
     }
- 
-    // CORRIGIDO: campos opcionais agora aceitam null (|| data.campo == null)
-    // Necessário porque o cron grava fcmToken: null via Admin SDK quando o token expira,
-    // e qualquer escrita subsequente do cliente falhava com "Missing or insufficient permissions"
+
     function isValidUsuario(data) {
       return data.keys().hasAll(['id', 'nome', 'matricula', 'perfil', 'status', 'idEmpresa', 'idObraPadrao', 'criadoEm']) &&
-             data.keys().size() <= 40 &&
+             data.keys().size() <= 32 &&
              data.id is string && data.id.size() <= 128 &&
              data.nome is string && data.nome.size() <= 200 &&
              data.matricula is string && data.matricula.size() <= 100 &&
              (data.perfil == 'colaborador' || data.perfil == 'admin' || data.perfil == 'gestor' || data.perfil == 'fornecedor') &&
              (data.status == 'pendente' || data.status == 'aprovado' || data.status == 'desativado' || data.status == 'excluido') &&
              data.idEmpresa is string && data.idObraPadrao is string &&
-             (!data.keys().hasAny(['email']) || data.email == null || (data.email is string && data.email.size() <= 150)) &&
-             (!data.keys().hasAny(['cpf']) || data.cpf == null || (data.cpf is string && data.cpf.size() <= 20)) &&
-             (!data.keys().hasAny(['senha']) || data.senha == null || data.senha is string) &&
-             (!data.keys().hasAny(['idObrasFornecedor']) || data.idObrasFornecedor == null || data.idObrasFornecedor is list) &&
-             (!data.keys().hasAny(['fotoBiometria']) || data.fotoBiometria == null || data.fotoBiometria is string) &&
-             (!data.keys().hasAny(['alertaEnabled']) || data.alertaEnabled == null || data.alertaEnabled is bool) &&
-             (!data.keys().hasAny(['alertaTiming']) || data.alertaTiming == null || (data.alertaTiming == 'todos_dias' || data.alertaTiming == 'seg_sex')) &&
-             (!data.keys().hasAny(['alertaTime']) || data.alertaTime == null || data.alertaTime is string) &&
-             (!data.keys().hasAny(['aceitouLGPD']) || data.aceitouLGPD == null || data.aceitouLGPD is bool) &&
-             (!data.keys().hasAny(['dataAceiteLGPD']) || data.dataAceiteLGPD == null || data.dataAceiteLGPD is string) &&
-             (!data.keys().hasAny(['ipAceiteLGPD']) || data.ipAceiteLGPD == null || data.ipAceiteLGPD is string) &&
-             (!data.keys().hasAny(['requerTrocaSenha']) || data.requerTrocaSenha == null || data.requerTrocaSenha is bool) &&
-             (!data.keys().hasAny(['fcmToken']) || data.fcmToken == null || (data.fcmToken is string && data.fcmToken.size() <= 1024)) &&
-             (!data.keys().hasAny(['alertaTipo']) || data.alertaTipo == null || (data.alertaTipo == 'reservada' || data.alertaTipo == 'sem_reserva' || data.alertaTipo == 'sempre'));
+             (!data.keys().hasAny(['email']) || (data.email is string && data.email.size() <= 150)) &&
+             (!data.keys().hasAny(['cpf']) || (data.cpf is string && data.cpf.size() <= 20)) &&
+             (!data.keys().hasAny(['senha']) || data.senha is string) &&
+             (!data.keys().hasAny(['idObrasFornecedor']) || data.idObrasFornecedor is list) &&
+             (!data.keys().hasAny(['fotoBiometria']) || data.fotoBiometria is string) &&
+             (!data.keys().hasAny(['alertaEnabled']) || data.alertaEnabled is bool) &&
+             (!data.keys().hasAny(['alertaTiming']) || (data.alertaTiming == 'todos_dias' || data.alertaTiming == 'seg_sex')) &&
+             (!data.keys().hasAny(['alertaTime']) || data.alertaTime is string) &&
+             (!data.keys().hasAny(['aceitouLGPD']) || data.aceitouLGPD is bool) &&
+             (!data.keys().hasAny(['dataAceiteLGPD']) || data.dataAceiteLGPD is string) &&
+             (!data.keys().hasAny(['ipAceiteLGPD']) || data.ipAceiteLGPD is string) &&
+             (!data.keys().hasAny(['requerTrocaSenha']) || data.requerTrocaSenha is bool) &&
+             (!data.keys().hasAny(['fcmToken']) || (data.fcmToken is string && data.fcmToken.size() <= 1024)) &&
+             (!data.keys().hasAny(['alertaTipo']) || (data.alertaTipo == 'reservada' || data.alertaTipo == 'sem_reserva' || data.alertaTipo == 'sempre'));
     }
- 
+
     function isValidPushSubscription(data) {
       return data.keys().hasAll(['id', 'email', 'endpoint', 'keys', 'updatedAt']) &&
              data.keys().size() == 5 &&
@@ -111,7 +108,7 @@ service cloud.firestore {
              data.keys.auth is string &&
              data.updatedAt is string;
     }
- 
+
     function isValidReserva(data) {
       return data.keys().hasAll(['id', 'idUsuario', 'data', 'status', 'consumido', 'idObraNoDia', 'alteradoEm', 'ipOrigem', 'dispositivo']) &&
              data.keys().size() <= 12 &&
@@ -127,7 +124,7 @@ service cloud.firestore {
              (!data.keys().hasAny(['nomeVisitante']) || data.nomeVisitante is string) &&
              (!data.keys().hasAny(['empresaFaturamento']) || data.empresaFaturamento is string);
     }
- 
+
     function isValidFeriado(data) {
       return data.keys().hasAll(['id', 'data', 'descricao', 'tipo']) &&
              data.id is string && data.id.size() <= 128 &&
@@ -138,7 +135,7 @@ service cloud.firestore {
              (!data.keys().hasAny(['idObras']) || data.idObras is list) &&
              (!data.keys().hasAny(['dataFixa']) || data.dataFixa is bool);
     }
- 
+
     function isValidLog(data) {
       return data.keys().hasAll(['id', 'usuarioNome', 'usuarioEmail', 'dataHora', 'operacao', 'ip', 'dispositivo', 'perfil']) &&
              data.keys().size() <= 9 &&
@@ -151,7 +148,7 @@ service cloud.firestore {
              data.dispositivo is string && data.dispositivo.size() <= 200 &&
              (data.perfil == 'colaborador' || data.perfil == 'admin' || data.perfil == 'gestor' || data.perfil == 'fornecedor');
     }
- 
+
     function isValidSettings(data) {
       return data.keys().hasAll(['horarioLimite', 'permitirFinsDeSemana', 'valorRefeicaoPropria', 'valorRefeicaoTerceiro', 'usarTabletRetirada', 'requererBiometriaFacial', 'permitirSimulador']) &&
              data.keys().size() <= 8 &&
@@ -163,7 +160,7 @@ service cloud.firestore {
              data.requererBiometriaFacial is bool &&
              data.permitirSimulador is bool;
     }
- 
+
     function isValidFCMToken(data) {
       return data.keys().hasAll(['token', 'userId', 'updatedAt']) &&
              data.keys().size() == 3 &&
@@ -171,7 +168,7 @@ service cloud.firestore {
              data.userId is string && data.userId.size() <= 128 &&
              data.updatedAt is timestamp;
     }
- 
+
     function isValidNotification(data) {
       return data.keys().hasAll(['userId', 'title', 'body', 'sent']) &&
              data.userId is string && data.userId.size() <= 128 &&
@@ -179,78 +176,78 @@ service cloud.firestore {
              data.body is string && data.body.size() <= 1000 &&
              data.sent is bool;
     }
- 
+
     // 2. Collection Rules
- 
+
     // Obras Collection
     match /obras/{obraId} {
       allow read: if true;
       allow create, update: if isValidId(obraId) && isValidObra(incoming());
       allow delete: if isValidId(obraId);
     }
- 
+
     // Empresas Collection
     match /empresas/{empresaId} {
       allow read: if true;
       allow create, update: if isValidId(empresaId) && isValidEmpresa(incoming());
       allow delete: if isValidId(empresaId);
     }
- 
+
     // Usuarios Collection
     match /usuarios/{usuarioId} {
       allow read: if true;
       allow create, update: if isValidId(usuarioId) && isValidUsuario(incoming());
       allow delete: if isValidId(usuarioId);
     }
- 
+
     // Push Subscriptions Collection
     match /push_subscriptions/{subscriptionId} {
       allow read: if true;
       allow create, update: if isValidId(subscriptionId) && isValidPushSubscription(incoming());
       allow delete: if isValidId(subscriptionId);
     }
- 
+
     // Reservas Collection
     match /reservas/{reservaId} {
       allow read: if true;
       allow create, update: if isValidId(reservaId) && isValidReserva(incoming());
       allow delete: if isValidId(reservaId);
     }
- 
+
     // Feriados Collection
     match /feriados/{feriadoId} {
       allow read: if true;
       allow create, update: if isValidId(feriadoId) && isValidFeriado(incoming());
       allow delete: if isValidId(feriadoId);
     }
- 
+
     // Logs Collection (Append-only logs of Audit)
     match /logs/{logId} {
       allow read: if true;
       allow create: if isValidId(logId) && isValidLog(incoming());
       allow update, delete: if false; // Append-only immutable logs
     }
- 
+
     // Settings Collection
     match /settings/{settingId} {
       allow read: if true;
       allow create, update: if isValidId(settingId) && isValidSettings(incoming());
       allow delete: if false;
     }
- 
+
     // FCM Tokens Collection
     match /fcmTokens/{userId} {
       allow read: if isSignedIn();
       allow create, update: if isValidId(userId) && isOwner(userId) && isValidFCMToken(incoming());
       allow delete: if isValidId(userId) && isOwner(userId);
     }
- 
+
     // Notification Queue Collection
     match /notificationQueue/{notificationId} {
       allow read: if true;
       allow create, update: if isValidId(notificationId) && isValidNotification(incoming());
       allow delete: if true;
     }
- 
+
   }
 }

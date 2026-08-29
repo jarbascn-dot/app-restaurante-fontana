@@ -19,14 +19,14 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message:', payload);
 
-  const notificationTitle = payload.notification?.title || 'SGR Fontana';
-  const notificationOptions = {
-    body: payload.notification?.body || 'Você possui uma nova atualização.',
-    icon: '/icon.png',
-    badge: '/icon-badge.svg',
-    data: payload.data,
-    vibrate: [200, 100, 200]
-  };
+  const notificationTitle = payload.data?.title || payload.notification?.title || 'SGR Fontana';
+      const notificationOptions = {
+              body: payload.data?.body || payload.notification?.body || 'Você possui uma nova atualização.',
+              icon: '/icon.png',
+              badge: '/icon-badge.svg',
+              data: payload.data,
+              vibrate: [200, 100, 200]
+      };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
