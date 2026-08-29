@@ -5,7 +5,7 @@
 
 import { saveToFirestore } from './firebaseSync';
 import { getFCMToken, db } from '../firebase';
-import { doc, setDoc, updateDoc, getDoc, servherTimestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
 
 let fallbackTimeoutId: any = null;
 
