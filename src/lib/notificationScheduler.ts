@@ -271,15 +271,8 @@ function runLocalFallback(time: string, title: string, body: string) {
  */
 export async function registerFCMToken(userId: string, email?: string): Promise<void> {
   try {
-    if (typeof Notification === 'undefined') {
-      console.warn('[FCM] Notification API is not supported in this browser.');
-      return;
-    }
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      console.warn('[FCM] Notification permission denied.');
-      return;
-    }
+// No TWA/Android, Notification.requestPermission() pode bloquear mesmo com
+            // permissao concedida no SO. Vai direto ao token FCM.
     const token = await getFCMToken();
     if (!token) {
       console.warn('[FCM] Could not obtain FCM token.');
