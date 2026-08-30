@@ -30,7 +30,11 @@ isSupported().then((supported) => {
 
 export async function getFCMToken(): Promise<string | null> {
   try {
+        console.log('[FCM] Iniciando getFCMToken...');
+        console.log('[FCM] Notification.permission:', typeof Notification !== 'undefined' ? Notification.permission : 'indisponivel');
+        console.log('[FCM] serviceWorker disponivel:', 'serviceWorker' in navigator);
     const supported = await isSupported();
+        console.log('[FCM] isSupported():', supported);
     if (!supported) {
       console.warn('[FCM] Firebase Messaging is not supported in this environment.');
       return null;
@@ -41,6 +45,8 @@ export async function getFCMToken(): Promise<string | null> {
     }
 
         const vapidKey = (import.meta as any).env.VITE_FIREBASE_VAPID_KEY || 'BJ5Vpn_NAv-fyxlgg6jmEvuYBieH8F1GVdVhs3gokWz3SBCu-gWMJPHFiGlFjWSljG_H2JZe6tGO9dSkQiTW77E';
+        console.log('[FCM] VAPID key source:', (import.meta as any).env.VITE_FIREBASE_VAPID_KEY ? 'env var' : 'hardcoded fallback');
+        console.log('[FCM] VAPID key length:', vapidKey?.length, '(deve ser 88)');
     if (!vapidKey) {
       console.warn('[FCM] VITE_FIREBASE_VAPID_KEY not set.');
       return null;
