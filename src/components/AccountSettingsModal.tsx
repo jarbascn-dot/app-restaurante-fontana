@@ -506,38 +506,6 @@ export default function AccountSettingsModal({
               {notifyEnabled && (
                 <div className="space-y-4 border-l-2 border-emerald-500 pl-4 py-1 animate-[fadeIn_0.25s_ease] space-y-3">
                   
-                  {/* Timing Option Radio Buttons */}
-                  <div>
-                    <label className="block text-[10px] uppercase font-bold text-neutral-600 mb-2">Quando deseja ser alertado?</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setNotifyTiming('todos_dias')}
-                        className={`p-2.5 border rounded-lg text-left transition ${
-                          notifyTiming === 'todos_dias'
-                            ? 'border-emerald-500 bg-emerald-50/50 text-emerald-800 font-bold'
-                            : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
-                        }`}
-                      >
-                        <span className="block text-xs font-semibold">Todos os Dias</span>
-                        <span className="block text-[9px] text-neutral-500 font-normal mt-0.5">Alerta enviado todos os dias, sem exceção</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setNotifyTiming('seg_sex')}
-                        className={`p-2.5 border rounded-lg text-left transition ${
-                          notifyTiming === 'seg_sex'
-                            ? 'border-emerald-500 bg-emerald-50/50 text-emerald-800 font-bold'
-                            : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
-                        }`}
-                      >
-                        <span className="block text-xs font-semibold">De Segunda a Sexta-Feira</span>
-                        <span className="block text-[9px] text-neutral-500 font-normal mt-0.5">Alerta enviado apenas em dias úteis (segunda a sexta)</span>
-                      </button>
-                    </div>
-                  </div>
-
                   {/* Turno do Lembrete */}
                   <div>
                     <label className="block text-[10px] uppercase font-bold text-neutral-600 mb-2">Turno do Lembrete</label>
