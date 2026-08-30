@@ -319,9 +319,10 @@ async function startServer() {
 Analise com extrema precisão o arquivo de cardápio do PDF/Imagem fornecido (${cardapioNome || 'cardapio.pdf'}).
 
 INSTRUÇÕES CRÍTICAS DE EXTRAÇÃO:
-1. Extraia RIGOROSAMENTE TODOS os dias e datas presentes no documento (sem exceção).
-   - O documento pode conter 10 dias, 15 dias, 20 dias, 30 dias ou mais (ex: cardápio quinzenal ou mensal com colunas lado a lado ou múltiplas semanas como 18/08/2026 a 31/08/2026).
-   - É terminantemente PROIBIDO resumir, omitir ou extrair apenas 5 dias se houver mais dias no arquivo. Percorra todas as colunas, linhas e seções.
+1. Extraia RIGOROSAMENTE TODOS os dias e datas presentes em TODAS as páginas e seções do documento (sem exceção).
+   - O documento pode conter múltiplas páginas (ex: Página 1 com 31/08 a 18/09 e Página 2 com 21/09 a 30/09).
+   - Analise TODAS as páginas, colunas, blocos e tabelas de ponta a ponta. É terminantemente PROIBIDO parar na primeira página ou resumir.
+   - Extraia TODOS os 20 a 31 dias contidos no documento completo (ex: de 31/08/2026 até 30/09/2026).
 2. Cada data encontrada no documento DEVE ser um elemento individual no array "dias", em ordem cronológica.
 3. Para cada dia, capture:
    - "diaSemana": Nome completo do dia em português (ex: "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo").
@@ -352,21 +353,40 @@ Retorne rigorosamente um JSON válido no seguinte formato de objeto:
   ]
 }`;
 
-      const aiResponse = await ai.models.generateContent({
-        model: 'gemini-3.7-flash',
-        contents: [
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: mimeType
+      let aiResponse: any = null;
+      const modelsToTry = ['gemini-3.7-flash', 'gemini-2.5-flash'];
+      let lastErr: any = null;
+
+      for (const modelName of modelsToTry) {
+        try {
+          console.log(`[Server AI] Tentando modelo ${modelName}...`);
+          aiResponse = await ai.models.generateContent({
+            model: modelName,
+            contents: [
+              {
+                inlineData: {
+                  data: base64Data,
+                  mimeType: mimeType
+                }
+              },
+              prompt
+            ],
+            config: {
+              responseMimeType: 'application/json'
             }
-          },
-          prompt
-        ],
-        config: {
-          responseMimeType: 'application/json'
+          });
+          if (aiResponse) break;
+        } catch (mErr: any) {
+          lastErr = mErr;
+          console.warn(`[Server AI] Falha temporária com ${modelName} (${mErr?.status || mErr?.code || mErr?.message}).`);
+          // Se for erro de alta demanda (503), espera 800ms antes da próxima tentativa
+          await new Promise(resolve => setTimeout(resolve, 800));
         }
-      });
+      }
+
+      if (!aiResponse) {
+        throw lastErr || new Error('Não foi possível obter resposta dos modelos de IA no momento.');
+      }
 
       let parsedJson: any = null;
       try {
