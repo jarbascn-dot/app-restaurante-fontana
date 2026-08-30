@@ -40,7 +40,7 @@ export async function getFCMToken(): Promise<string | null> {
       messaging = getMessaging(app);
     }
 
-    const vapidKey = (import.meta as any).env.VITE_FIREBASE_VAPID_KEY || 'BJI2YT90BjLY_yl1rnUvRXwngj2hLpNZzLLI6VoEIDBSGdIzKhSNYKbeLmBWAJ5h-Ja1_BZ4F52Ga-PnbuSzkWw';
+    const vapidKey = (import.meta as any).env.VITE_FIREBASE_VAPID_KEY || 'BJ5Vpn_NAv-fyxlgg6jmEvuYBieH8F1GVdVhs3gokWz3SBCu-gWMJPHFiGlFjWSljG_H2JZe6tGO9dSkQiTW77EBjLY_yl1rnUvRXwngj2hLpNZzLLI6VoEIDBSGdIzKhSNYKbeLmBWAJ5h-Ja1_BZ4F52Ga-PnbuSzkWw';
     if (!vapidKey) {
       console.warn('[FCM] VITE_FIREBASE_VAPID_KEY not set.');
       return null;
