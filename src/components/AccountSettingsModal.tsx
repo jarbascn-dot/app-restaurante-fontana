@@ -5,8 +5,25 @@
 
 import React, { useState, useEffect } from 'react';
 import { Usuario, AuditoriaLog, SystemSettings } from '../types';
-import { X, KeyRound, Bell, Smartphone, ShieldCheck, Check, Eye, EyeOff, Volume2, Sparkles, FileText, Download } from 'lucide-react';
+import { X, KeyRound, Bell, Smartphone, ShieldCheck, Check, Eye, EyeOff, Volume2, Sparkles, FileText, Download, Sun, Moon, Clock } from 'lucide-react';
 import { scheduleNotification, registerFCMToken } from '../lib/notificationScheduler';
+
+// Horários permitidos com passo de 10 minutos para otimização de leituras no Firestore
+const MANHA_SLOTS = [
+  '07:00', '07:10', '07:20', '07:30', '07:40', '07:50',
+  '08:00', '08:10', '08:20', '08:30', '08:40', '08:50', '09:00'
+];
+
+const NOITE_SLOTS = [
+  '18:00', '18:10', '18:20', '18:30', '18:40', '18:50',
+  '19:00', '19:10', '19:20', '19:30', '19:40', '19:50',
+  '20:00', '20:10', '20:20', '20:30', '20:40', '20:50',
+  '21:00', '21:10', '21:20', '21:30', '21:40', '21:50',
+  '22:00', '22:10'
+];
+
+const MANHA_SUGGESTIONS = ['07:00', '07:30', '08:00', '08:30', '09:00'];
+const NOITE_SUGGESTIONS = ['18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'];
 import { COMPROMISSO_LGPD_HTML } from './LgpdConsentModal';
 import { comparePassword } from '../lib/passwordUtils';
 import { generatePolicyPdf } from '../lib/generatePolicyPdf';
@@ -59,6 +76,11 @@ export default function AccountSettingsModal({
     return (currentUser.alertaTipo ?? localStorage.getItem(`sgr_notify_tipo_${currentUser.email}`) as 'reservada' | 'sem_reserva' | 'sempre' | null) ?? 'sempre';
   });
 
+  const [selectedPeriod, setSelectedPeriod] = useState<'manha' | 'noite'>(() => {
+    const initialTime = currentUser.alertaTime ?? localStorage.getItem(`sgr_notify_time_${currentUser.email}`) ?? '19:30';
+    return (initialTime >= '06:00' && initialTime <= '12:00') ? 'manha' : 'noite';
+  });
+
   // Mobile Mock Notification State
   const [showMockNotification, setShowMockNotification] = useState(false);
   const [mockNotifText, setMockNotifText] = useState('');
@@ -79,6 +101,7 @@ export default function AccountSettingsModal({
       setNotifyTime(dbTime);
       setNotifyChannel(dbChannel);
       setNotifyTipo(dbTipo);
+      setSelectedPeriod((dbTime >= '06:00' && dbTime <= '12:00') ? 'manha' : 'noite');
     }
   }, [isOpen]);
 
@@ -515,27 +538,112 @@ export default function AccountSettingsModal({
                     </div>
                   </div>
 
-                  {/* Alarm Clock Hour Settings */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-neutral-600 mb-1">Horário de disparo do Alerta</label>
-                      <input
-                        type="time"
-                        value={notifyTime}
-                        onChange={(e) => setNotifyTime(e.target.value)}
-                        className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-xs bg-white text-neutral-800 font-mono font-bold text-center"
-                      />
+                  {/* Turno do Lembrete */}
+                  <div>
+                    <label className="block text-[10px] uppercase font-bold text-neutral-600 mb-2">Turno do Lembrete</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPeriod('manha');
+                          if (!MANHA_SLOTS.includes(notifyTime)) {
+                            setNotifyTime('07:30');
+                          }
+                        }}
+                        className={`p-3 border rounded-xl text-left transition flex flex-col gap-1 ${
+                          selectedPeriod === 'manha'
+                            ? 'border-emerald-500 bg-emerald-50/60 text-emerald-900 font-bold shadow-xs'
+                            : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Sun className={`w-4 h-4 ${selectedPeriod === 'manha' ? 'text-amber-500' : 'text-neutral-400'}`} />
+                          <span className="text-xs font-bold">Turno Matinal</span>
+                        </div>
+                        <span className="text-[10px] text-neutral-500 font-normal">
+                          07:00 às 09:00 (mesmo dia)
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPeriod('noite');
+                          if (!NOITE_SLOTS.includes(notifyTime)) {
+                            setNotifyTime('19:30');
+                          }
+                        }}
+                        className={`p-3 border rounded-xl text-left transition flex flex-col gap-1 ${
+                          selectedPeriod === 'noite'
+                            ? 'border-emerald-500 bg-emerald-50/60 text-emerald-900 font-bold shadow-xs'
+                            : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Moon className={`w-4 h-4 ${selectedPeriod === 'noite' ? 'text-indigo-500' : 'text-neutral-400'}`} />
+                          <span className="text-xs font-bold">Turno Noturno</span>
+                        </div>
+                        <span className="text-[10px] text-neutral-500 font-normal">
+                          18:00 às 22:10 (véspera)
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Exact Time Selection (10-minute intervals) */}
+                  <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] uppercase font-bold text-neutral-700 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-neutral-500" />
+                        HORÁRIO DE DISPARO (PASSO DE 10 MIN)
+                      </label>
+                      <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded border border-emerald-200">
+                        {notifyTime}
+                      </span>
                     </div>
 
+                    {/* Quick Preset Buttons */}
                     <div>
-                      <label className="block text-[10px] uppercase font-bold text-neutral-600 mb-1">Formato de recebimento</label>
+                      <span className="block text-[10px] text-neutral-500 mb-1.5">Atalhos sugeridos:</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(selectedPeriod === 'manha' ? MANHA_SUGGESTIONS : NOITE_SUGGESTIONS).map((slot) => (
+                          <button
+                            key={slot}
+                            type="button"
+                            onClick={() => setNotifyTime(slot)}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition ${
+                              notifyTime === slot
+                                ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                                : 'bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-100'
+                            }`}
+                          >
+                            {slot}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Full 10-minute Slot Select Dropdown */}
+                    <div>
+                      <label className="block text-[10px] text-neutral-500 mb-1">
+                        Ou selecione o minuto exato ({selectedPeriod === 'manha' ? '07:00 a 09:00' : '18:00 a 22:10'}):
+                      </label>
                       <select
-                        value="push"
-                        disabled
-                        className="w-full px-2 py-2 border border-neutral-200 rounded-lg text-xs bg-neutral-50 text-neutral-500 font-medium cursor-not-allowed"
+                        value={notifyTime}
+                        onChange={(e) => setNotifyTime(e.target.value)}
+                        className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-xs bg-white text-neutral-800 font-mono font-bold"
                       >
-                        <option value="push">Notificação Push (FCM / PWA)</option>
+                        {(selectedPeriod === 'manha' ? MANHA_SLOTS : NOITE_SLOTS).map((slot) => (
+                          <option key={slot} value={slot}>
+                            {slot} {slot === '07:30' ? '(Padrão Matinal)' : slot === '19:30' ? '(Padrão Noturno)' : ''}
+                          </option>
+                        ))}
                       </select>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-[10px] text-neutral-500 pt-0.5">
+                      <Sparkles className="w-3 h-3 text-amber-500 shrink-0" />
+                      <span>Cron otimizado a cada 10 minutos para máxima economia de leitura no banco de dados.</span>
                     </div>
                   </div>
 
