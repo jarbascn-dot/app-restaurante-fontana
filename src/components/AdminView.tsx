@@ -11,6 +11,7 @@ import { downloadPdfOrFile } from '../lib/downloadHelper';
 import { generateManualPdf } from '../lib/generateManualPdf';
 import { ManualModal } from './ManualModal';
 import { CardapioModal } from './CardapioModal';
+import { mergeCardapiosRollingWindow } from '../lib/cardapioUtils';
 
 interface AdminViewProps {
   usuarios: Usuario[];
@@ -2065,16 +2066,22 @@ export default function AdminView({
                                 setIsParsingCardapioAi(false);
                               }
                               
+                              // Mesclagem com janela rolante de 2 meses (mantém mês atual + anterior)
+                              const finalDias = mergeCardapiosRollingWindow(
+                                targetObra.cardapioDias || [],
+                                extractedDias
+                              );
+                              
                               onSaveObra({
                                 ...targetObra,
                                 cardapioUrl: tempPdfContent,
                                 cardapioNome: tempPdfName || 'cardapio.pdf',
                                 cardapioAtualizadoEm: new Date().toISOString(),
                                 cardapioTextoIa: extractedText,
-                                cardapioDias: extractedDias
+                                cardapioDias: finalDias
                               });
                               
-                              alert(`Cardápio da obra "${targetObra.nome}" processado pela IA Gemini e publicado com sucesso!`);
+                              alert(`Cardápio da obra "${targetObra.nome}" processado com sucesso! Total de ${finalDias.length} dias indexados.`);
 
                               // Reset state
                               setCardapioObraId('');
