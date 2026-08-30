@@ -2059,9 +2059,13 @@ export default function AdminView({
                                 if (parseData.success) {
                                   extractedText = parseData.text || '';
                                   extractedDias = parseData.dias || [];
+                                } else {
+                                  console.warn('Aviso do servidor ao extrair cardápio:', parseData.error);
+                                  alert(`⚠️ Atenção: ${parseData.error || 'Não foi possível extrair os dias por IA. Verifique as configurações da API.'}`);
                                 }
-                              } catch (e) {
-                                console.warn('Erro ao processar com IA Gemini ao salvar:', e);
+                              } catch (e: any) {
+                                console.error('Erro ao processar com IA Gemini ao salvar:', e);
+                                alert(`⚠️ Erro de comunicação com o servidor de IA: ${e.message || 'Falha de rede'}`);
                               } finally {
                                 setIsParsingCardapioAi(false);
                               }
