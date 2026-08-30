@@ -8,6 +8,7 @@ import { X, FileText, Download, Loader2, ChevronLeft, ChevronRight, Utensils, Ca
 import { downloadPdfOrFile } from '../lib/downloadHelper';
 import { PdfCanvasViewer } from './PdfCanvasViewer';
 import { CardapioDia } from '../types';
+import { parseDateString } from '../lib/cardapioUtils';
 
 interface CardapioModalProps {
   isOpen: boolean;
@@ -153,7 +154,7 @@ const checkIfIsToday = (dayData: CardapioDia | null | undefined): boolean => {
   return false;
 };
 
-// Utility helper to find the index of the date that matches TODAY or is closest to TODAY
+// Utility helper to find the index of the date that matches TODAY or is closest to TODAY (preferring upcoming/future days)
 const findBestMatchingIndex = (dias: CardapioDia[]): number => {
   if (!dias || dias.length === 0) return 0;
 
@@ -163,43 +164,38 @@ const findBestMatchingIndex = (dias: CardapioDia[]): number => {
     return todayIdx;
   }
 
-  // 2. Second priority: Find item with date closest to today
+  // 2. Second priority: Find first upcoming date (today or in the future)
   const now = new Date();
   const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
-  let closestIndex = -1;
-  let minDiff = Infinity;
+  let closestFutureIdx = -1;
+  let minFutureDiff = Infinity;
+
+  let closestPastIdx = -1;
+  let minPastDiff = Infinity;
 
   dias.forEach((d, idx) => {
-    if (d.data) {
-      // Parse string like "01/08", "07/08", "01/08/2026", "01-08"
-      const match = d.data.trim().match(/^(\d{1,2})[\/\.-](\d{1,2})(?:[\/\.-](\d{2,4}))?/);
-      if (match) {
-        const day = parseInt(match[1], 10);
-        const month = parseInt(match[2], 10) - 1; // 0-indexed month
-        let year = match[3] ? parseInt(match[3], 10) : now.getFullYear();
-        if (year < 100) year += 2000;
+    const itemDateObj = parseDateString(d.data);
+    if (itemDateObj) {
+      const itemTime = new Date(itemDateObj.getFullYear(), itemDateObj.getMonth(), itemDateObj.getDate()).getTime();
+      const diff = itemTime - todayMidnight;
 
-        const itemDate = new Date(year, month, day).getTime();
-        if (!isNaN(itemDate)) {
-          const diff = Math.abs(itemDate - todayMidnight);
-          if (diff < minDiff) {
-            minDiff = diff;
-            closestIndex = idx;
-          }
-        }
+      if (diff >= 0 && diff < minFutureDiff) {
+        minFutureDiff = diff;
+        closestFutureIdx = idx;
+      } else if (diff < 0 && Math.abs(diff) < minPastDiff) {
+        minPastDiff = Math.abs(diff);
+        closestPastIdx = idx;
       }
     }
   });
 
-  if (closestIndex !== -1) {
-    return closestIndex;
+  if (closestFutureIdx !== -1) {
+    return closestFutureIdx;
   }
 
-  // 3. Fallback: current day of week if valid, otherwise index 0
-  const todayDayNumber = now.getDay(); // 1 = Mon ... 5 = Fri
-  if (todayDayNumber >= 1 && todayDayNumber <= 5 && todayDayNumber - 1 < dias.length) {
-    return todayDayNumber - 1;
+  if (closestPastIdx !== -1) {
+    return closestPastIdx;
   }
 
   return 0;
