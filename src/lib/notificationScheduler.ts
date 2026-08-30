@@ -50,7 +50,7 @@ export async function subscribeUserToPush(email: string): Promise<any> {
 
     // 2. Get active service worker
     const reg = await navigator.serviceWorker.ready;
-    
+
     // 3. Request subscription
     let subscription = await reg.pushManager.getSubscription();
     if (!subscription) {
@@ -110,61 +110,61 @@ export async function scheduleNotification(
   localStorage.setItem(`sgr_notify_enabled_${userParam}`, 'true');
   localStorage.setItem(`sgr_notify_time_${userParam}`, time);
 
-      // Sync notificationQueue in Firestore FIRST, independent of local Notification API
-      // support. Actual delivery on Android happens via native FCM push + native channel,
-      // not via window.Notification, so this must not be gated behind that permission check
-      // (a bare WebView without WebChromeClient support never grants it, which was silently
-      // blocking scheduledTime/sent updates whenever the user rescheduled from the app).
-      if (email) {
-              const emailLowerSync = email.toLowerCase().trim();
-              const queueDocId = `daily_${emailLowerSync.replace(/[^a-zA-Z0-9]/g, '_')}`;
-              const docRef = doc(db, 'notificationQueue', queueDocId);
+  // Sync notificationQueue in Firestore FIRST, independent of local Notification API
+  // support. Actual delivery on Android happens via native FCM push + native channel,
+  // not via window.Notification, so this must not be gated behind that permission check
+  // (a bare WebView without WebChromeClient support never grants it, which was silently
+  // blocking scheduledTime/sent updates whenever the user rescheduled from the app).
+  if (email) {
+    const emailLowerSync = email.toLowerCase().trim();
+    const queueDocId = `daily_${emailLowerSync.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    const docRef = doc(db, 'notificationQueue', queueDocId);
 
-              try {
-                        const docSnap = await getDoc(docRef);
-                        if (docSnap.exists()) {
-                                    const existingData: any = docSnap.data();
-                                    const todayStr = new Date().toISOString().slice(0, 10);
-                                    const lastSyncStr = existingData?.updatedAt ? String(existingData.updatedAt).slice(0, 10) : null;
-                                    const isNewDay = lastSyncStr !== todayStr;
-                                    const timeChanged = existingData?.scheduledTime !== time;
+    try {
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const existingData: any = docSnap.data();
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const lastSyncStr = existingData?.updatedAt ? String(existingData.updatedAt).slice(0, 10) : null;
+        const isNewDay = lastSyncStr !== todayStr;
+        const timeChanged = existingData?.scheduledTime !== time;
 
-                                    await updateDoc(docRef, {
-                                                  scheduledTime: time,
-                                                  timing: timing || 'todos_dias',
-                                                  idObraPadrao: idObraPadrao || null,
-                                                  updatedAt: new Date().toISOString(),
-                                                  ...((isNewDay || timeChanged) ? { sent: false, lastSentDate: null,  errorAt: null, errorMessage: null } : {})
-                                    });
-                                    console.log(`[Scheduler] Updated existing notificationQueue doc ${queueDocId} with scheduledTime:`, time);
-                        } else {
-                                    const queueItem = {
-                                                  id: queueDocId,
-                                                  userId: emailLowerSync,
-                                                  title: title || 'SGR Fontana',
-                                                  body: body || 'Lembrete de refeição!',
-                                                  link: '/',
-                                                  daily: true,
-                                                  scheduledTime: time,
-                                                  timing: timing || 'todos_dias',
-                                                  idObraPadrao: idObraPadrao || null,
-                                                  sent: false,
-                                      lastSentDate: null,
-                                                  updatedAt: new Date().toISOString()
-                                    };
-                                    await saveToFirestore('notificationQueue', queueItem);
-                                    console.log('[Scheduler] Created new notificationQueue doc:', queueDocId);
-                        }
-              } catch (err) {
-                        console.warn('[Scheduler] Failed to sync notificationQueue doc:', err);
-              }
+        await updateDoc(docRef, {
+          scheduledTime: time,
+          timing: timing || 'todos_dias',
+          idObraPadrao: idObraPadrao || null,
+          updatedAt: new Date().toISOString(),
+          ...((isNewDay || timeChanged) ? { sent: false, lastSentDate: null, errorAt: null, errorMessage: null } : {})
+        });
+        console.log(`[Scheduler] Updated existing notificationQueue doc ${queueDocId} with scheduledTime:`, time);
+      } else {
+        const queueItem = {
+          id: queueDocId,
+          userId: emailLowerSync,
+          title: title || 'SGR Fontana',
+          body: body || 'Lembrete de refeicao!',
+          link: '/',
+          daily: true,
+          scheduledTime: time,
+          timing: timing || 'todos_dias',
+          idObraPadrao: idObraPadrao || null,
+          sent: false,
+          lastSentDate: null,
+          updatedAt: new Date().toISOString()
+        };
+        await saveToFirestore('notificationQueue', queueItem);
+        console.log('[Scheduler] Created new notificationQueue doc:', queueDocId);
       }
+    } catch (err) {
+      console.warn('[Scheduler] Failed to sync notificationQueue doc:', err);
+    }
+  }
 
   const isSWSupported = 'serviceWorker' in navigator;
   const isNotificationSupported = 'Notification' in window;
 
   if (!isSWSupported || !isNotificationSupported) {
-    console.warn('[Scheduler] Service Workers ou Notifications não são totalmente suportados por esta plataforma.');
+    console.warn('[Scheduler] Service Workers ou Notifications nao sao totalmente suportados por esta plataforma.');
     runLocalFallback(time, title, body);
     return;
   }
@@ -177,7 +177,7 @@ export async function scheduleNotification(
     }
 
     if (permission !== 'granted') {
-      console.warn('[Scheduler] Permissão para notificações negada pelo usuário ou sistema:', permission);
+      console.warn('[Scheduler] Permissao para notificacoes negada pelo usuario ou sistema:', permission);
       return;
     }
 
@@ -207,19 +207,18 @@ export async function scheduleNotification(
       });
       console.log(`[Scheduler] Agendamento enviado com sucesso para o Service Worker: ${time} para ${userParam}`);
     } else {
-      console.warn('[Scheduler] Não há um service worker controlador pronto.');
+      console.warn('[Scheduler] Nao ha um service worker controlador pronto.');
     }
 
     // Automagically register background Push Subscription to guarantee sleep-proof notifications
     if (email) {
       const emailLower = email.toLowerCase().trim();
       subscribeUserToPush(emailLower).catch(err => console.warn('[Scheduler] Auto-push enrollment failed:', err));
-      
 
     }
 
   } catch (error) {
-    console.error('[Scheduler] Erro crítico no fluxo de agendamento de notificações:', error);
+    console.error('[Scheduler] Erro critico no fluxo de agendamento de notificacoes:', error);
   }
 
   // Always boot up foreground memory fallback
@@ -263,16 +262,37 @@ function runLocalFallback(time: string, title: string, body: string) {
   }
 }
 
-
-
 /**
  * Registers the FCM token for the current user in Firestore.
  * This enables server-side notifications via Firebase Cloud Messaging.
  */
 export async function registerFCMToken(userId: string, email?: string): Promise<void> {
   try {
-// No TWA/Android, Notification.requestPermission() pode bloquear mesmo com
-            // permissao concedida no SO. Vai direto ao token FCM.
+    // === BRIDGE NATIVO ANDROID ===
+    // Informa o SGRFirebaseMessagingService (lado nativo) sobre o usuario logado.
+    // OBRIGATORIO: resyncCurrentToken() precisa do email salvo em SharedPreferences
+    // para gravar o token FCM em fcmTokens/{docId} no Firestore. Sem essa chamada,
+    // o email nunca e conhecido pelo nativo e o token jamais chega ao Firestore.
+    if (email && typeof window !== 'undefined') {
+      const nativeBridge = (window as any).SGRNativeBridge;
+      if (nativeBridge && typeof nativeBridge.setCurrentUser === 'function') {
+        nativeBridge.setCurrentUser(email.trim().toLowerCase());
+        console.log('[FCM] Native bridge: setCurrentUser chamado para', email.trim().toLowerCase());
+        // Dispara resync imediato: busca o token FCM atual e grava em fcmTokens
+        if (typeof nativeBridge.reativarNotificacoes === 'function') {
+          nativeBridge.reativarNotificacoes();
+          console.log('[FCM] Native bridge: reativarNotificacoes disparado - token sera gravado no Firestore');
+        }
+        // No app nativo Android o token FCM e gerenciado pelo SGRFirebaseMessagingService.
+        // O caminho web (getFCMToken) nao funciona em WebView; retorna aqui para evitar
+        // erros desnecessarios. O nativo ja cuidou de tudo acima.
+        return;
+      }
+    }
+
+    // === CAMINHO WEB (browser comum, fora do app Android nativo) ===
+    // No TWA/Android, Notification.requestPermission() pode bloquear mesmo com
+    // permissao concedida no SO. Vai direto ao token FCM.
     const token = await getFCMToken();
     if (!token) {
       console.warn('[FCM] Could not obtain FCM token.');
