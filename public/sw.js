@@ -3,6 +3,45 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// ─── Firebase Cloud Messaging ─────────────────────────────────────────────────
+// Importado PRIMEIRO para que o FCM intercepte os eventos push antes de qualquer
+// outro listener. Isso elimina o conflito com firebase-messaging-sw.js (que ficava
+// preso em "waiting" por causa do skipWaiting abaixo).
+importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
+
+firebase.initializeApp({
+  apiKey: "AIzaSyARWM_Q2Anq30Cg86Zn15wptXcL7puZDN0",
+  authDomain: "meu-app-producao-af69c.firebaseapp.com",
+  projectId: "meu-app-producao-af69c",
+  storageBucket: "meu-app-producao-af69c.firebasestorage.app",
+  messagingSenderId: "71368810560",
+  appId: "1:71368810560:web:3557786658420f9f50ffa5"
+});
+
+const fcmMessaging = firebase.messaging();
+
+// Recebe notificações FCM quando o app está em background ou fechado
+fcmMessaging.onBackgroundMessage((payload) => {
+  console.log('[SW] FCM mensagem recebida em background:', payload);
+  const notificationTitle = payload.data?.title || payload.notification?.title || 'SGR Fontana';
+  const notificationOptions = {
+    body: payload.data?.body || payload.notification?.body || 'Você possui uma nova atualização.',
+    icon: '/icon.png',
+    badge: '/icon-badge.svg',
+    data: payload.data,
+    vibrate: [200, 100, 200],
+    tag: 'sgr-push-notification',
+    renotify: true,
+    actions: [
+      { action: 'reserve', title: '✅ Confirmar Almoço' },
+      { action: 'view_menu', title: '📋 Ver Cardápio' }
+    ]
+  };
+  self.registration.showNotification(notificationTitle, notificationOptions);
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
 const DB_NAME = 'sgr-notifications-db';
 const STORE_NAME = 'alarms';
 
@@ -70,33 +109,6 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-// Listener for push event
-self.addEventListener('push', (event) => {
-  let payload = { title: 'SGR FONTANA', body: 'Lembrete de Marmitas' };
-  if (event.data) {
-    try {
-      payload = event.data.json();
-    } catch (e) {
-      payload = { title: 'SGR FONTANA', body: event.data.text() };
-    }
-  }
-
-  event.waitUntil(
-    self.registration.showNotification(payload.title, {
-      body: payload.body,
-      icon: '/icon.png',
-      badge: '/icon-badge.svg',
-      vibrate: [0, 200, 100, 200], // Snappy WhatsApp-style double rumble
-      tag: 'sgr-push-notification',
-      renotify: true,
-      actions: [
-        { action: 'reserve', title: '✅ Confirmar Almoço' },
-        { action: 'view_menu', title: '📋 Ver Cardápio' }
-      ]
-    })
-  );
-});
-
 // Click action and button handling for high PWA engagement
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
@@ -119,7 +131,7 @@ self.addEventListener('notificationclick', (event) => {
             break;
           }
         }
-        
+
         // Post current action parameter to open frame so page can act programmatically
         if (typeof client.navigate === 'function') {
           client.navigate(targetUrl);
@@ -146,7 +158,7 @@ self.addEventListener('message', (event) => {
 
     const alarmData = { time, title, body, timing, lastChecked: null };
     activeAlarms[email] = alarmData;
-    
+
     // Save to IndexedDB so it survives SW restarts!
     event.waitUntil(saveAlarm(email, alarmData));
 
@@ -182,7 +194,7 @@ async function checkAlarms() {
       const db = await openDB();
       const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
-      
+
       const dbAlarm = await new Promise((res) => {
         const req = store.get(email);
         req.onsuccess = () => res(req.result);
@@ -204,7 +216,7 @@ async function checkAlarms() {
         body: alarm.body || 'Lembrete de refeição para amanhã!',
         icon: '/icon.png',
         badge: '/icon-badge.svg',
-        vibrate: [0, 200, 100, 200], // Snappy WhatsApp-style double rumble
+        vibrate: [0, 200, 100, 200],
         tag: `sgr-ref-alert-${email}`,
         renotify: true,
         actions: [
@@ -212,7 +224,7 @@ async function checkAlarms() {
           { action: 'view_menu', title: '📋 Ver Cardápio' }
         ]
       });
-      
+
       console.log(`[SW] Alerta disparado com sucesso para ${email}!`);
     }
   }
