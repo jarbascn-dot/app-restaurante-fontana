@@ -93,6 +93,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
+    // Verificação de janela horária (America/Sao_Paulo) para otimizar leituras do Firestore
+    const weekdaySP = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short' }).format(new Date());
+    const isWeekendSP = weekdaySP === 'Sat' || weekdaySP === 'Sun';
+    const nowSP = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+
+    const isMorningWindow = nowSP >= '07:00' && nowSP <= '09:00';
+    const isNightWindow = nowSP >= '18:00' && nowSP <= '22:10';
+
+    if (isWeekendSP || (!isMorningWindow && !isNightWindow)) {
+        return res.status(200).json({ success: true, message: 'Fora da janela' });
+    }
+
 try {
     const { db, messaging } = getFirebaseAdmin();
     console.log('[FCM Daemon] Processing notification queue...');
