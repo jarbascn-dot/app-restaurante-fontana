@@ -30,11 +30,12 @@ isSupported().then((supported) => {
 
 export async function getFCMToken(): Promise<string | null> {
   try {
-        console.log('[FCM] Iniciando getFCMToken...');
-        console.log('[FCM] Notification.permission:', typeof Notification !== 'undefined' ? Notification.permission : 'indisponivel');
-        console.log('[FCM] serviceWorker disponivel:', 'serviceWorker' in navigator);
+    console.log('[FCM] Iniciando getFCMToken...');
+    console.log('[FCM] Notification.permission:', typeof Notification !== 'undefined' ? Notification.permission : 'Notification API indisponível');
+    console.log('[FCM] serviceWorker disponível:', 'serviceWorker' in navigator);
+
     const supported = await isSupported();
-        console.log('[FCM] isSupported():', supported);
+    console.log('[FCM] isSupported():', supported);
     if (!supported) {
       console.warn('[FCM] Firebase Messaging is not supported in this environment.');
       return null;
@@ -44,37 +45,38 @@ export async function getFCMToken(): Promise<string | null> {
       messaging = getMessaging(app);
     }
 
-        const vapidKey = (import.meta as any).env.VITE_FIREBASE_VAPID_KEY || 'BJ5Vpn_NAv-fyxlgg6jmEvuYBieH8F1GVdVhs3gokWz3SBCu-gWMJPHFiGlFjWSljG_H2JZe6tGO9dSkQiTW77E';
-        console.log('[FCM] VAPID key source:', (import.meta as any).env.VITE_FIREBASE_VAPID_KEY ? 'env var' : 'hardcoded fallback');
-        console.log('[FCM] VAPID key length:', vapidKey?.length, '(deve ser 88)');
+    const vapidKey = (import.meta as any).env.VITE_FIREBASE_VAPID_KEY || 'BJ5Vpn_NAv-fyxlgg6jmEvuYBieH8F1GVdVhs3gokWz3SBCu-gWMJPHFiGlFjWSljG_H2JZe6tGO9dSkQiTW77E';
+    console.log('[FCM] VAPID key source:', (import.meta as any).env.VITE_FIREBASE_VAPID_KEY ? 'env var' : 'hardcoded fallback');
+    console.log('[FCM] VAPID key length:', vapidKey?.length, '(deve ser 88)');
     if (!vapidKey) {
       console.warn('[FCM] VITE_FIREBASE_VAPID_KEY not set.');
       return null;
     }
 
-    // Registra firebase-messaging-sw.js explicitamente para evitar conflito com sw.js
-    // (quando sw.js controla escopo '/', o SDK nÃ£o consegue registrar automaticamente)
+    // Usa sw.js como service worker do FCM — ele já importa o Firebase Messaging
+    // internamente (importScripts no topo), eliminando o conflito de escopo que havia
+    // quando firebase-messaging-sw.js tentava competir com sw.js pelo scope '/'.
     let swRegistration: ServiceWorkerRegistration | undefined;
     if ('serviceWorker' in navigator) {
       try {
-        // Verificar se jÃ¡ estÃ¡ registrado pelo scriptURL
         const allRegs = await navigator.serviceWorker.getRegistrations();
+        // Procura pelo sw.js (service worker principal do PWA, agora com FCM embutido)
         swRegistration = allRegs.find(r =>
-          r.active?.scriptURL?.includes('firebase-messaging-sw.js') ||
-          r.installing?.scriptURL?.includes('firebase-messaging-sw.js') ||
-          r.waiting?.scriptURL?.includes('firebase-messaging-sw.js')
+          r.active?.scriptURL?.endsWith('/sw.js') ||
+          r.installing?.scriptURL?.endsWith('/sw.js') ||
+          r.waiting?.scriptURL?.endsWith('/sw.js')
         );
 
-        if (!swRegistration) {
-          // Registrar explicitamente para garantir que o FCM o encontre
-          swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
-          await navigator.serviceWorker.ready;
-          console.log('[FCM] firebase-messaging-sw.js registrado com sucesso');
+        if (swRegistration) {
+          console.log('[FCM] sw.js encontrado. Estado:', swRegistration.active?.state || swRegistration.waiting?.state || 'installing');
         } else {
-          console.log('[FCM] firebase-messaging-sw.js jÃ¡ registrado');
+          // Fallback: registrar sw.js caso não exista ainda
+          swRegistration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+          await navigator.serviceWorker.ready;
+          console.log('[FCM] sw.js registrado como fallback');
         }
       } catch (swErr) {
-        console.warn('[FCM] Aviso ao registrar firebase-messaging-sw.js (tentando sem registration explÃ­cito):', swErr);
+        console.warn('[FCM] Aviso ao localizar sw.js:', swErr);
         swRegistration = undefined;
       }
     }
@@ -84,9 +86,12 @@ export async function getFCMToken(): Promise<string | null> {
       tokenOptions.serviceWorkerRegistration = swRegistration;
     }
 
+    console.log('[FCM] Chamando getToken com sw.js...');
     const token = await getToken(messaging, tokenOptions);
     if (!token) {
-      console.warn('[FCM] getToken retornou token vazio â verifique VAPID key e permissÃ£o de notificaÃ§Ã£o.');
+      console.warn('[FCM] getToken retornou token vazio — verifique VAPID key e permissao de notificacao.');
+    } else {
+      console.log('[FCM] Token obtido com sucesso! Primeiros 20 chars:', token.substring(0, 20) + '...');
     }
     return token || null;
   } catch (err) {
