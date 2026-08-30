@@ -6,11 +6,10 @@
 import React, { useState, useEffect } from 'react';
 import { Usuario, AuditoriaLog, SystemSettings } from '../types';
 import { X, KeyRound, Bell, Smartphone, ShieldCheck, Check, Eye, EyeOff, Volume2, Sparkles, FileText, Download } from 'lucide-react';
-import { scheduleNotification } from '../lib/notificationScheduler';
+import { scheduleNotification, registerFCMToken } from '../lib/notificationScheduler';
 import { COMPROMISSO_LGPD_HTML } from './LgpdConsentModal';
 import { comparePassword } from '../lib/passwordUtils';
 import { generatePolicyPdf } from '../lib/generatePolicyPdf';
-
 interface AccountSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -252,10 +251,13 @@ export default function AccountSettingsModal({
         `Lembrete SGR: configure seus agendamentos no app antes do horário limite!`,
         currentUser.email,
         notifyTiming,
-        currentUser.idObraPadrao
-      );
+        currentUser.idObraPadrao      );
+      // Registra o token FCM no momento em que o usuario configura as notificacoes.
+            // Este e o melhor momento: app ativo, permissao concedida, service worker carregado.
+            if (currentUser.email) {
+                      registerFCMToken(currentUser.id, currentUser.email);
+            }
     }
-
     if (onUpdateNotifications) {
       onUpdateNotifications(notifyEnabled, notifyTiming as 'todos_dias' | 'seg_sex', notifyTime, notifyTipo);
     } else {
