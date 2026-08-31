@@ -101,7 +101,7 @@ Retorne rigorosamente um JSON válido no seguinte formato de objeto:
 }`;
 
     let aiResponse: any = null;
-    const modelsToTry = ['gemini-3.7-flash', 'gemini-2.5-flash'];
+    const modelsToTry = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
     let lastErr: any = null;
 
     for (const modelName of modelsToTry) {
@@ -137,7 +137,13 @@ Retorne rigorosamente um JSON válido no seguinte formato de objeto:
     let parsedJson: any = null;
     try {
       if (aiResponse.text) {
-        parsedJson = JSON.parse(aiResponse.text.trim());
+        let cleanText = aiResponse.text.trim();
+        if (cleanText.startsWith('```json')) {
+          cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        } else if (cleanText.startsWith('```')) {
+          cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        }
+        parsedJson = JSON.parse(cleanText.trim());
       }
     } catch (pErr) {
       console.warn('[Vercel Serverless AI] Erro ao parsear JSON:', pErr);
