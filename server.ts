@@ -354,7 +354,7 @@ Retorne rigorosamente um JSON válido no seguinte formato de objeto:
 }`;
 
       let aiResponse: any = null;
-      const modelsToTry = ['gemini-3.7-flash', 'gemini-2.5-flash'];
+      const modelsToTry = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
       let lastErr: any = null;
 
       for (const modelName of modelsToTry) {
