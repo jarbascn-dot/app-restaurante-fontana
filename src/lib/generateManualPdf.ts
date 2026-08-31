@@ -180,7 +180,7 @@ export async function generateManualPdf(currentUser?: Usuario): Promise<void> {
     '• Dia verde = Refeicao confirmada.',
     '• Para semanas completas, use o botao',
     '  "Reservar Mes Inteiro" ou por periodo.',
-    '• Respeite o horario limite de corte (16h).'
+    '• Respeite o horario limite de corte (ate as 8:30).'
   ];
   curY = y2 + 13;
   step2Lines.forEach(line => {
@@ -239,7 +239,7 @@ export async function generateManualPdf(currentUser?: Usuario): Promise<void> {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.2);
   doc.setTextColor(75, 85, 99);
-  doc.text('Cinza: Bloqueado (Fim de semana/passado)', x1 + 12, y1 + 35);
+  doc.text('Cinza: Bloqueado (Fim de semana/feriado)', x1 + 12, y1 + 35);
 
   // Box 4: Passo 4
   y2 = y;
@@ -259,17 +259,17 @@ export async function generateManualPdf(currentUser?: Usuario): Promise<void> {
 
   doc.setTextColor(...emeraldDark);
   doc.setFontSize(9.5);
-  doc.text('Confirmando no Refeitorio', x2 + 13, y2 + 7);
+  doc.text('Presenca e Assinatura no Refeitorio', x2 + 13, y2 + 7);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...bodyGray);
 
   const step4Lines = [
-    '• No horario do almoco, dirija-se ao refeitorio.',
-    '• Digite sua matricula e senha ou apresente',
-    '  seu QR Code no totem da cozinha.',
-    '• A confirmacao emite o comprovante.',
+    '• No horario, dirija-se ao refeitorio (Adm/Obra).',
+    '• Localize seu nome na lista impressa diaria.',
+    '• Assine a lista ao retirar seu prato para',
+    '  confirmar a presenca e retirada da refeicao.',
     '• Tenha uma excelente refeicao!'
   ];
   curY = y2 + 13;
@@ -306,7 +306,7 @@ export async function generateManualPdf(currentUser?: Usuario): Promise<void> {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.8);
   doc.setTextColor(...bodyGray);
-  doc.text('No seu aplicativo, voce acompanha de forma transparente como e composto o valor de cada refeicao:', marginLeft + 5, y + 11);
+  doc.text('No seu aplicativo, voce acompanha como e composto o valor da refeicao no refeitorio (Administrativo / Obra):', marginLeft + 5, y + 11);
 
   // Sub-boxes inside Transparency Card
   const subCardW = (contentWidth - 16) / 2; // 85mm
@@ -404,24 +404,19 @@ export async function generateManualPdf(currentUser?: Usuario): Promise<void> {
   // Table Rows
   const rows = [
     {
-      dia: 'Segunda-feira',
-      limite: 'Sexta-feira ate as 16h00',
-      obs: 'Preparo dos insumos no fim de semana',
+      dia: 'Segunda a Sexta-feira',
+      limite: 'Diariamente ate as 8:30 do dia',
+      obs: 'Limite diario para reservar ou cancelar',
     },
     {
-      dia: 'Terca a Sexta-feira',
-      limite: 'Dia util anterior ate as 16h00',
-      obs: 'Producao diaria da cozinha terceirizada',
-    },
-    {
-      dia: 'Fim de semana / Feriado',
-      limite: 'Conforme escala especifica da obra',
-      obs: 'Alinhamento previo junto a engenharia/RH',
+      dia: 'Sabados, Domingos e Feriados',
+      limite: 'Bloqueado (Sem expediente)',
+      obs: 'Evita reservas acidentais. Em caso especial: RH',
     },
     {
       dia: 'Ferias / Atestado Medico',
-      limite: 'Aviso imediato ao RH / Encarregado',
-      obs: 'Cancelamento em lote no sistema',
+      limite: 'Aviso previo ao RH',
+      obs: 'Cancelamento de reservas no sistema',
     },
   ];
 
@@ -465,8 +460,8 @@ export async function generateManualPdf(currentUser?: Usuario): Promise<void> {
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
-  doc.text('Evite surpresas! Ao saber que faltara ao trabalho ou fara refeicao fora da obra, cancele sua reserva antes', marginLeft + 4, y + 10.5);
-  doc.text('do horario limite. Isso evita o desperdicio de comida e garante que a refeicao nao seja faturada sem uso.', marginLeft + 4, y + 14.5);
+  doc.text('Evite surpresas! Ao saber que faltara ao trabalho ou fara refeicao fora, cancele sua reserva antes', marginLeft + 4, y + 10.5);
+  doc.text('das 8:30 da manha. Isso evita o desperdicio de comida e garante que a refeicao nao seja faturada sem uso.', marginLeft + 4, y + 14.5);
 
   y += dicaH + 8;
 
@@ -484,11 +479,11 @@ export async function generateManualPdf(currentUser?: Usuario): Promise<void> {
   const faqs = [
     {
       q: '1. Esqueci de agendar a refeicao, posso almocar assim mesmo?',
-      a: 'A cozinha produz a quantidade exata agendada pelo SGR para evitar faltas ou desperdicios. Se voce nao agendou, consulte o encarregado para verificar se ha sobra tecnica autorizada.',
+      a: 'A cozinha produz a quantidade exata agendada pelo SGR para evitar faltas ou desperdicios. Se voce nao agendou, consulte o RH ou encarregado para verificar se ha autorizacao.',
     },
     {
-      q: '2. Mudei de obra / canteiro, como atualizar meu local de refeicao?',
-      a: 'Sua obra padrao e vinculada ao seu cadastro no SGR. Solicite ao RH ou Engenharia da sua obra para atualizar sua Obra Padrao no sistema, garantindo que sua refeicao va para a cozinha certa.',
+      q: '2. Mudei de unidade (Administrativo / Obra), como atualizar meu local?',
+      a: 'Sua unidade padrao (Administrativo ou Obra) e vinculada ao seu cadastro no SGR. Solicite ao RH para atualizar sua Unidade no sistema, garantindo que seu nome conste na lista impressa do refeitorio correto.',
     },
     {
       q: '3. Onde consulto o valor que vira descontado na minha folha?',
@@ -542,7 +537,7 @@ export async function generateManualPdf(currentUser?: Usuario): Promise<void> {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...bodyGray);
-  doc.text('Procure o setor de Recursos Humanos (RH) ou a administracao do canteiro de obras da FONTANA.', marginLeft + 4, y + 9.5);
+  doc.text('Procure o setor de Recursos Humanos (RH) da Construtora FONTANA para atendimento Administrativo ou Obra.', marginLeft + 4, y + 9.5);
 
   // --- Page 2 Footer ---
   doc.setFont('helvetica', 'normal');
