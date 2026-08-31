@@ -1140,6 +1140,139 @@ export default function App() {
     triggerFlashNotification('Lançamento excluído com sucesso.');
   };
 
+  // Toggle/Cancel a single reservation for a collaborator by Admin/RH
+  const handleToggleReservaForUser = (userId: string, dateStr: string) => {
+    const existingIndex = reservas.findIndex(r => r.idUsuario === userId && r.data === dateStr);
+    const user = usuarios.find(u => u.id === userId);
+
+    if (existingIndex > -1) {
+      const updated = [...reservas];
+      const res = { ...updated[existingIndex] };
+      const wasReserved = res.status === ReservaStatus.Reservado;
+      
+      res.status = wasReserved ? ReservaStatus.Cancelado : ReservaStatus.Reservado;
+      res.alteradoEm = new Date().toISOString();
+      res.ipOrigem = '127.0.0.1 (RH Admin)';
+      res.dispositivo = 'Portal Admin RH';
+      
+      updated[existingIndex] = res;
+      setReservas(updated);
+      saveToFirestore('reservas', res);
+      
+      const opLabel = wasReserved ? 'Cancelamento de Refeição pelo RH' : 'Reativação de Refeição pelo RH';
+      appendAuditLog(`${opLabel} para ${user?.nome || userId} no dia ${dateStr}`);
+      triggerFlashNotification(`Refeição de ${user?.nome || 'Colaborador'} para ${dateStr}: ${wasReserved ? 'CANCELADA ⚪' : 'RESERVADA 🟢'}`);
+    } else {
+      const newRes: Reserva = {
+        id: 'r-' + Math.random().toString(36).substr(2, 9),
+        idUsuario: userId,
+        data: dateStr,
+        status: ReservaStatus.Reservado,
+        consumido: false,
+        idObraNoDia: user?.idObraPadrao || obras[0]?.id || '',
+        alteradoEm: new Date().toISOString(),
+        ipOrigem: '127.0.0.1 (RH Admin)',
+        dispositivo: 'Portal Admin RH'
+      };
+      setReservas(prev => [...prev, newRes]);
+      saveToFirestore('reservas', newRes);
+      appendAuditLog(`Reserva criada pelo RH para ${user?.nome || userId} no dia ${dateStr}`);
+      triggerFlashNotification(`Refeição de ${user?.nome || 'Colaborador'} agendada para: ${dateStr} 🟢`);
+    }
+  };
+
+  // Batch booking or batch cancellation for collaborator executed by Admin/RH
+  const handleBatchReservasAdmin = (
+    userId: string,
+    startDate: string,
+    endDate: string,
+    action: 'reservar' | 'cancelar',
+    obraId?: string
+  ) => {
+    const loopStart = new Date(startDate + 'T12:00:00');
+    const loopEnd = new Date(endDate + 'T12:00:00');
+    const user = usuarios.find(u => u.id === userId);
+    const targetObra = obraId || user?.idObraPadrao || obras[0]?.id || '';
+
+    const newBatchReservations: Reserva[] = [];
+    const updatedExistingReservations = [...reservas];
+    let processedCount = 0;
+
+    for (let d = new Date(loopStart); d <= loopEnd; d.setDate(d.getDate() + 1)) {
+      const year = d.getFullYear();
+      const m = d.getMonth() + 1;
+      const day = d.getDate();
+      const mStr = m < 10 ? `0${m}` : `${m}`;
+      const dStr = day < 10 ? `0${day}` : `${day}`;
+      const dateStr = `${year}-${mStr}-${dStr}`;
+
+      const dayOfWeek = d.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+      // Skip weekends if not permitted
+      if (isWeekend && !settings.permitirFinsDeSemana) {
+        continue;
+      }
+
+      // Skip holidays when reserving
+      const isHoliday = feriados.some(f => {
+        if (f.data !== dateStr) return false;
+        if (!f.abrangencia || f.abrangencia === 'nacional') return true;
+        return f.idObras?.includes(targetObra) ?? false;
+      });
+      if (isHoliday && action === 'reservar') {
+        continue;
+      }
+
+      const existingIdx = updatedExistingReservations.findIndex(
+        r => r.idUsuario === userId && r.data === dateStr
+      );
+
+      const statusValue = action === 'reservar' ? ReservaStatus.Reservado : ReservaStatus.Cancelado;
+
+      if (existingIdx > -1) {
+        updatedExistingReservations[existingIdx] = {
+          ...updatedExistingReservations[existingIdx],
+          status: statusValue,
+          idObraNoDia: action === 'reservar' ? targetObra : updatedExistingReservations[existingIdx].idObraNoDia,
+          alteradoEm: new Date().toISOString(),
+          ipOrigem: '127.0.0.1 (RH Admin)',
+          dispositivo: 'Portal Admin RH'
+        };
+        processedCount++;
+      } else {
+        if (action === 'reservar') {
+          const newRes: Reserva = {
+            id: 'r-' + Math.random().toString(36).substr(2, 9),
+            idUsuario: userId,
+            data: dateStr,
+            status: statusValue,
+            consumido: false,
+            idObraNoDia: targetObra,
+            alteradoEm: new Date().toISOString(),
+            ipOrigem: '127.0.0.1 (RH Admin)',
+            dispositivo: 'Portal Admin RH'
+          };
+          newBatchReservations.push(newRes);
+          processedCount++;
+        }
+      }
+    }
+
+    const finalSet = [...updatedExistingReservations, ...newBatchReservations];
+    setReservas(finalSet);
+
+    const affectedUserReservas = finalSet.filter(r => r.idUsuario === userId);
+    if (affectedUserReservas.length > 0) {
+      saveBatchToFirestore('reservas', affectedUserReservas);
+    }
+
+    const userNome = user?.nome || 'Colaborador';
+    const actionLabel = action === 'reservar' ? 'Agendamento' : 'Cancelamento';
+    appendAuditLog(`${actionLabel} de refeições pelo RH para ${userNome} no período de ${startDate} a ${endDate} (${processedCount} dias)`);
+    triggerFlashNotification(`${actionLabel} realizado para ${userNome}: ${processedCount} dia(s) processado(s)!`);
+  };
+
   // Simulated facial biometrics scan confirms withdrawal of meal in kitchen
   const handleConfirmWithdrawal = (idUsuario: string, date: string, excessFee: boolean) => {
     const existingIndex = reservas.findIndex(r => r.idUsuario === idUsuario && r.data === date);
@@ -1836,8 +1969,11 @@ export default function App() {
                     onDeleteFeriado={handleDeleteFeriado}
                     onClearAllReservas={handleClearAllReservas}
                     reservas={reservas}
+                    todayDate={todayDate}
                     onAddReserva={handleAddReserva}
                     onDeleteReserva={handleDeleteReserva}
+                    onBatchReservasAdmin={handleBatchReservasAdmin}
+                    onToggleReservaForUser={handleToggleReservaForUser}
                   />
                 )}
 
