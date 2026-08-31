@@ -35,11 +35,11 @@ export const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose, curre
   const faqs = [
     {
       q: '1. Esqueci de agendar a refeição, posso almoçar assim mesmo?',
-      a: 'A cozinha produz a quantidade exata agendada pelo SGR para evitar faltas ou desperdícios. Se você não agendou a tempo, consulte o encarregado da obra para verificar se há sobra técnica autorizada.',
+      a: 'A cozinha produz a quantidade exata agendada pelo SGR para evitar faltas ou desperdícios. Se você não agendou a tempo, consulte o RH ou encarregado para verificar se há autorização.',
     },
     {
-      q: '2. Mudei de obra / canteiro, como atualizar meu local de refeição?',
-      a: 'Sua obra padrão é vinculada ao seu cadastro no SGR. Solicite ao RH ou Engenharia da sua obra para atualizar sua Obra Padrão no sistema, garantindo que sua refeição vá para a cozinha certa.',
+      q: '2. Mudei de unidade (Administrativo / Obra), como atualizar meu local de refeição?',
+      a: 'Sua unidade padrão (Administrativo ou Obra) é vinculada ao seu cadastro no SGR. Solicite ao RH para atualizar sua Unidade no sistema, garantindo que sua refeição e seu nome constem na lista impressa do refeitório correto.',
     },
     {
       q: '3. Onde consulto o valor que virá descontado na minha folha?',
@@ -174,7 +174,7 @@ export const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose, curre
                   <li>• Clique diretamente sobre o <strong>DIA</strong> para alternar seu status.</li>
                   <li>• Dia <strong>verde</strong> = Refeição confirmada.</li>
                   <li>• Para semanas completas, use o painel <strong>"Reserva por Período"</strong>.</li>
-                  <li>• Lembre-se de respeitar o horário limite de corte (16h do dia útil anterior).</li>
+                  <li>• Lembre-se de respeitar o horário limite de corte (até às 8:30 do próprio dia, de seg. a sex.).</li>
                 </ul>
               </div>
 
@@ -199,7 +199,7 @@ export const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose, curre
                   </div>
                   <div className="flex items-center gap-2 p-2 bg-neutral-100 rounded-lg border border-neutral-200 text-neutral-700 font-medium">
                     <span className="w-3 h-3 rounded-full bg-neutral-400 shrink-0"></span>
-                    <span><strong>Cinza:</strong> Bloqueado (Fim de semana ou dia passado)</span>
+                    <span><strong>Cinza:</strong> Bloqueado (Fim de semana, feriado ou dia passado)</span>
                   </div>
                 </div>
               </div>
@@ -211,13 +211,13 @@ export const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose, curre
                     4
                   </span>
                   <h5 className="font-bold text-neutral-900 text-xs sm:text-sm">
-                    Confirmando no Refeitório
+                    Presença e Assinatura no Refeitório
                   </h5>
                 </div>
                 <ul className="text-xs text-neutral-600 space-y-1.5 pl-1">
-                  <li>• No horário do almoço, dirija-se ao refeitório técnico da obra.</li>
-                  <li>• Digite sua matrícula e senha ou apresente seu <strong>QR Code</strong> no totem.</li>
-                  <li>• A confirmação emite a ficha/comprovante de liberação.</li>
+                  <li>• No horário do almoço, dirija-se ao <strong>refeitório</strong> (Administrativo / Obra).</li>
+                  <li>• Localize seu nome na lista impressa diária de refeições agendadas.</li>
+                  <li>• <strong>Assine a lista impressa</strong> ao retirar seu prato para confirmar sua presença.</li>
                   <li>• Tenha uma excelente refeição!</li>
                 </ul>
               </div>
@@ -234,7 +234,7 @@ export const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose, curre
               </h4>
             </div>
             <p className="text-xs text-neutral-600">
-              No seu aplicativo SGR, você acompanha de forma transparente como é composto o valor de cada refeição servida no canteiro:
+              No seu aplicativo SGR, você acompanha de forma transparente como é composto o valor de cada refeição servida no refeitório (Administrativo / Obra):
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div className="p-3.5 bg-emerald-50 rounded-xl border border-emerald-200 text-xs space-y-1">
@@ -276,24 +276,19 @@ export const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose, curre
                 </thead>
                 <tbody className="divide-y divide-neutral-200 text-neutral-700">
                   <tr className="hover:bg-neutral-50/80">
-                    <td className="p-2.5 font-bold text-neutral-900">Segunda-feira</td>
-                    <td className="p-2.5 font-bold text-emerald-700">Sexta-feira até as 16h00</td>
-                    <td className="p-2.5">Preparo dos insumos no fim de semana</td>
+                    <td className="p-2.5 font-bold text-neutral-900">Segunda a Sexta-feira</td>
+                    <td className="p-2.5 font-bold text-emerald-700">Diariamente até às 8:30 do próprio dia</td>
+                    <td className="p-2.5">Limite diário para reservar, alterar ou cancelar a refeição</td>
                   </tr>
                   <tr className="bg-neutral-50/50 hover:bg-neutral-50">
-                    <td className="p-2.5 font-bold text-neutral-900">Terça a Sexta-feira</td>
-                    <td className="p-2.5 font-bold text-emerald-700">Dia útil anterior até as 16h00</td>
-                    <td className="p-2.5">Produção diária da cozinha terceirizada</td>
+                    <td className="p-2.5 font-bold text-neutral-900">Sábados, Domingos e Feriados</td>
+                    <td className="p-2.5 font-bold text-rose-700">Bloqueado para reservas (Sem expediente)</td>
+                    <td className="p-2.5">Não há expediente na empresa (evita reservas acidentais). Em caso de necessidade, consulte o RH.</td>
                   </tr>
                   <tr className="hover:bg-neutral-50/80">
-                    <td className="p-2.5 font-bold text-neutral-900">Fim de semana / Feriado</td>
-                    <td className="p-2.5 font-bold text-emerald-700">Conforme escala específica da obra</td>
-                    <td className="p-2.5">Alinhamento prévio junto à engenharia/RH</td>
-                  </tr>
-                  <tr className="bg-neutral-50/50 hover:bg-neutral-50">
                     <td className="p-2.5 font-bold text-neutral-900">Férias / Atestado Médico</td>
-                    <td className="p-2.5 font-bold text-emerald-700">Aviso imediato ao RH / Encarregado</td>
-                    <td className="p-2.5">Cancelamento em lote no sistema</td>
+                    <td className="p-2.5 font-bold text-emerald-700">Aviso prévio ao RH</td>
+                    <td className="p-2.5">Cancelamento de reservas no sistema</td>
                   </tr>
                 </tbody>
               </table>
@@ -307,7 +302,7 @@ export const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose, curre
                   💡 Dica Importante para o Colaborador:
                 </span>
                 <p>
-                  Evite surpresas! Ao saber que faltará ao trabalho ou fará refeição fora da obra, cancele sua reserva antes do horário limite. Isso evita o desperdício de comida e garante que a refeição não seja faturada sem uso.
+                  Evite surpresas! Ao saber que faltará ao trabalho ou fará refeição fora da empresa, cancele sua reserva antes das <strong>8:30 da manhã</strong>. Isso evita o desperdício de comida e garante que a refeição não seja faturada sem uso.
                 </p>
               </div>
             </div>
@@ -359,7 +354,7 @@ export const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose, curre
               <div>
                 <h5 className="font-bold text-emerald-950 text-xs">Dúvidas ou Suporte ao Colaborador</h5>
                 <p className="text-xs text-emerald-800">
-                  Procure o setor de Recursos Humanos (RH) ou a administração do canteiro de obras da FONTANA.
+                  Procure o setor de Recursos Humanos (RH) da Construtora FONTANA para atendimento Administrativo ou Obra.
                 </p>
               </div>
             </div>
