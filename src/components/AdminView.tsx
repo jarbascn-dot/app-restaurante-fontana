@@ -2046,6 +2046,9 @@ export default function AdminView({
                               let extractedText = '';
                               let extractedDias: any[] = [];
 
+                              const controller = new AbortController();
+                              const timeoutId = setTimeout(() => controller.abort(), 35000);
+
                               try {
                                 const parseRes = await fetch('/api/gemini/parse-cardapio', {
                                   method: 'POST',
@@ -2053,19 +2056,39 @@ export default function AdminView({
                                   body: JSON.stringify({
                                     cardapioUrl: tempPdfContent,
                                     cardapioNome: tempPdfName || 'cardapio.pdf'
-                                  })
+                                  }),
+                                  signal: controller.signal
                                 });
-                                const parseData = await parseRes.json();
-                                if (parseData.success) {
-                                  extractedText = parseData.text || '';
-                                  extractedDias = parseData.dias || [];
+                                clearTimeout(timeoutId);
+
+                                if (!parseRes.ok) {
+                                  let errDetail = '';
+                                  try {
+                                    const errJson = await parseRes.json();
+                                    errDetail = errJson.error || errJson.message || `Status ${parseRes.status}`;
+                                  } catch {
+                                    errDetail = `Erro HTTP ${parseRes.status} no servidor Vercel.`;
+                                  }
+                                  console.warn('Aviso do servidor ao extrair cardápio:', errDetail);
+                                  alert(`⚠️ Aviso ao analisar com IA: ${errDetail}\nO PDF será salvo e disponibilizado na obra.`);
                                 } else {
-                                  console.warn('Aviso do servidor ao extrair cardápio:', parseData.error);
-                                  alert(`⚠️ Atenção: ${parseData.error || 'Não foi possível extrair os dias por IA. Verifique as configurações da API.'}`);
+                                  const parseData = await parseRes.json();
+                                  if (parseData.success) {
+                                    extractedText = parseData.text || '';
+                                    extractedDias = parseData.dias || [];
+                                  } else {
+                                    console.warn('Aviso ao extrair cardápio:', parseData.error);
+                                    alert(`⚠️ Aviso: ${parseData.error || 'Não foi possível estruturar os dias automaticamente.'}`);
+                                  }
                                 }
                               } catch (e: any) {
-                                console.error('Erro ao processar com IA Gemini ao salvar:', e);
-                                alert(`⚠️ Erro de comunicação com o servidor de IA: ${e.message || 'Falha de rede'}`);
+                                clearTimeout(timeoutId);
+                                console.error('Erro ou timeout ao processar com IA Gemini ao salvar:', e);
+                                if (e.name === 'AbortError') {
+                                  alert('⚠️ O processamento por IA excedeu o tempo limite (35s). O arquivo PDF do cardápio foi salvo com sucesso.');
+                                } else {
+                                  alert(`⚠️ Falha na comunicação com IA: ${e.message || 'Erro de rede'}.\nO arquivo PDF foi salvo com sucesso.`);
+                                }
                               } finally {
                                 setIsParsingCardapioAi(false);
                               }
