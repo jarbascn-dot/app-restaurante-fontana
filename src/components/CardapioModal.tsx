@@ -216,7 +216,17 @@ export const CardapioModal: React.FC<CardapioModalProps> = ({
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0);
 
   // List of days to display (use cardapioDias if populated, else default fallback)
-  const displayDias = (cardapioDias && cardapioDias.length > 0) ? cardapioDias : DEFAULT_DAYS_FALLBACK;
+  const displayDias = React.useMemo(() => {
+    const rawList = (cardapioDias && cardapioDias.length > 0) ? cardapioDias : DEFAULT_DAYS_FALLBACK;
+    return [...rawList].sort((a, b) => {
+      const dateA = parseDateString(a.data);
+      const dateB = parseDateString(b.data);
+      if (dateA && dateB) return dateA.getTime() - dateB.getTime();
+      if (dateA) return -1;
+      if (dateB) return 1;
+      return 0;
+    });
+  }, [cardapioDias]);
 
   // On modal open, automatically jump to TODAY or closest date in displayDias
   useEffect(() => {
