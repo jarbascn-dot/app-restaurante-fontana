@@ -5,7 +5,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Usuario, Perfil, UserStatus, SystemSettings, AuditoriaLog, Obra, Empresa, Feriado, Reserva, ReservaStatus } from '../types';
-import { Users, UserCheck, ShieldAlert, Sliders, FileText, Search, Settings, Save, Trash2, CheckCircle, Ban, Building2, Plus, Edit, Briefcase, X, Check, ExternalLink, Calendar, FileSpreadsheet, Smile, Camera, Eye, Download, Loader2, Sparkles } from 'lucide-react';
+import { Users, UserCheck, ShieldAlert, Sliders, FileText, Search, Settings, Save, Trash2, CheckCircle, Ban, Building2, Plus, Edit, Briefcase, X, Check, ExternalLink, Calendar, FileSpreadsheet, Smile, Camera, Eye, Download, Loader2, Sparkles, CalendarRange, XCircle, RotateCcw, Utensils } from 'lucide-react';
 import CameraCapture from './CameraCapture';
 import { downloadPdfOrFile } from '../lib/downloadHelper';
 import { generateManualPdf } from '../lib/generateManualPdf';
@@ -35,8 +35,17 @@ interface AdminViewProps {
   onDeleteFeriado: (id: string) => void;
   onClearAllReservas: (mode: 'all' | 'future') => void;
   reservas?: Reserva[];
+  todayDate?: string;
   onAddReserva?: (res: Reserva) => void;
   onDeleteReserva?: (id: string) => void;
+  onBatchReservasAdmin?: (
+    userId: string,
+    startDate: string,
+    endDate: string,
+    action: 'reservar' | 'cancelar',
+    obraId?: string
+  ) => void;
+  onToggleReservaForUser?: (userId: string, date: string) => void;
 }
 
 export default function AdminView({
@@ -57,8 +66,11 @@ export default function AdminView({
   onDeleteFeriado,
   onClearAllReservas,
   reservas = [],
+  todayDate = new Date().toISOString().split('T')[0],
   onAddReserva,
   onDeleteReserva,
+  onBatchReservasAdmin,
+  onToggleReservaForUser,
 }: AdminViewProps) {
   
   // Tab navigation within Admin view
@@ -177,8 +189,59 @@ export default function AdminView({
 
   // States for Launching Admin/HR Extra & Colab Bookings
   const [launchUserSelectId, setLaunchUserSelectId] = useState('');
-  const [launchUserDate, setLaunchUserDate] = useState('2026-06-20');
+  const [launchUserAction, setLaunchUserAction] = useState<'reservar' | 'cancelar'>('reservar');
+  const [launchUserStartDate, setLaunchUserStartDate] = useState(todayDate || '2026-06-20');
+  const [launchUserEndDate, setLaunchUserEndDate] = useState(todayDate || '2026-06-20');
   const [launchUserObraId, setLaunchUserObraId] = useState('');
+
+  const setQuickRange = (type: 'today' | 'tomorrow' | 'this_week' | 'next_week' | 'month') => {
+    const baseStr = todayDate || new Date().toISOString().split('T')[0];
+    const base = new Date(baseStr + 'T12:00:00');
+    const formatDate = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    if (type === 'today') {
+      const s = formatDate(base);
+      setLaunchUserStartDate(s);
+      setLaunchUserEndDate(s);
+    } else if (type === 'tomorrow') {
+      const d = new Date(base);
+      d.setDate(d.getDate() + 1);
+      const s = formatDate(d);
+      setLaunchUserStartDate(s);
+      setLaunchUserEndDate(s);
+    } else if (type === 'this_week') {
+      const d = new Date(base);
+      const dayOfWeek = d.getDay(); // 0 is Sun, 1 is Mon...
+      const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const mon = new Date(d);
+      mon.setDate(d.getDate() + diffToMon);
+      const fri = new Date(mon);
+      fri.setDate(mon.getDate() + 4);
+      setLaunchUserStartDate(formatDate(mon));
+      setLaunchUserEndDate(formatDate(fri));
+    } else if (type === 'next_week') {
+      const d = new Date(base);
+      const dayOfWeek = d.getDay();
+      const diffToNextMon = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+      const nextMon = new Date(d);
+      nextMon.setDate(d.getDate() + diffToNextMon);
+      const nextFri = new Date(nextMon);
+      nextFri.setDate(nextMon.getDate() + 4);
+      setLaunchUserStartDate(formatDate(nextMon));
+      setLaunchUserEndDate(formatDate(nextFri));
+    } else if (type === 'month') {
+      const d = new Date(base);
+      const firstDay = new Date(d.getFullYear(), d.getMonth(), 1);
+      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      setLaunchUserStartDate(formatDate(firstDay));
+      setLaunchUserEndDate(formatDate(lastDay));
+    }
+  };
   
   const [launchVisitorName, setLaunchVisitorName] = useState('');
   const [launchVisitorEmpresa, setLaunchVisitorEmpresa] = useState('');
@@ -1006,14 +1069,25 @@ export default function AdminView({
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Card 1: Agendar para Colaborador */}
+              {/* Card 1: Agendar / Cancelar para Colaborador */}
               <div className="bg-white p-5 rounded-xl border border-neutral-200 shadow-xs space-y-4">
                 <div className="border-b border-neutral-100 pb-2">
-                  <span className="font-bold text-xs text-neutral-800 block uppercase tracking-wide">👤 Agendar para Colaborador Cadastrado</span>
-                  <span className="text-[10px] text-neutral-400 block mt-0.5">Utilize quando o funcionário possuir cadastro mas possui pendências (Ex: Primeiro dia, sem login). Possui desconto padrão habitual se houver.</span>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-neutral-800 block uppercase tracking-wide flex items-center gap-1.5">
+                      <Users className="h-3.5 w-3.5 text-emerald-600" />
+                      Agendar ou Cancelar p/ Colaborador Cadastrado
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-neutral-100 text-neutral-600">
+                      Individual / Período
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-neutral-500 block mt-1">
+                    Permite agendar refeições por período ou cancelar/desmarcar reservas pré-agendadas (férias, atestados, folgas ou colaboradores sem acesso ao app).
+                  </span>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  {/* Select Collaborator */}
                   <div>
                     <label className="block text-[10px] text-neutral-550 uppercase font-black mb-1 font-mono">Selecionar Colaborador</label>
                     <select
@@ -1023,7 +1097,7 @@ export default function AdminView({
                         setLaunchUserSelectId(uid);
                         const selU = usuarios.find(usr => usr.id === uid);
                         if (selU) {
-                          setLaunchUserObraId(selU.idObraPadrao);
+                          setLaunchUserObraId(selU.idObraPadrao || obras[0]?.id || '');
                         }
                       }}
                       className="w-full px-3 py-2 border border-neutral-300 rounded text-xs font-bold text-neutral-800 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
@@ -1034,26 +1108,125 @@ export default function AdminView({
                         .sort((a,b) => a.nome.localeCompare(b.nome, 'pt-BR'))
                         .map(u => (
                           <option key={u.id} value={u.id}>
-                            {u.nome} (Mat: {u.matricula || 'Sem Matrícula'})
+                            {u.nome} (Mat: {u.matricula || 'Sem Matrícula'} | {obras.find(o => o.id === u.idObraPadrao)?.nome || 'Sem Unidade'})
                           </option>
                         ))
                       }
                     </select>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] text-neutral-550 uppercase font-black mb-1 font-mono">Data do Almoço</label>
-                      <input
-                        type="date"
-                        value={launchUserDate}
-                        onChange={(e) => setLaunchUserDate(e.target.value)}
-                        className="w-full px-3 py-1.5 border border-neutral-300 rounded text-xs font-mono font-bold text-neutral-800 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                      />
+                  {/* Action Mode Toggle: Agendar vs Cancelar */}
+                  <div>
+                    <label className="block text-[10px] text-neutral-550 uppercase font-black mb-1.5 font-mono">Ação Desejada</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setLaunchUserAction('reservar')}
+                        className={`py-2 px-3 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                          launchUserAction === 'reservar'
+                            ? 'bg-emerald-50 border-emerald-500 text-emerald-800 shadow-xs ring-1 ring-emerald-500'
+                            : 'bg-neutral-50 border-neutral-200 text-neutral-600 hover:bg-neutral-100'
+                        }`}
+                      >
+                        <CheckCircle className={`h-3.5 w-3.5 ${launchUserAction === 'reservar' ? 'text-emerald-600' : 'text-neutral-400'}`} />
+                        Agendar / Confirmar
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setLaunchUserAction('cancelar')}
+                        className={`py-2 px-3 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                          launchUserAction === 'cancelar'
+                            ? 'bg-rose-50 border-rose-500 text-rose-800 shadow-xs ring-1 ring-rose-500'
+                            : 'bg-neutral-50 border-neutral-200 text-neutral-600 hover:bg-neutral-100'
+                        }`}
+                      >
+                        <XCircle className={`h-3.5 w-3.5 ${launchUserAction === 'cancelar' ? 'text-rose-600' : 'text-neutral-400'}`} />
+                        Cancelar / Desmarcar
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Period Selection (Data Inicial e Data Final) */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-[10px] text-neutral-550 uppercase font-black font-mono">Período de Datas</label>
+                      <span className="text-[10px] text-neutral-400">Para 1 dia, mantenha as datas iguais</span>
                     </div>
 
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div>
+                        <span className="block text-[10px] text-neutral-500 font-bold mb-0.5">Data Inicial:</span>
+                        <input
+                          type="date"
+                          value={launchUserStartDate}
+                          onChange={(e) => {
+                            setLaunchUserStartDate(e.target.value);
+                            if (e.target.value > launchUserEndDate) {
+                              setLaunchUserEndDate(e.target.value);
+                            }
+                          }}
+                          className="w-full px-3 py-1.5 border border-neutral-300 rounded text-xs font-mono font-bold text-neutral-800 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                      </div>
+
+                      <div>
+                        <span className="block text-[10px] text-neutral-500 font-bold mb-0.5">Data Final:</span>
+                        <input
+                          type="date"
+                          value={launchUserEndDate}
+                          min={launchUserStartDate}
+                          onChange={(e) => setLaunchUserEndDate(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-neutral-300 rounded text-xs font-mono font-bold text-neutral-800 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Quick Range Chips */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <span className="text-[10px] text-neutral-400 font-mono mr-1">Atalhos:</span>
+                      <button
+                        type="button"
+                        onClick={() => setQuickRange('today')}
+                        className="px-2 py-0.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded text-[10px] font-bold transition cursor-pointer"
+                      >
+                        Hoje
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setQuickRange('tomorrow')}
+                        className="px-2 py-0.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded text-[10px] font-bold transition cursor-pointer"
+                      >
+                        Amanhã
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setQuickRange('this_week')}
+                        className="px-2 py-0.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded text-[10px] font-bold transition cursor-pointer"
+                      >
+                        Esta Semana
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setQuickRange('next_week')}
+                        className="px-2 py-0.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded text-[10px] font-bold transition cursor-pointer"
+                      >
+                        Próxima Semana
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setQuickRange('month')}
+                        className="px-2 py-0.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded text-[10px] font-bold transition cursor-pointer"
+                      >
+                        Mês Atual
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Destination Obra (Only when Scheduling) */}
+                  {launchUserAction === 'reservar' && (
                     <div>
-                      <label className="block text-[10px] text-neutral-550 uppercase font-black mb-1 font-mono">Setor / Obra</label>
+                      <label className="block text-[10px] text-neutral-550 uppercase font-black mb-1 font-mono">Setor / Obra de Destino</label>
                       <select
                         value={launchUserObraId}
                         onChange={(e) => setLaunchUserObraId(e.target.value)}
@@ -1065,56 +1238,197 @@ export default function AdminView({
                         ))}
                       </select>
                     </div>
-                  </div>
+                  )}
 
+                  {/* Main Action Button */}
                   <button
+                    type="button"
                     onClick={() => {
                       if (!launchUserSelectId) {
                         alert('Por favor, selecione um colaborador.');
                         return;
                       }
-                      if (!launchUserDate) {
-                        alert('Por favor, defina a data do agendamento.');
+                      if (!launchUserStartDate || !launchUserEndDate) {
+                        alert('Por favor, defina o período de datas.');
                         return;
                       }
-                      if (!launchUserObraId) {
-                        alert('Por favor, selecione a obra de trabalho.');
+                      if (launchUserStartDate > launchUserEndDate) {
+                        alert('A data inicial não pode ser superior à data final.');
                         return;
                       }
-
-                      // Check if already reserved
-                      const alreadyExists = (reservas || []).some(
-                        r => r.idUsuario === launchUserSelectId && r.data === launchUserDate && r.status === ReservaStatus.Reservado
-                      );
-                      if (alreadyExists) {
-                        alert('Este colaborador já possui uma refeição reservada ativa para este dia.');
+                      if (launchUserAction === 'reservar' && !launchUserObraId) {
+                        alert('Por favor, selecione a obra de destino.');
                         return;
                       }
 
                       const selectedUser = usuarios.find(usr => usr.id === launchUserSelectId);
-                      
-                      const newRes: Reserva = {
-                        id: 'r-' + Math.random().toString(36).substr(2, 9),
-                        idUsuario: launchUserSelectId,
-                        data: launchUserDate,
-                        status: ReservaStatus.Reservado,
-                        consumido: false,
-                        idObraNoDia: launchUserObraId,
-                        alteradoEm: new Date().toISOString(),
-                        ipOrigem: '127.0.0.1 (RH Lançador)',
-                        dispositivo: 'Portal Admin RH'
-                      };
 
-                      if (onAddReserva) {
-                        onAddReserva(newRes);
-                        alert(`Refeição agendada com sucesso para ${selectedUser?.nome} em ${launchUserDate}!`);
-                        setLaunchUserSelectId('');
+                      if (onBatchReservasAdmin) {
+                        onBatchReservasAdmin(
+                          launchUserSelectId,
+                          launchUserStartDate,
+                          launchUserEndDate,
+                          launchUserAction,
+                          launchUserObraId
+                        );
+                      } else {
+                        // Fallback single day handling
+                        if (launchUserAction === 'reservar') {
+                          const newRes: Reserva = {
+                            id: 'r-' + Math.random().toString(36).substr(2, 9),
+                            idUsuario: launchUserSelectId,
+                            data: launchUserStartDate,
+                            status: ReservaStatus.Reservado,
+                            consumido: false,
+                            idObraNoDia: launchUserObraId,
+                            alteradoEm: new Date().toISOString(),
+                            ipOrigem: '127.0.0.1 (RH Admin)',
+                            dispositivo: 'Portal Admin RH'
+                          };
+                          if (onAddReserva) onAddReserva(newRes);
+                        } else if (onToggleReservaForUser) {
+                          onToggleReservaForUser(launchUserSelectId, launchUserStartDate);
+                        }
                       }
                     }}
-                    className="w-full py-2 px-4 bg-neutral-900 text-white rounded text-xs font-black uppercase tracking-wider hover:bg-neutral-800 transition cursor-pointer"
+                    className={`w-full py-2.5 px-4 text-white rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2 shadow-xs ${
+                      launchUserAction === 'reservar'
+                        ? 'bg-emerald-700 hover:bg-emerald-800'
+                        : 'bg-rose-700 hover:bg-rose-800'
+                    }`}
                   >
-                    Agendar Refeição p/ Colaborador
+                    {launchUserAction === 'reservar' ? (
+                      <>
+                        <CheckCircle className="h-4 w-4" />
+                        Agendar Refeições no Período
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-4 w-4" />
+                        Cancelar Refeições no Período
+                      </>
+                    )}
                   </button>
+
+                  {/* Active / Pre-scheduled Reservations of the Selected User */}
+                  {launchUserSelectId && (() => {
+                    const selectedUser = usuarios.find(u => u.id === launchUserSelectId);
+                    const userReservas = (reservas || [])
+                      .filter(r => r.idUsuario === launchUserSelectId)
+                      .sort((a, b) => a.data.localeCompare(b.data));
+
+                    const activeCount = userReservas.filter(r => r.status === ReservaStatus.Reservado).length;
+
+                    return (
+                      <div className="mt-4 pt-3 border-t border-neutral-200 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-neutral-800 flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5 text-neutral-500" />
+                            Reservas de {selectedUser?.nome?.split(' ')[0]} ({activeCount} ativas)
+                          </span>
+                          <span className="text-[10px] text-neutral-400">Total: {userReservas.length} registros</span>
+                        </div>
+
+                        {userReservas.length === 0 ? (
+                          <div className="p-3 bg-neutral-50 rounded-lg text-center text-xs text-neutral-500 border border-dashed border-neutral-200">
+                            Nenhuma reserva registrada para este colaborador no momento.
+                          </div>
+                        ) : (
+                          <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                            {userReservas.map(res => {
+                              const obraObj = obras.find(o => o.id === res.idObraNoDia);
+                              const isReserved = res.status === ReservaStatus.Reservado;
+                              const parts = res.data.split('-');
+                              const formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                              
+                              // Weekday label
+                              const dObj = new Date(res.data + 'T12:00:00');
+                              const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+                              const weekDayLabel = weekDays[dObj.getDay()] || '';
+
+                              return (
+                                <div
+                                  key={res.id}
+                                  className={`p-2 rounded-lg border flex items-center justify-between gap-2 transition ${
+                                    isReserved
+                                      ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
+                                      : 'bg-neutral-50 border-neutral-200 text-neutral-500'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className={`w-2 h-2 rounded-full shrink-0 ${isReserved ? 'bg-emerald-500' : 'bg-neutral-400'}`} />
+                                    <div className="min-w-0">
+                                      <div className="font-bold flex items-center gap-1.5">
+                                        <span>{formattedDate} ({weekDayLabel})</span>
+                                        <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${
+                                          isReserved ? 'bg-emerald-200 text-emerald-800' : 'bg-neutral-200 text-neutral-700'
+                                        }`}>
+                                          {isReserved ? 'RESERVADO' : 'CANCELADO'}
+                                        </span>
+                                      </div>
+                                      <div className="text-[10px] text-neutral-500 truncate">
+                                        {obraObj?.nome || 'Unidade Padrão'}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {onToggleReservaForUser && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (isReserved) {
+                                            if (confirm(`Deseja realmente cancelar a refeição de ${selectedUser?.nome} para o dia ${formattedDate}?`)) {
+                                              onToggleReservaForUser(launchUserSelectId, res.data);
+                                            }
+                                          } else {
+                                            onToggleReservaForUser(launchUserSelectId, res.data);
+                                          }
+                                        }}
+                                        title={isReserved ? 'Cancelar esta reserva' : 'Reativar esta reserva'}
+                                        className={`px-2 py-1 rounded text-[10px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                                          isReserved
+                                            ? 'bg-rose-100 hover:bg-rose-200 text-rose-700 border border-rose-200'
+                                            : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border border-emerald-200'
+                                        }`}
+                                      >
+                                        {isReserved ? (
+                                          <>
+                                            <X className="h-3 w-3" />
+                                            Cancelar
+                                          </>
+                                        ) : (
+                                          <>
+                                            <RotateCcw className="h-3 w-3" />
+                                            Reativar
+                                          </>
+                                        )}
+                                      </button>
+                                    )}
+
+                                    {onDeleteReserva && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (confirm(`Excluir permanentemente o registro de reserva do dia ${formattedDate}?`)) {
+                                            onDeleteReserva(res.id);
+                                          }
+                                        }}
+                                        title="Excluir registro"
+                                        className="p-1 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
