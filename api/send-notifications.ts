@@ -221,11 +221,10 @@ try {
             }, { merge: true });
         }
         batch.update(doc.ref, {
-            sent: true,
-            ...(isDaily ? { lastSentDate: todaySaoPaulo } : {}),
-            skippedAt: FieldValue.serverTimestamp(),
-            skipReason: 'no_token'
-        });
+    sent: true,
+    skippedAt: FieldValue.serverTimestamp(),
+    skipReason: 'no_token'
+  });
         results.skipped++;
         continue;
     }
