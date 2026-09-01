@@ -221,10 +221,10 @@ try {
             }, { merge: true });
         }
         batch.update(doc.ref, {
-    sent: true,
-    skippedAt: FieldValue.serverTimestamp(),
-    skipReason: 'no_token'
-  });
+            sent: true,
+            skippedAt: FieldValue.serverTimestamp(),
+            skipReason: 'no_token'
+        });
         results.skipped++;
         continue;
     }
@@ -249,7 +249,7 @@ try {
 
         batch.update(doc.ref, {
             sent: true,
-            ...(isDaily ? { lastSentDate: todaySaoPaulo } : {}),
+            
             sentAt: FieldValue.serverTimestamp()
         });
         results.sent++;
@@ -270,9 +270,8 @@ try {
         }
         batch.update(doc.ref, {
             sent: true,
-            ...(isDaily ? { lastSentDate: todaySaoPaulo } : {}),
-            errorAt: FieldValue.serverTimestamp(),
-            errorMessage: sendError.message
+             errorAt: FieldValue.serverTimestamp(),
+             errorMessage: sendError.message
         });
         results.errors++;
     }
