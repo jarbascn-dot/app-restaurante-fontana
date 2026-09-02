@@ -82,7 +82,7 @@ const snap = await db.collection('usuarios').where('email', '==', emailLower).li
 if (snap.empty) {
 console.warn(`[update-fcm-token] Usuário não encontrado para email: ${emailLower}`);
 // Mesmo sem encontrar em usuarios, salva em fcmTokens para o cron encontrar
-await db.collection('fcmTokens').doc(toFcmDocId(emailLower)).set({
+await db.collection('fcmTokens').doc(toFcmDocId(emailLower) + '_web').set({
 token,
 userId: emailLower,
 updatedAt: new Date().toISOString(),
@@ -103,7 +103,7 @@ notificacaoPendenteMotivo: null,
 }, { merge: true });
  
 // Atualiza fcmTokens/{email_sanitizado} — caminho principal do cron
-batch.set(db.collection('fcmTokens').doc(toFcmDocId(emailLower)), {
+batch.set(db.collection('fcmTokens').doc(toFcmDocId(emailLower) + '_web'), {
 token,
 userId: emailLower,
 updatedAt: new Date().toISOString(),
