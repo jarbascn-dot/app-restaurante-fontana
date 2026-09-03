@@ -2,26 +2,26 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-
+ 
 export enum Perfil {
   Colaborador = 'colaborador',
   Admin = 'admin',
   Gestor = 'gestor',
   Fornecedor = 'fornecedor',
 }
-
+ 
 export enum UserStatus {
   Pendente = 'pendente',
   Aprovado = 'aprovado',
   Desativado = 'desativado',
   Excluido = 'excluido',
 }
-
+ 
 export enum ReservaStatus {
   Reservado = 'reservado',
   Cancelado = 'cancelado',
 }
-
+ 
 export interface CardapioDia {
   data?: string;
   diaSemana: string;
@@ -34,7 +34,7 @@ export interface CardapioDia {
   suco?: string;
   observacoes?: string;
 }
-
+ 
 export interface Obra {
   id: string;
   nome: string;
@@ -49,13 +49,13 @@ export interface Obra {
   cardapioTextoIa?: string;
   cardapioDias?: CardapioDia[];
 }
-
+ 
 export interface Empresa {
   id: string;
   nome: string;
   tipo: 'Propria' | 'Terceirizada' | 'Prestadora';
 }
-
+ 
 export interface Usuario {
   id: string;
   nome: string;
@@ -81,7 +81,7 @@ export interface Usuario {
   requerTrocaSenha?: boolean;
   fcmToken?: string;
 }
-
+ 
 export interface Reserva {
   id: string;
   idUsuario: string;
@@ -95,7 +95,7 @@ export interface Reserva {
   ipOrigem: string;
   dispositivo: string;
 }
-
+ 
 export interface Feriado {
   id: string;
   data: string; // YYYY-MM-DD
@@ -105,7 +105,7 @@ export interface Feriado {
   idObras?: string[];
   dataFixa?: boolean; // Feriado com data fixa para replicar no proximo ano
 }
-
+ 
 export interface AuditoriaLog {
   id: string;
   usuarioNome: string;
@@ -116,7 +116,7 @@ export interface AuditoriaLog {
   dispositivo: string;
   perfil: Perfil;
 }
-
+ 
 export interface SystemSettings {
   horarioLimite: string; // e.g. "08:30"
   permitirFinsDeSemana: boolean;
@@ -127,4 +127,5 @@ export interface SystemSettings {
   permitirSimulador: boolean; // Se falso, oculta permanentemente o modo simulador e barra de simulação do app
   sha256Fingerprint?: string; // SHA-256 fingerprint for Google Play AssetLinks
   packageName?: string; // Android app Package Name (e.g. com.fontana.sgr)
+  modoTempoReal?: boolean; // Se true: onSnapshot em todas coleções (alto custo). Se false: modo econômico com documento sinal (padrão)
 }
