@@ -27,11 +27,11 @@ import {
 } from './data/mockData';
 
 import { db } from './firebase';
-import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc } from 'firebase/firestore';
-import { 
-  saveToFirestore, 
-  saveBatchToFirestore, 
-  saveSystemSettings, 
+import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc, getDocs } from 'firebase/firestore';
+import {
+  saveToFirestore,
+  saveBatchToFirestore,
+  saveSystemSettings,
   seedRequiredCollections,
   deleteFromFirestore
 } from './lib/firebaseSync';
@@ -189,15 +189,16 @@ export default function App() {
     }
   };
 
-  // Firestore Real-Time Shared State Sync
+  // ─── Efeito 1: Seeding + listener permanente de settings/system ───────────────
+  // Este efeito roda uma única vez ao montar o componente.
+  // Mantemos o onSnapshot de settings SEMPRE ativo pois é o menor custo possível
+  // (1 documento) e controla o modoTempoReal para todos os outros listeners.
   useEffect(() => {
     let active = true;
-    let unsubs: (() => void)[] = [];
 
     const initDbAndSync = async () => {
       try {
         setDbState({ status: 'loading', errorMsg: null });
-        // 1. Seed collections if empty
         await seedRequiredCollections(
           INITIAL_OBRAS,
           INITIAL_EMPRESAS,
@@ -213,95 +214,9 @@ export default function App() {
 
       if (!active) return;
 
-      // 2. Setup snapshot listeners
-      const unsubObras = onSnapshot(collection(db, 'obras'), (snap) => {
-        console.log(`[Firestore] 'obras' collection update: received ${snap.size} documents.`);
-        const list: Obra[] = [];
-        snap.forEach(doc => list.push({ ...doc.data(), id: doc.id } as Obra));
-        if (active) {
-          setObras(list);
-          setSyncDetails(prev => ({ ...prev, obras: { status: 'connected', errorMsg: null } }));
-        }
-      }, (err) => {
-        console.error("[Firestore] Obras sync failed:", err);
-        if (active) {
-          setSyncDetails(prev => ({ ...prev, obras: { status: 'error', errorMsg: err.message } }));
-        }
-      });
-      unsubs.push(unsubObras);
-
-      const unsubEmpresas = onSnapshot(collection(db, 'empresas'), (snap) => {
-        console.log(`[Firestore] 'empresas' collection update: received ${snap.size} documents.`);
-        const list: Empresa[] = [];
-        snap.forEach(doc => list.push({ ...doc.data(), id: doc.id } as Empresa));
-        if (active) {
-          setEmpresas(list);
-          setSyncDetails(prev => ({ ...prev, empresas: { status: 'connected', errorMsg: null } }));
-        }
-      }, (err) => {
-        console.error("[Firestore] Empresas sync failed:", err);
-        if (active) {
-          setSyncDetails(prev => ({ ...prev, empresas: { status: 'error', errorMsg: err.message } }));
-        }
-      });
-      unsubs.push(unsubEmpresas);
-
-      const unsubUsuarios = onSnapshot(collection(db, 'usuarios'), (snap) => {
-        const list: Usuario[] = [];
-        snap.forEach(doc => list.push({ ...doc.data(), id: doc.id } as Usuario));
-        
-        const pendings = list.filter(u => u.status === 'pendente');
-        console.log(`[Firestore REAL-TIME] 'usuarios' snap callback executed! Total: ${list.length} docs. Pendentes do RH: ${pendings.length}.`);
-        if (list.length > 0) {
-          console.log("[Firestore REAL-TIME] Document List Details:", list.map(u => ({ nome: u.nome, email: u.email, status: u.status })));
-        }
-        
-        if (active) {
-          setUsuarios(list);
-          setSyncDetails(prev => ({ ...prev, usuarios: { status: 'connected', errorMsg: null } }));
-        }
-      }, (err) => {
-        console.error("[Firestore REAL-TIME ERROR] 'usuarios' sync failed:", err);
-        if (active) {
-          setSyncDetails(prev => ({ ...prev, usuarios: { status: 'error', errorMsg: err.message } }));
-        }
-      });
-      unsubs.push(unsubUsuarios);
-
-      const unsubFeriados = onSnapshot(collection(db, 'feriados'), (snap) => {
-        console.log(`[Firestore] 'feriados' collection update: received ${snap.size} documents.`);
-        const list: Feriado[] = [];
-        snap.forEach(doc => list.push({ ...doc.data(), id: doc.id } as Feriado));
-        if (active) {
-          setFeriados(list);
-          setSyncDetails(prev => ({ ...prev, feriados: { status: 'connected', errorMsg: null } }));
-        }
-      }, (err) => {
-        console.error("[Firestore] Feriados sync failed:", err);
-        if (active) {
-          setSyncDetails(prev => ({ ...prev, feriados: { status: 'error', errorMsg: err.message } }));
-        }
-      });
-      unsubs.push(unsubFeriados);
-
-      const unsubReservas = onSnapshot(collection(db, 'reservas'), (snap) => {
-        console.log(`[Firestore] 'reservas' collection update: received ${snap.size} documents.`);
-        const list: Reserva[] = [];
-        snap.forEach(doc => list.push({ ...doc.data(), id: doc.id } as Reserva));
-        if (active) {
-          setReservas(list);
-          setSyncDetails(prev => ({ ...prev, reservas: { status: 'connected', errorMsg: null } }));
-        }
-      }, (err) => {
-        console.error("[Firestore] Reservas sync failed:", err);
-        if (active) {
-          setSyncDetails(prev => ({ ...prev, reservas: { status: 'error', errorMsg: err.message } }));
-        }
-      });
-      unsubs.push(unsubReservas);
-
-      const unsubSettings = onSnapshot(doc(db, 'settings', 'system'), (snap) => {
-        console.log(`[Firestore] 'settings/system' document update received. Exists: ${snap.exists()}`);
+      // Listener permanente de settings — custo mínimo (1 documento)
+      onSnapshot(doc(db, 'settings', 'system'), (snap) => {
+        console.log(`[Firestore] 'settings/system' update received. Exists: ${snap.exists()}`);
         if (snap.exists() && active) {
           setSettings(snap.data() as SystemSettings);
           setSyncDetails(prev => ({ ...prev, settings: { status: 'connected', errorMsg: null } }));
@@ -312,44 +227,236 @@ export default function App() {
           setSyncDetails(prev => ({ ...prev, settings: { status: 'error', errorMsg: err.message } }));
         }
       });
-      unsubs.push(unsubSettings);
     };
 
     initDbAndSync();
 
-    // Register Service Worker for robust client notifications under suspended background states on Android / iOS
+    // Register Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
         .then(reg => console.log('[ServiceWorker] Registrado com sucesso:', reg.scope))
         .catch(err => console.warn('[ServiceWorker] Erro ao registrar:', err));
     }
-    
-    return () => {
-      active = false;
-      unsubs.forEach(unsub => unsub());
-    };
+
+    return () => { active = false; };
   }, []);
 
-  // Sync logs in real-time only if the user is authenticated and has an Admin profile
+  // ─── Efeito 2: Listeners de dados — reage ao modoTempoReal ────────────────────
+  // Reconfigura os listeners sempre que o admin alterna entre os modos.
+  useEffect(() => {
+    let active = true;
+    let unsubs: (() => void)[] = [];
+    const modoTempoReal = settings.modoTempoReal ?? false;
+
+    // ── Helpers de leitura única (get) ─────────────────────────────────────────
+    const fetchObras = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'obras'));
+        if (!active) return;
+        const list: Obra[] = [];
+        snap.forEach(d => list.push({ ...d.data(), id: d.id } as Obra));
+        setObras(list);
+        setSyncDetails(prev => ({ ...prev, obras: { status: 'connected', errorMsg: null } }));
+      } catch (err: any) {
+        if (active) setSyncDetails(prev => ({ ...prev, obras: { status: 'error', errorMsg: err.message } }));
+      }
+    };
+    const fetchEmpresas = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'empresas'));
+        if (!active) return;
+        const list: Empresa[] = [];
+        snap.forEach(d => list.push({ ...d.data(), id: d.id } as Empresa));
+        setEmpresas(list);
+        setSyncDetails(prev => ({ ...prev, empresas: { status: 'connected', errorMsg: null } }));
+      } catch (err: any) {
+        if (active) setSyncDetails(prev => ({ ...prev, empresas: { status: 'error', errorMsg: err.message } }));
+      }
+    };
+    const fetchUsuarios = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'usuarios'));
+        if (!active) return;
+        const list: Usuario[] = [];
+        snap.forEach(d => list.push({ ...d.data(), id: d.id } as Usuario));
+        setUsuarios(list);
+        setSyncDetails(prev => ({ ...prev, usuarios: { status: 'connected', errorMsg: null } }));
+      } catch (err: any) {
+        if (active) setSyncDetails(prev => ({ ...prev, usuarios: { status: 'error', errorMsg: err.message } }));
+      }
+    };
+    const fetchFeriados = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'feriados'));
+        if (!active) return;
+        const list: Feriado[] = [];
+        snap.forEach(d => list.push({ ...d.data(), id: d.id } as Feriado));
+        setFeriados(list);
+        setSyncDetails(prev => ({ ...prev, feriados: { status: 'connected', errorMsg: null } }));
+      } catch (err: any) {
+        if (active) setSyncDetails(prev => ({ ...prev, feriados: { status: 'error', errorMsg: err.message } }));
+      }
+    };
+    const fetchReservas = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'reservas'));
+        if (!active) return;
+        const list: Reserva[] = [];
+        snap.forEach(d => list.push({ ...d.data(), id: d.id } as Reserva));
+        setReservas(list);
+        setSyncDetails(prev => ({ ...prev, reservas: { status: 'connected', errorMsg: null } }));
+      } catch (err: any) {
+        if (active) setSyncDetails(prev => ({ ...prev, reservas: { status: 'error', errorMsg: err.message } }));
+      }
+    };
+
+    const setupListeners = async () => {
+      // Carga inicial de todas as coleções (sempre)
+      await Promise.all([fetchObras(), fetchEmpresas(), fetchUsuarios(), fetchFeriados(), fetchReservas()]);
+      if (!active) return;
+
+      if (modoTempoReal) {
+        // ── MODO TEMPO REAL: onSnapshot em todas as coleções (comportamento atual) ──
+        console.log('[SGR] Modo Tempo Real ativado: usando onSnapshot para todas as coleções.');
+
+        unsubs.push(onSnapshot(collection(db, 'obras'), (snap) => {
+          if (!active) return;
+          const list: Obra[] = [];
+          snap.forEach(d => list.push({ ...d.data(), id: d.id } as Obra));
+          setObras(list);
+          setSyncDetails(prev => ({ ...prev, obras: { status: 'connected', errorMsg: null } }));
+        }, (err) => { if (active) setSyncDetails(prev => ({ ...prev, obras: { status: 'error', errorMsg: err.message } })); }));
+
+        unsubs.push(onSnapshot(collection(db, 'empresas'), (snap) => {
+          if (!active) return;
+          const list: Empresa[] = [];
+          snap.forEach(d => list.push({ ...d.data(), id: d.id } as Empresa));
+          setEmpresas(list);
+          setSyncDetails(prev => ({ ...prev, empresas: { status: 'connected', errorMsg: null } }));
+        }, (err) => { if (active) setSyncDetails(prev => ({ ...prev, empresas: { status: 'error', errorMsg: err.message } })); }));
+
+        unsubs.push(onSnapshot(collection(db, 'usuarios'), (snap) => {
+          if (!active) return;
+          const list: Usuario[] = [];
+          snap.forEach(d => list.push({ ...d.data(), id: d.id } as Usuario));
+          setUsuarios(list);
+          setSyncDetails(prev => ({ ...prev, usuarios: { status: 'connected', errorMsg: null } }));
+        }, (err) => { if (active) setSyncDetails(prev => ({ ...prev, usuarios: { status: 'error', errorMsg: err.message } })); }));
+
+        unsubs.push(onSnapshot(collection(db, 'feriados'), (snap) => {
+          if (!active) return;
+          const list: Feriado[] = [];
+          snap.forEach(d => list.push({ ...d.data(), id: d.id } as Feriado));
+          setFeriados(list);
+          setSyncDetails(prev => ({ ...prev, feriados: { status: 'connected', errorMsg: null } }));
+        }, (err) => { if (active) setSyncDetails(prev => ({ ...prev, feriados: { status: 'error', errorMsg: err.message } })); }));
+
+        unsubs.push(onSnapshot(collection(db, 'reservas'), (snap) => {
+          if (!active) return;
+          const list: Reserva[] = [];
+          snap.forEach(d => list.push({ ...d.data(), id: d.id } as Reserva));
+          setReservas(list);
+          setSyncDetails(prev => ({ ...prev, reservas: { status: 'connected', errorMsg: null } }));
+        }, (err) => { if (active) setSyncDetails(prev => ({ ...prev, reservas: { status: 'error', errorMsg: err.message } })); }));
+
+      } else {
+        // ── MODO ECONÔMICO: 1 listener no documento sinal ──────────────────────
+        console.log('[SGR] Modo Econômico ativado: usando documento sinal (sistema/ultimaAlteracao).');
+
+        // Guardamos os timestamps anteriores para saber quais coleções mudaram
+        let prevTimestamps: Record<string, number> = {};
+
+        unsubs.push(onSnapshot(doc(db, 'sistema', 'ultimaAlteracao'), async (snap) => {
+          if (!snap.exists() || !active) return;
+          const data = snap.data();
+
+          const getMs = (field: string) => {
+            const val = data[field];
+            if (!val) return 0;
+            return typeof val.toMillis === 'function' ? val.toMillis() : 0;
+          };
+
+          const newObras    = getMs('obras');
+          const newEmpresas = getMs('empresas');
+          const newUsuarios = getMs('usuarios');
+          const newFeriados = getMs('feriados');
+          const newReservas = getMs('reservas');
+
+          // Na primeira execução, apenas guarda os timestamps sem buscar dados
+          // (já fizemos carga inicial acima)
+          const isFirstRun = Object.keys(prevTimestamps).length === 0;
+          if (isFirstRun) {
+            prevTimestamps = { obras: newObras, empresas: newEmpresas, usuarios: newUsuarios, feriados: newFeriados, reservas: newReservas };
+            return;
+          }
+
+          // Nas execuções seguintes, busca apenas as coleções que mudaram
+          const promises: Promise<void>[] = [];
+          if (newObras    > (prevTimestamps.obras    ?? 0)) { promises.push(fetchObras());    prevTimestamps.obras    = newObras; }
+          if (newEmpresas > (prevTimestamps.empresas ?? 0)) { promises.push(fetchEmpresas()); prevTimestamps.empresas = newEmpresas; }
+          if (newUsuarios > (prevTimestamps.usuarios ?? 0)) { promises.push(fetchUsuarios()); prevTimestamps.usuarios = newUsuarios; }
+          if (newFeriados > (prevTimestamps.feriados ?? 0)) { promises.push(fetchFeriados()); prevTimestamps.feriados = newFeriados; }
+          if (newReservas > (prevTimestamps.reservas ?? 0)) { promises.push(fetchReservas()); prevTimestamps.reservas = newReservas; }
+          if (promises.length > 0) await Promise.all(promises);
+        }, (err) => {
+          console.warn('[SGR] Documento sinal indisponível, tentando carga direta:', err);
+          // Fallback: se o documento sinal falhar, busca tudo de uma vez
+          if (active) Promise.all([fetchObras(), fetchEmpresas(), fetchUsuarios(), fetchFeriados(), fetchReservas()]);
+        }));
+      }
+    };
+
+    setupListeners();
+
+    return () => {
+      active = false;
+      unsubs.forEach(u => u());
+    };
+  }, [settings.modoTempoReal]);
+
+  // ─── Logs do Admin ────────────────────────────────────────────────────────────
+  // No modo tempo real: onSnapshot contínuo.
+  // No modo econômico: carga única ao entrar; o admin pode atualizar manualmente.
+  const refreshLogs = async () => {
+    if (!isLogged || !currentUser || currentUser.perfil !== Perfil.Admin) return;
+    try {
+      const snap = await getDocs(collection(db, 'logs'));
+      const list: AuditoriaLog[] = [];
+      snap.forEach(d => list.push({ ...d.data(), id: d.id } as AuditoriaLog));
+      list.sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime());
+      setLogs(list);
+      setSyncDetails(prev => ({ ...prev, logs: { status: 'connected', errorMsg: null } }));
+    } catch (err: any) {
+      setSyncDetails(prev => ({ ...prev, logs: { status: 'error', errorMsg: err.message } }));
+    }
+  };
+
   useEffect(() => {
     if (!isLogged || !currentUser || currentUser.perfil !== Perfil.Admin) {
       return;
     }
 
-    const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => {
-      console.log(`[Firestore] 'logs' collection update (Admin): received ${snap.size} documents.`);
-      const list: AuditoriaLog[] = [];
-      snap.forEach(doc => list.push({ ...doc.data(), id: doc.id } as AuditoriaLog));
-      list.sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime());
-      setLogs(list);
-      setSyncDetails(prev => ({ ...prev, logs: { status: 'connected', errorMsg: null } }));
-    }, (err) => {
-      console.warn("[Firestore] Logs sync warning (expected if session expired):", err);
-      setSyncDetails(prev => ({ ...prev, logs: { status: 'error', errorMsg: err.message } }));
-    });
+    const modoTempoReal = settings.modoTempoReal ?? false;
 
-    return () => unsubLogs();
-  }, [isLogged, currentUser]);
+    if (modoTempoReal) {
+      // Modo Tempo Real: onSnapshot contínuo nos logs
+      const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => {
+        console.log(`[Firestore] 'logs' collection update (Admin): received ${snap.size} documents.`);
+        const list: AuditoriaLog[] = [];
+        snap.forEach(d => list.push({ ...d.data(), id: d.id } as AuditoriaLog));
+        list.sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime());
+        setLogs(list);
+        setSyncDetails(prev => ({ ...prev, logs: { status: 'connected', errorMsg: null } }));
+      }, (err) => {
+        console.warn("[Firestore] Logs sync warning:", err);
+        setSyncDetails(prev => ({ ...prev, logs: { status: 'error', errorMsg: err.message } }));
+      });
+      return () => unsubLogs();
+    } else {
+      // Modo Econômico: carga única ao entrar como admin
+      refreshLogs();
+    }
+  }, [isLogged, currentUser, settings.modoTempoReal]);
 
   // Centralized sync status synchronization to derive dbState dynamically from syncDetails
   useEffect(() => {
@@ -1140,6 +1247,139 @@ export default function App() {
     triggerFlashNotification('Lançamento excluído com sucesso.');
   };
 
+  // Toggle/Cancel a single reservation for a collaborator by Admin/RH
+  const handleToggleReservaForUser = (userId: string, dateStr: string) => {
+    const existingIndex = reservas.findIndex(r => r.idUsuario === userId && r.data === dateStr);
+    const user = usuarios.find(u => u.id === userId);
+
+    if (existingIndex > -1) {
+      const updated = [...reservas];
+      const res = { ...updated[existingIndex] };
+      const wasReserved = res.status === ReservaStatus.Reservado;
+      
+      res.status = wasReserved ? ReservaStatus.Cancelado : ReservaStatus.Reservado;
+      res.alteradoEm = new Date().toISOString();
+      res.ipOrigem = '127.0.0.1 (RH Admin)';
+      res.dispositivo = 'Portal Admin RH';
+      
+      updated[existingIndex] = res;
+      setReservas(updated);
+      saveToFirestore('reservas', res);
+      
+      const opLabel = wasReserved ? 'Cancelamento de Refeição pelo RH' : 'Reativação de Refeição pelo RH';
+      appendAuditLog(`${opLabel} para ${user?.nome || userId} no dia ${dateStr}`);
+      triggerFlashNotification(`Refeição de ${user?.nome || 'Colaborador'} para ${dateStr}: ${wasReserved ? 'CANCELADA ⚪' : 'RESERVADA 🟢'}`);
+    } else {
+      const newRes: Reserva = {
+        id: 'r-' + Math.random().toString(36).substr(2, 9),
+        idUsuario: userId,
+        data: dateStr,
+        status: ReservaStatus.Reservado,
+        consumido: false,
+        idObraNoDia: user?.idObraPadrao || obras[0]?.id || '',
+        alteradoEm: new Date().toISOString(),
+        ipOrigem: '127.0.0.1 (RH Admin)',
+        dispositivo: 'Portal Admin RH'
+      };
+      setReservas(prev => [...prev, newRes]);
+      saveToFirestore('reservas', newRes);
+      appendAuditLog(`Reserva criada pelo RH para ${user?.nome || userId} no dia ${dateStr}`);
+      triggerFlashNotification(`Refeição de ${user?.nome || 'Colaborador'} agendada para: ${dateStr} 🟢`);
+    }
+  };
+
+  // Batch booking or batch cancellation for collaborator executed by Admin/RH
+  const handleBatchReservasAdmin = (
+    userId: string,
+    startDate: string,
+    endDate: string,
+    action: 'reservar' | 'cancelar',
+    obraId?: string
+  ) => {
+    const loopStart = new Date(startDate + 'T12:00:00');
+    const loopEnd = new Date(endDate + 'T12:00:00');
+    const user = usuarios.find(u => u.id === userId);
+    const targetObra = obraId || user?.idObraPadrao || obras[0]?.id || '';
+
+    const newBatchReservations: Reserva[] = [];
+    const updatedExistingReservations = [...reservas];
+    let processedCount = 0;
+
+    for (let d = new Date(loopStart); d <= loopEnd; d.setDate(d.getDate() + 1)) {
+      const year = d.getFullYear();
+      const m = d.getMonth() + 1;
+      const day = d.getDate();
+      const mStr = m < 10 ? `0${m}` : `${m}`;
+      const dStr = day < 10 ? `0${day}` : `${day}`;
+      const dateStr = `${year}-${mStr}-${dStr}`;
+
+      const dayOfWeek = d.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+      // Skip weekends if not permitted
+      if (isWeekend && !settings.permitirFinsDeSemana) {
+        continue;
+      }
+
+      // Skip holidays when reserving
+      const isHoliday = feriados.some(f => {
+        if (f.data !== dateStr) return false;
+        if (!f.abrangencia || f.abrangencia === 'nacional') return true;
+        return f.idObras?.includes(targetObra) ?? false;
+      });
+      if (isHoliday && action === 'reservar') {
+        continue;
+      }
+
+      const existingIdx = updatedExistingReservations.findIndex(
+        r => r.idUsuario === userId && r.data === dateStr
+      );
+
+      const statusValue = action === 'reservar' ? ReservaStatus.Reservado : ReservaStatus.Cancelado;
+
+      if (existingIdx > -1) {
+        updatedExistingReservations[existingIdx] = {
+          ...updatedExistingReservations[existingIdx],
+          status: statusValue,
+          idObraNoDia: action === 'reservar' ? targetObra : updatedExistingReservations[existingIdx].idObraNoDia,
+          alteradoEm: new Date().toISOString(),
+          ipOrigem: '127.0.0.1 (RH Admin)',
+          dispositivo: 'Portal Admin RH'
+        };
+        processedCount++;
+      } else {
+        if (action === 'reservar') {
+          const newRes: Reserva = {
+            id: 'r-' + Math.random().toString(36).substr(2, 9),
+            idUsuario: userId,
+            data: dateStr,
+            status: statusValue,
+            consumido: false,
+            idObraNoDia: targetObra,
+            alteradoEm: new Date().toISOString(),
+            ipOrigem: '127.0.0.1 (RH Admin)',
+            dispositivo: 'Portal Admin RH'
+          };
+          newBatchReservations.push(newRes);
+          processedCount++;
+        }
+      }
+    }
+
+    const finalSet = [...updatedExistingReservations, ...newBatchReservations];
+    setReservas(finalSet);
+
+    const affectedUserReservas = finalSet.filter(r => r.idUsuario === userId);
+    if (affectedUserReservas.length > 0) {
+      saveBatchToFirestore('reservas', affectedUserReservas);
+    }
+
+    const userNome = user?.nome || 'Colaborador';
+    const actionLabel = action === 'reservar' ? 'Agendamento' : 'Cancelamento';
+    appendAuditLog(`${actionLabel} de refeições pelo RH para ${userNome} no período de ${startDate} a ${endDate} (${processedCount} dias)`);
+    triggerFlashNotification(`${actionLabel} realizado para ${userNome}: ${processedCount} dia(s) processado(s)!`);
+  };
+
   // Simulated facial biometrics scan confirms withdrawal of meal in kitchen
   const handleConfirmWithdrawal = (idUsuario: string, date: string, excessFee: boolean) => {
     const existingIndex = reservas.findIndex(r => r.idUsuario === idUsuario && r.data === date);
@@ -1789,7 +2029,7 @@ export default function App() {
               </aside>
 
               {/* Central Dynamic Context Area View Router */}
-              <div className="flex-1 min-w-0" id="dynamic-viewport-container">
+              <div className="flex-1" id="dynamic-viewport-container">
                 {activeTab === 'dashboard' && currentUser.perfil === Perfil.Admin && (
                   <DashboardView
                     reservas={reservas}
@@ -1826,6 +2066,7 @@ export default function App() {
                     settings={settings}
                     onSaveSettings={handleSaveSettings}
                     logs={logs}
+                    onRefreshLogs={refreshLogs}
                     obras={obras}
                     empresas={empresas}
                     onSaveObra={handleSaveObra}
@@ -1836,8 +2077,11 @@ export default function App() {
                     onDeleteFeriado={handleDeleteFeriado}
                     onClearAllReservas={handleClearAllReservas}
                     reservas={reservas}
+                    todayDate={todayDate}
                     onAddReserva={handleAddReserva}
                     onDeleteReserva={handleDeleteReserva}
+                    onBatchReservasAdmin={handleBatchReservasAdmin}
+                    onToggleReservaForUser={handleToggleReservaForUser}
                   />
                 )}
 
