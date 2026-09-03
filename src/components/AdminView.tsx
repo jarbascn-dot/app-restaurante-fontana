@@ -25,6 +25,7 @@ interface AdminViewProps {
   settings: SystemSettings;
   onSaveSettings: (newSettings: SystemSettings) => void;
   logs: AuditoriaLog[];
+  onRefreshLogs?: () => void;
   obras: Obra[];
   empresas: Empresa[];
   onSaveObra: (updatedObra: Obra) => void;
@@ -56,6 +57,7 @@ export default function AdminView({
   settings,
   onSaveSettings,
   logs,
+  onRefreshLogs,
   obras,
   empresas,
   onSaveObra,
@@ -293,6 +295,7 @@ export default function AdminView({
   const [permitirSimuladorLocal, setPermitirSimuladorLocal] = useState(settings.permitirSimulador ?? true);
   const [packageNameLocal, setPackageNameLocal] = useState(settings.packageName || '');
   const [sha256FingerprintLocal, setSha256FingerprintLocal] = useState(settings.sha256Fingerprint || '');
+  const [modoTempoRealLocal, setModoTempoRealLocal] = useState(settings.modoTempoReal ?? false);
   const [isSavedMsg, setIsSavedMsg] = useState(false);
 
   // Sync settings when they change from Firestore or context
@@ -306,6 +309,7 @@ export default function AdminView({
     setPermitirSimuladorLocal(settings.permitirSimulador ?? true);
     setPackageNameLocal(settings.packageName || '');
     setSha255FingerprintLocal(settings.sha256Fingerprint || '');
+    setModoTempoRealLocal(settings.modoTempoReal ?? false);
   }, [
     settings.horarioLimite,
     settings.permitirFinsDeSemana,
@@ -315,7 +319,8 @@ export default function AdminView({
     settings.requererBiometriaFacial,
     settings.permitirSimulador,
     settings.packageName,
-    settings.sha256Fingerprint
+    settings.sha256Fingerprint,
+    settings.modoTempoReal
   ]);
 
   // Minor typo safety: if state was misspelled
@@ -400,6 +405,7 @@ export default function AdminView({
       permitirSimulador: permitirSimuladorLocal,
       packageName: packageNameLocal,
       sha256Fingerprint: sha256FingerprintLocal || sha255FingerprintLocal,
+      modoTempoReal: modoTempoRealLocal,
     });
     setIsSavedMsg(true);
     setTimeout(() => setIsSavedMsg(false), 3000);
@@ -1837,6 +1843,45 @@ export default function AdminView({
                 </div>
               </div>
 
+              {/* ── Modo de Sincronização ─────────────────────────────────────── */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+                <span className="block text-xs font-bold uppercase tracking-wide font-mono text-blue-800 flex items-center gap-1.5">
+                  ⚡ Modo de Sincronização de Dados
+                </span>
+                <p className="text-[11px] text-neutral-600 leading-normal">
+                  Controla como o app busca atualizações do banco de dados. O <strong>Modo Econômico</strong> reduz drasticamente o número de leituras (recomendado para 150+ usuários). O <strong>Modo Tempo Real</strong> mantém o comportamento original com escuta contínua.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
+                  <div
+                    onClick={() => setModoTempoRealLocal(false)}
+                    className={`cursor-pointer border-2 rounded-lg p-3 transition-all ${!modoTempoRealLocal ? 'border-blue-500 bg-blue-50' : 'border-neutral-200 bg-white hover:border-blue-300'}`}
+                  >
+                    <div className="font-bold text-neutral-800 mb-1 flex items-center gap-1.5">
+                      <span className={`w-3 h-3 rounded-full border-2 flex-shrink-0 ${!modoTempoRealLocal ? 'border-blue-500 bg-blue-500' : 'border-neutral-400'}`}></span>
+                      🌿 Modo Econômico (Recomendado)
+                    </div>
+                    <p className="text-neutral-500 leading-tight">~20.000 leituras/dia com 150 usuários. Atualização automática ao salvar qualquer dado.</p>
+                  </div>
+                  <div
+                    onClick={() => setModoTempoRealLocal(true)}
+                    className={`cursor-pointer border-2 rounded-lg p-3 transition-all ${modoTempoRealLocal ? 'border-orange-500 bg-orange-50' : 'border-neutral-200 bg-white hover:border-orange-300'}`}
+                  >
+                    <div className="font-bold text-neutral-800 mb-1 flex items-center gap-1.5">
+                      <span className={`w-3 h-3 rounded-full border-2 flex-shrink-0 ${modoTempoRealLocal ? 'border-orange-500 bg-orange-500' : 'border-neutral-400'}`}></span>
+                      🔴 Modo Tempo Real
+                    </div>
+                    <p className="text-neutral-500 leading-tight">~180.000 leituras/dia com 150 usuários. Use apenas com poucos usuários ativos.</p>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-blue-700 font-medium">
+                  {modoTempoRealLocal
+                    ? '🔴 Tempo Real ativo — escuta contínua em todas as coleções (alto consumo de cota).'
+                    : '🌿 Modo Econômico ativo — 1 listener por usuário + leitura sob demanda (baixo consumo).'}
+                </p>
+              </div>
+
               <button
                 type="submit"
                 className="px-5 py-2.5 bg-neutral-900 border border-neutral-800 hover:bg-neutral-850 text-white rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1.5"
@@ -1873,18 +1918,35 @@ export default function AdminView({
               <div>
                 <h3 className="text-sm font-bold text-neutral-800 uppercase tracking-wide">Trilha de Auditoria (IP / Dispositivo)</h3>
                 <p className="text-xs text-neutral-500">Histórico completo de alterações por usuário. Atende aos requisitos fiscais e de controle de custos.</p>
+                {!(settings.modoTempoReal ?? false) && (
+                  <p className="text-[10px] text-blue-600 mt-0.5 font-medium">
+                    🌿 Modo Econômico: logs carregados ao entrar nesta aba.
+                  </p>
+                )}
               </div>
 
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-neutral-400" />
-                <input
-                  type="text"
-                  placeholder="Filtrar por alteração, usuá..."
-                  value={logSearch}
-                  onChange={(e) => setLogSearch(e.target.value)}
-                  className="pl-9 pr-4 py-2 border border-neutral-300 rounded-lg text-xs bg-white text-neutral-800 w-full sm:w-64 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
-                  id="search-log-input"
-                />
+              <div className="flex items-center gap-2">
+                {!(settings.modoTempoReal ?? false) && onRefreshLogs && (
+                  <button
+                    type="button"
+                    onClick={onRefreshLogs}
+                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5"
+                    title="Recarregar logs do banco de dados"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" /> Atualizar
+                  </button>
+                )}
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-neutral-400" />
+                  <input
+                    type="text"
+                    placeholder="Filtrar por alteração, usuá..."
+                    value={logSearch}
+                    onChange={(e) => setLogSearch(e.target.value)}
+                    className="pl-9 pr-4 py-2 border border-neutral-300 rounded-lg text-xs bg-white text-neutral-800 w-full sm:w-64 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                    id="search-log-input"
+                  />
+                </div>
               </div>
             </div>
 
