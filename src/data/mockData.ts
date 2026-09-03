@@ -2,17 +2,17 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-
+ 
 import { Obra, Empresa, Usuario, Perfil, UserStatus, Reserva, Feriado, AuditoriaLog, SystemSettings } from '../types';
-
+ 
 export const INITIAL_OBRAS: Obra[] = [
   { id: 'o-sede', nome: 'Sede Administrativa', centroCusto: 'CC-001', ativa: true },
 ];
-
+ 
 export const INITIAL_EMPRESAS: Empresa[] = [
   { id: 'e-1', nome: 'FONTANA SGR', tipo: 'Propria' },
 ];
-
+ 
 export const INITIAL_USUARIOS: Usuario[] = [
   {
     id: 'u-jarbas',
@@ -28,7 +28,7 @@ export const INITIAL_USUARIOS: Usuario[] = [
     criadoEm: '2026-06-14T07:00:00Z',
   }
 ];
-
+ 
 export const INITIAL_FERIADOS: Feriado[] = [
   { id: 'f-1', data: '2026-01-01', descricao: 'Confraternização Universal', tipo: 'nacional' },
   { id: 'f-2', data: '2026-04-21', descricao: 'Tiradentes', tipo: 'nacional' },
@@ -38,7 +38,7 @@ export const INITIAL_FERIADOS: Feriado[] = [
   { id: 'f-6', data: '2026-10-12', descricao: 'Nossa Senhora Aparecida', tipo: 'nacional' },
   { id: 'f-7', data: '2026-12-25', descricao: 'Natal', tipo: 'nacional' },
 ];
-
+ 
 export const INITIAL_SETTINGS: SystemSettings = {
   horarioLimite: '08:30',
   permitirFinsDeSemana: false,
@@ -47,10 +47,11 @@ export const INITIAL_SETTINGS: SystemSettings = {
   usarTabletRetirada: false,
   requererBiometriaFacial: false,
   permitirSimulador: true,
+  modoTempoReal: false, // Padrão: modo econômico (documento sinal). Altere para true apenas se necessário.
 };
-
+ 
 export const INITIAL_RESERVAS: Reserva[] = [];
-
+ 
 export const INITIAL_LOGS: AuditoriaLog[] = [
   {
     id: 'log-1',
