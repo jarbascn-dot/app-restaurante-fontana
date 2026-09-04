@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Perfil, 
   UserStatus, 
@@ -33,7 +33,8 @@ import {
   saveBatchToFirestore,
   saveSystemSettings,
   seedRequiredCollections,
-  deleteFromFirestore
+  deleteFromFirestore,
+  initializeSignalDocument
 } from './lib/firebaseSync';
 import { scheduleNotification, registerFCMToken } from './lib/notificationScheduler';
 import { hashPassword, isHash } from './lib/passwordUtils';
@@ -189,6 +190,9 @@ export default function App() {
     }
   };
 
+  // ─── Ref para cancelar o listener de settings ao desmontar ──────────────────
+  const settingsUnsubRef = useRef<(() => void) | null>(null);
+
   // ─── Efeito 1: Seeding + listener permanente de settings/system ───────────────
   // Este efeito roda uma única vez ao montar o componente.
   // Mantemos o onSnapshot de settings SEMPRE ativo pois é o menor custo possível
@@ -214,11 +218,24 @@ export default function App() {
 
       if (!active) return;
 
+      // Garante que o documento sinal existe para bancos de dados já inicializados
+      // (seedRequiredCollections sai cedo para bancos existentes, nunca criando o doc sinal)
+      await initializeSignalDocument();
+
+      if (!active) return;
+
       // Listener permanente de settings — custo mínimo (1 documento)
-      onSnapshot(doc(db, 'settings', 'system'), (snap) => {
+      // FIX: armazenar unsubscribe para cancelar ao desmontar
+      // FIX: usar merge para preservar modoTempoReal quando o campo não existe no doc Firestore antigo
+      const unsubSettings = onSnapshot(doc(db, 'settings', 'system'), (snap) => {
         console.log(`[Firestore] 'settings/system' update received. Exists: ${snap.exists()}`);
         if (snap.exists() && active) {
-          setSettings(snap.data() as SystemSettings);
+          const data = snap.data() as SystemSettings;
+          setSettings(prev => ({
+            modoTempoReal: false, // valor padrão — preserva o valor atual se o doc tiver o campo
+            ...prev,
+            ...data,
+          }));
           setSyncDetails(prev => ({ ...prev, settings: { status: 'connected', errorMsg: null } }));
         }
       }, (err) => {
@@ -227,6 +244,12 @@ export default function App() {
           setSyncDetails(prev => ({ ...prev, settings: { status: 'error', errorMsg: err.message } }));
         }
       });
+
+      if (active) {
+        settingsUnsubRef.current = unsubSettings;
+      } else {
+        unsubSettings(); // componente desmontou antes de completar o setup
+      }
     };
 
     initDbAndSync();
@@ -238,7 +261,11 @@ export default function App() {
         .catch(err => console.warn('[ServiceWorker] Erro ao registrar:', err));
     }
 
-    return () => { active = false; };
+    return () => {
+      active = false;
+      settingsUnsubRef.current?.();
+      settingsUnsubRef.current = null;
+    };
   }, []);
 
   // ─── Efeito 2: Listeners de dados — reage ao modoTempoReal ────────────────────
@@ -311,12 +338,10 @@ export default function App() {
     };
 
     const setupListeners = async () => {
-      // Carga inicial de todas as coleções (sempre)
-      await Promise.all([fetchObras(), fetchEmpresas(), fetchUsuarios(), fetchFeriados(), fetchReservas()]);
-      if (!active) return;
-
       if (modoTempoReal) {
-        // ── MODO TEMPO REAL: onSnapshot em todas as coleções (comportamento atual) ──
+        // ── MODO TEMPO REAL: onSnapshot em todas as coleções ──────────────────────
+        // FIX: NÃO fazemos getDocs inicial aqui — o onSnapshot já dispara imediatamente
+        // com os dados atuais, então fazê-lo seria uma leitura duplicada por coleção.
         console.log('[SGR] Modo Tempo Real ativado: usando onSnapshot para todas as coleções.');
 
         unsubs.push(onSnapshot(collection(db, 'obras'), (snap) => {
@@ -360,11 +385,21 @@ export default function App() {
         }, (err) => { if (active) setSyncDetails(prev => ({ ...prev, reservas: { status: 'error', errorMsg: err.message } })); }));
 
       } else {
-        // ── MODO ECONÔMICO: 1 listener no documento sinal ──────────────────────
+        // ── MODO ECONÔMICO: carga inicial + 1 listener no documento sinal ───────
         console.log('[SGR] Modo Econômico ativado: usando documento sinal (sistema/ultimaAlteracao).');
 
-        // Guardamos os timestamps anteriores para saber quais coleções mudaram
-        let prevTimestamps: Record<string, number> = {};
+        // Carga inicial das 5 coleções (getDocs único por coleção)
+        await Promise.all([fetchObras(), fetchEmpresas(), fetchUsuarios(), fetchFeriados(), fetchReservas()]);
+        if (!active) return;
+
+        // FIX: inicializar prevTimestamps com o timestamp atual (não {})
+        // Isso garante que a primeira fire do listener do sinal não seja tratada
+        // como "primeira execução" para atualização real que ocorreu antes do setup.
+        // O getDocs inicial já carregou tudo; qualquer timestamp no sinal >= nowMs é novidade.
+        const nowMs = Date.now();
+        let prevTimestamps: Record<string, number> = {
+          obras: nowMs, empresas: nowMs, usuarios: nowMs, feriados: nowMs, reservas: nowMs
+        };
 
         unsubs.push(onSnapshot(doc(db, 'sistema', 'ultimaAlteracao'), async (snap) => {
           if (!snap.exists() || !active) return;
@@ -382,15 +417,7 @@ export default function App() {
           const newFeriados = getMs('feriados');
           const newReservas = getMs('reservas');
 
-          // Na primeira execução, apenas guarda os timestamps sem buscar dados
-          // (já fizemos carga inicial acima)
-          const isFirstRun = Object.keys(prevTimestamps).length === 0;
-          if (isFirstRun) {
-            prevTimestamps = { obras: newObras, empresas: newEmpresas, usuarios: newUsuarios, feriados: newFeriados, reservas: newReservas };
-            return;
-          }
-
-          // Nas execuções seguintes, busca apenas as coleções que mudaram
+          // Busca apenas as coleções cujo timestamp é posterior à última leitura conhecida
           const promises: Promise<void>[] = [];
           if (newObras    > (prevTimestamps.obras    ?? 0)) { promises.push(fetchObras());    prevTimestamps.obras    = newObras; }
           if (newEmpresas > (prevTimestamps.empresas ?? 0)) { promises.push(fetchEmpresas()); prevTimestamps.empresas = newEmpresas; }
@@ -412,7 +439,10 @@ export default function App() {
       active = false;
       unsubs.forEach(u => u());
     };
-  }, [settings.modoTempoReal]);
+  // FIX: normalizar para boolean — undefined e false têm o mesmo significado mas são
+  // valores JS distintos; sem isso o efeito re-executa desnecessariamente na inicialização
+  // quando o settings chega do Firestore sem o campo modoTempoReal.
+  }, [settings.modoTempoReal === true]);
 
   // ─── Logs do Admin ────────────────────────────────────────────────────────────
   // No modo tempo real: onSnapshot contínuo.
