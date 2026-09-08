@@ -27,7 +27,7 @@ import {
 } from './data/mockData';
 
 import { db } from './firebase';
-import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import {
   saveToFirestore,
   saveBatchToFirestore,
@@ -193,6 +193,11 @@ export default function App() {
   // ─── Ref para cancelar o listener de settings ao desmontar ──────────────────
   const settingsUnsubRef = useRef<(() => void) | null>(null);
 
+  // ─── Ref para acessar o usuário atual dentro de closures de effects ──────────
+  // Permite que fetchReservas use o perfil correto mesmo sem estar nas deps do efeito
+  const currentUserRef = useRef<Usuario | null>(null);
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+
   // ─── Efeito 1: Seeding + listener permanente de settings/system ───────────────
   // Este efeito roda uma única vez ao montar o componente.
   // Mantemos o onSnapshot de settings SEMPRE ativo pois é o menor custo possível
@@ -326,7 +331,20 @@ export default function App() {
     };
     const fetchReservas = async () => {
       try {
-        const snap = await getDocs(collection(db, 'reservas'));
+        // Otimização de leituras: filtro por perfil do usuário
+        // - Colaborador: busca apenas as suas próprias reservas (sem limite de data — histórico pessoal é pequeno)
+        // - Admin/Gestor/Fornecedor: busca todas, limitado aos últimos 90 dias
+        const user = currentUserRef.current;
+        let q;
+        if (user?.perfil === Perfil.Colaborador) {
+          q = query(collection(db, 'reservas'), where('idUsuario', '==', user.id));
+        } else {
+          const cutoff = new Date();
+          cutoff.setDate(cutoff.getDate() - 90);
+          const cutoffStr = cutoff.toISOString().substring(0, 10); // YYYY-MM-DD
+          q = query(collection(db, 'reservas'), where('data', '>=', cutoffStr));
+        }
+        const snap = await getDocs(q);
         if (!active) return;
         const list: Reserva[] = [];
         snap.forEach(d => list.push({ ...d.data(), id: d.id } as Reserva));
@@ -529,6 +547,37 @@ export default function App() {
     localStorage.setItem('sgr_is_logged', String(isLogged));
   }, [isLogged]);
 
+  // ─── Re-fetch reservas após login (Modo Econômico) ───────────────────────────
+  // O Efeito 2 pode ter rodado antes do usuário fazer login, usando o path admin
+  // (sem filtro de idUsuario). Quando o login ocorre, re-buscamos com o filtro correto.
+  // Em Modo Tempo Real, o onSnapshot já reflete os dados do usuário atual — não é necessário.
+  useEffect(() => {
+    if (!isLogged || !currentUser) return;
+    if (settings.modoTempoReal === true) return; // onSnapshot já traz dados atualizados
+
+    const doFetch = async () => {
+      try {
+        let q;
+        if (currentUser.perfil === Perfil.Colaborador) {
+          q = query(collection(db, 'reservas'), where('idUsuario', '==', currentUser.id));
+        } else {
+          const cutoff = new Date();
+          cutoff.setDate(cutoff.getDate() - 90);
+          const cutoffStr = cutoff.toISOString().substring(0, 10);
+          q = query(collection(db, 'reservas'), where('data', '>=', cutoffStr));
+        }
+        const snap = await getDocs(q);
+        const list: Reserva[] = [];
+        snap.forEach(d => list.push({ ...d.data(), id: d.id } as Reserva));
+        setReservas(list);
+      } catch {
+        // silencioso — erro será tratado pela próxima atualização do documento sinal
+      }
+    };
+
+    doFetch();
+  }, [currentUser?.id, currentUser?.perfil, isLogged, settings.modoTempoReal]);
+
   // Registra token FCM ao restaurar sessão do localStorage (quando app reabre sem fazer login)
     useEffect(() => {
           if (isLogged && currentUser?.id && currentUser?.email) {
@@ -572,6 +621,33 @@ export default function App() {
 
   const todayDate = getTodayDate();
   const isAfterCutoff = getIsAfterCutoff();
+
+  // ─── Query sob demanda: busca reservas de períodos além dos 90 dias ──────────
+  // Chamada pelo ReportsView quando o admin seleciona datas históricas antigas.
+  // Faz merge inteligente: não duplica registros já presentes no estado.
+  const handleFetchReservasPorPeriodo = async (startDate: string, endDate: string) => {
+    try {
+      const q = query(
+        collection(db, 'reservas'),
+        where('data', '>=', startDate),
+        where('data', '<=', endDate)
+      );
+      const snap = await getDocs(q);
+      const fetchedIds = new Set<string>();
+      const fetchedList: Reserva[] = [];
+      snap.forEach(d => {
+        fetchedIds.add(d.id);
+        fetchedList.push({ ...d.data(), id: d.id } as Reserva);
+      });
+      setReservas(prev => {
+        // Remove duplicatas antes de mesclar
+        const semDuplicatas = prev.filter(r => !fetchedIds.has(r.id));
+        return [...semDuplicatas, ...fetchedList];
+      });
+    } catch (err) {
+      console.error('[SGR] handleFetchReservasPorPeriodo error:', err);
+    }
+  };
 
   // --- DETECT AND PURGE LEGACY LOCALSTORAGE DATA ---
   useEffect(() => {
@@ -2123,6 +2199,7 @@ export default function App() {
                     empresas={empresas}
                     settings={settings}
                     todayDate={todayDate}
+                    onFetchReservasPorPeriodo={handleFetchReservasPorPeriodo}
                   />
                 )}
 
