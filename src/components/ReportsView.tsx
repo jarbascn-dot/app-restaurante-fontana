@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import { Reserva, Usuario, Obra, Empresa, ReservaStatus, SystemSettings, Perfil, UserStatus } from '../types';
 import { FileSpreadsheet, Download, Filter, Search, DollarSign, Calendar, Sliders, Printer, Loader2 } from 'lucide-react';
@@ -16,9 +16,11 @@ interface ReportsViewProps {
   empresas: Empresa[];
   settings: SystemSettings;
   todayDate: string;
+  /** Callback para buscar reservas históricas (além dos 90 dias carregados por padrão) */
+  onFetchReservasPorPeriodo?: (startDate: string, endDate: string) => Promise<void>;
 }
 
-export default function ReportsView({ reservas, usuarios, obras, empresas, settings, todayDate }: ReportsViewProps) {
+export default function ReportsView({ reservas, usuarios, obras, empresas, settings, todayDate, onFetchReservasPorPeriodo }: ReportsViewProps) {
   const [reportType, setReportType] = useState<'diario' | 'mensal' | 'financeiro' | 'folha' | 'desconto' | 'empresa' | 'mesAmes'>('diario');
 
   // Daily Filter
@@ -65,6 +67,23 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
   const [mesEnd, setMesEnd] = useState<string>(todayDate.substring(0, 7));
 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
+  const [isFetchingHistorico, setIsFetchingHistorico] = useState(false);
+
+  // ─── Query sob demanda para dados históricos ────────────────────────────────
+  // Quando o admin seleciona um mesStart mais antigo que 90 dias, busca os dados faltantes.
+  useEffect(() => {
+    if (!onFetchReservasPorPeriodo) return;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 90);
+    const cutoffYearMonth = cutoff.toISOString().substring(0, 7); // YYYY-MM
+    // Só busca se mesStart for anterior ao corte
+    if (mesStart >= cutoffYearMonth) return;
+    // Calcula o último dia do mesEnd para a query
+    const endDateFull = `${mesEnd}-31`; // Firestore compara string; 31 é seguro (compara lexicograficamente)
+    const startDateFull = `${mesStart}-01`;
+    setIsFetchingHistorico(true);
+    onFetchReservasPorPeriodo(startDateFull, endDateFull).finally(() => setIsFetchingHistorico(false));
+  }, [mesStart, mesEnd]);
 
   // --- NATIVE VECTOR PDF GENERATOR FUNCTIONS (100% Reliable, Fast, High Quality) ---
 
@@ -2098,6 +2117,12 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
       {/* Month-by-Month Reserved Meals Report */}
       {reportType === 'mesAmes' && (
         <div className="space-y-4" id="mesames-report-box">
+          {isFetchingHistorico && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-xs">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>Buscando dados históricos do período selecionado...</span>
+            </div>
+          )}
           <div className="bg-white p-5 rounded-xl border border-neutral-200 shadow-sm space-y-4">
             <div className="flex items-center gap-2">
               <Sliders className="h-4 w-4 text-emerald-600" />
