@@ -113,13 +113,19 @@ export default function App() {
   const [settings, setSettings] = useState<SystemSettings>(() => {
     const saved = localStorage.getItem('sgr_settings');
     if (saved) {
-      const parsed = JSON.parse(saved);
-      // Ensure facial biometrics and tablet features are deactivated by default
-      return {
-        ...parsed,
-        usarTabletRetirada: parsed.usarTabletRetirada === undefined ? false : parsed.usarTabletRetirada,
-        requererBiometriaFacial: parsed.requererBiometriaFacial === undefined ? false : parsed.requererBiometriaFacial
-      };
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          ...INITIAL_SETTINGS,
+          ...parsed,
+          usarTabletRetirada: parsed.usarTabletRetirada === undefined ? false : parsed.usarTabletRetirada,
+          requererBiometriaFacial: parsed.requererBiometriaFacial === undefined ? false : parsed.requererBiometriaFacial,
+          permitirSimulador: parsed.permitirSimulador === undefined ? true : parsed.permitirSimulador,
+          modoTempoReal: parsed.modoTempoReal === undefined ? false : parsed.modoTempoReal,
+        };
+      } catch (e) {
+        console.warn('Erro ao ler sgr_settings do localStorage:', e);
+      }
     }
     return INITIAL_SETTINGS;
   });
@@ -2135,7 +2141,7 @@ export default function App() {
               </aside>
 
               {/* Central Dynamic Context Area View Router */}
-              <div className="flex-1" id="dynamic-viewport-container">
+              <div className="flex-1 min-w-0" id="dynamic-viewport-container">
                 {activeTab === 'dashboard' && currentUser.perfil === Perfil.Admin && (
                   <DashboardView
                     reservas={reservas}
