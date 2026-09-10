@@ -27,7 +27,7 @@ import {
 } from './data/mockData';
 
 import { db } from './firebase';
-import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc, getDocs, query, where, Query, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc, getDocs, query, where, orderBy, limit, Query, DocumentData } from 'firebase/firestore';
 import {
   saveToFirestore,
   saveBatchToFirestore,
@@ -393,13 +393,8 @@ export default function App() {
           setSyncDetails(prev => ({ ...prev, obras: { status: 'connected', errorMsg: null } }));
         }, (err) => { if (active) setSyncDetails(prev => ({ ...prev, obras: { status: 'error', errorMsg: err.message } })); }));
 
-        unsubs.push(onSnapshot(collection(db, 'empresas'), (snap) => {
-          if (!active) return;
-          const list: Empresa[] = [];
-          snap.forEach(d => list.push({ ...d.data(), id: d.id } as Empresa));
-          setEmpresas(list);
-          setSyncDetails(prev => ({ ...prev, empresas: { status: 'connected', errorMsg: null } }));
-        }, (err) => { if (active) setSyncDetails(prev => ({ ...prev, empresas: { status: 'error', errorMsg: err.message } })); }));
+        // Coleções empresas e feriados: leitura única via getDocs (mudam raramente)
+        await Promise.all([fetchEmpresas(), fetchFeriados()]);
 
         unsubs.push(onSnapshot(collection(db, 'usuarios'), (snap) => {
           if (!active) return;
@@ -408,14 +403,6 @@ export default function App() {
           setUsuarios(list);
           setSyncDetails(prev => ({ ...prev, usuarios: { status: 'connected', errorMsg: null } }));
         }, (err) => { if (active) setSyncDetails(prev => ({ ...prev, usuarios: { status: 'error', errorMsg: err.message } })); }));
-
-        unsubs.push(onSnapshot(collection(db, 'feriados'), (snap) => {
-          if (!active) return;
-          const list: Feriado[] = [];
-          snap.forEach(d => list.push({ ...d.data(), id: d.id } as Feriado));
-          setFeriados(list);
-          setSyncDetails(prev => ({ ...prev, feriados: { status: 'connected', errorMsg: null } }));
-        }, (err) => { if (active) setSyncDetails(prev => ({ ...prev, feriados: { status: 'error', errorMsg: err.message } })); }));
 
         unsubs.push(onSnapshot(collection(db, 'reservas'), (snap) => {
           if (!active) return;
@@ -559,26 +546,41 @@ export default function App() {
       return;
     }
 
-    const modoTempoReal = settings.modoTempoReal ?? false;
+    let active = true;
 
-    if (modoTempoReal) {
-      // Modo Tempo Real: onSnapshot contínuo nos logs
-      const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => {
-        console.log(`[Firestore] 'logs' collection update (Admin): received ${snap.size} documents.`);
+    const fetchLogs = async () => {
+      try {
+        let snap;
+        try {
+          const q = query(collection(db, 'logs'), orderBy('timestamp', 'desc'), limit(100));
+          snap = await getDocs(q);
+        } catch {
+          // Fallback caso documentos anteriores usem apenas dataHora ou não haja timestamp indexado
+          try {
+            const qFallback = query(collection(db, 'logs'), orderBy('dataHora', 'desc'), limit(100));
+            snap = await getDocs(qFallback);
+          } catch {
+            snap = await getDocs(query(collection(db, 'logs'), limit(100)));
+          }
+        }
+        if (!active) return;
         const list: AuditoriaLog[] = [];
         snap.forEach(d => list.push({ ...d.data(), id: d.id } as AuditoriaLog));
-        list.sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime());
+        list.sort((a, b) => new Date(b.dataHora || 0).getTime() - new Date(a.dataHora || 0).getTime());
         setLogs(list);
         setSyncDetails(prev => ({ ...prev, logs: { status: 'connected', errorMsg: null } }));
-      }, (err) => {
+      } catch (err: any) {
+        if (!active) return;
         console.warn("[Firestore] Logs sync warning:", err);
         setSyncDetails(prev => ({ ...prev, logs: { status: 'error', errorMsg: err.message } }));
-      });
-      return () => unsubLogs();
-    } else {
-      // Modo Econômico: carga única ao entrar como admin
-      refreshLogs();
-    }
+      }
+    };
+
+    fetchLogs();
+
+    return () => {
+      active = false;
+    };
   }, [isLogged, currentUser, settings.modoTempoReal]);
 
   // Centralized sync status synchronization to derive dbState dynamically from syncDetails
@@ -630,6 +632,8 @@ export default function App() {
     if (!isLogged || !currentUser) return;
     if (settings.modoTempoReal === true) return; // onSnapshot já traz dados atualizados
 
+    let active = true;
+
     const doFetch = async () => {
       try {
         let q: Query<DocumentData>;
@@ -642,6 +646,7 @@ export default function App() {
           q = query(collection(db, 'reservas'), where('data', '>=', cutoffStr));
         }
         const snap = await getDocs(q);
+        if (!active) return;
         const list: Reserva[] = [];
         snap.forEach(d => list.push({ ...(d.data() as object), id: d.id } as Reserva));
         setReservas(list);
@@ -651,6 +656,10 @@ export default function App() {
     };
 
     doFetch();
+
+    return () => {
+      active = false;
+    };
   }, [currentUser?.id, currentUser?.perfil, isLogged, settings.modoTempoReal]);
 
   // Registra token FCM ao restaurar sessão do localStorage (quando app reabre sem fazer login)
