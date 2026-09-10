@@ -27,7 +27,7 @@ import {
 } from './data/mockData';
 
 import { db } from './firebase';
-import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc, getDocs, query, where, Query, DocumentData } from 'firebase/firestore';
 import {
   saveToFirestore,
   saveBatchToFirestore,
@@ -353,7 +353,7 @@ export default function App() {
         // - Colaborador: busca apenas as suas próprias reservas (sem limite de data — histórico pessoal é pequeno)
         // - Admin/Gestor/Fornecedor: busca todas, limitado aos últimos 90 dias
         const user = currentUserRef.current;
-        let q;
+        let q: Query<DocumentData>;
         if (user?.perfil === Perfil.Colaborador) {
           q = query(collection(db, 'reservas'), where('idUsuario', '==', user.id));
         } else {
@@ -365,7 +365,7 @@ export default function App() {
         const snap = await getDocs(q);
         if (!active) return;
         const list: Reserva[] = [];
-        snap.forEach(d => list.push({ ...d.data(), id: d.id } as Reserva));
+        snap.forEach(d => list.push({ ...(d.data() as object), id: d.id } as Reserva));
         setReservas(list);
         setSyncDetails(prev => ({ ...prev, reservas: { status: 'connected', errorMsg: null } }));
       } catch (err: any) {
@@ -632,7 +632,7 @@ export default function App() {
 
     const doFetch = async () => {
       try {
-        let q;
+        let q: Query<DocumentData>;
         if (currentUser.perfil === Perfil.Colaborador) {
           q = query(collection(db, 'reservas'), where('idUsuario', '==', currentUser.id));
         } else {
@@ -643,7 +643,7 @@ export default function App() {
         }
         const snap = await getDocs(q);
         const list: Reserva[] = [];
-        snap.forEach(d => list.push({ ...d.data(), id: d.id } as Reserva));
+        snap.forEach(d => list.push({ ...(d.data() as object), id: d.id } as Reserva));
         setReservas(list);
       } catch {
         // silencioso — erro será tratado pela próxima atualização do documento sinal
@@ -2266,7 +2266,7 @@ export default function App() {
               </aside>
 
               {/* Central Dynamic Context Area View Router */}
-              <div className="flex-1" id="dynamic-viewport-container">
+              <div className="flex-1 min-w-0" id="dynamic-viewport-container">
                 {activeTab === 'dashboard' && currentUser.perfil === Perfil.Admin && (
                   <DashboardView
                     reservas={reservas}
@@ -2290,7 +2290,6 @@ export default function App() {
                     onPeriodReserva={handlePeriodReserva}
                     obrasNome={getObraName}
                     obras={obras}
-                    onSaveObra={handleSaveObra}
                   />
                 )}
 
