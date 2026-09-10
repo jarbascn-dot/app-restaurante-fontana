@@ -84,7 +84,6 @@ interface ColaboradorViewProps {
   onPeriodReserva: (startDate: string, endDate: string, action: 'reservar' | 'cancelar') => void;
   obrasNome: (id: string) => string;
   obras: Obra[];
-  onSaveObra?: (obra: Obra) => Promise<void>;
 }
 
 export default function ColaboradorView({
@@ -98,7 +97,6 @@ export default function ColaboradorView({
   onPeriodReserva,
   obrasNome,
   obras,
-  onSaveObra,
 }: ColaboradorViewProps) {
   
   // Active calendar view month and year states initialized dynamically to the real current month/year
@@ -357,93 +355,10 @@ export default function ColaboradorView({
   
   // Custom Cardapio State
   const [selectedMenuDate, setSelectedMenuDate] = useState<string>(todayDate);
-  const [isUploadingCardapio, setIsUploadingCardapio] = useState(false);
-  const [newPdfName, setNewPdfName] = useState('');
-  const [newPdfContent, setNewPdfContent] = useState(''); // holds either a base64 or URL
-  const [dragOverCardapio, setDragOverCardapio] = useState(false);
 
   // Modals for Manual and Cardapio Preview
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [isCardapioModalOpen, setIsCardapioModalOpen] = useState(false);
-
-  // Quick Upload Cardapio handlers
-  const handleQuickUploadFile = (file: File) => {
-    if (file.type !== 'application/pdf') {
-      alert('Erro: Envie apenas arquivos no formato PDF!');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const colaboradorObra = obras.find(o => o.id === currentUser.idObraPadrao);
-      if (!colaboradorObra) {
-        alert('Erro: Nenhuma obra de lotação ativa associada ao seu usuário.');
-        return;
-      }
-      if (!onSaveObra) {
-        alert('Erro interno: callback de salvamento não está disponível.');
-        return;
-      }
-      
-      const fileData = ev.target?.result as string;
-      const updated: Obra = {
-        ...colaboradorObra,
-        cardapioUrl: fileData,
-        cardapioNome: file.name,
-        cardapioAtualizadoEm: new Date().toISOString()
-      };
-      
-      try {
-        setIsUploadingCardapio(true);
-        await onSaveObra(updated);
-        setNewPdfName(file.name);
-        setNewPdfContent(fileData);
-        alert(`Sucesso! O cardápio "${file.name}" foi publicado para a unidade ${colaboradorObra.nome}.`);
-      } catch (err) {
-        console.error(err);
-        alert('Erro ao atualizar o cardápio no servidor.');
-      } finally {
-        setIsUploadingCardapio(false);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleQuickSaveUrl = async (urlStr: string, nameStr: string) => {
-    if (!urlStr) {
-      alert('Por favor, digite um link de URL válido primeiro.');
-      return;
-    }
-    const colaboradorObra = obras.find(o => o.id === currentUser.idObraPadrao);
-    if (!colaboradorObra) {
-      alert('Erro: Nenhuma obra de lotação ativa associada ao seu usuário.');
-      return;
-    }
-    if (!onSaveObra) {
-      alert('Erro interno: callback de salvamento não está disponível.');
-      return;
-    }
-
-    const docName = nameStr.trim() || 'cardapio_link.pdf';
-    const updated: Obra = {
-      ...colaboradorObra,
-      cardapioUrl: urlStr.trim(),
-      cardapioNome: docName,
-      cardapioAtualizadoEm: new Date().toISOString()
-    };
-
-    try {
-      setIsUploadingCardapio(true);
-      await onSaveObra(updated);
-      setNewPdfName(docName);
-      setNewPdfContent(urlStr.trim());
-      alert(`Sucesso! O link do cardápio "${docName}" foi publicado para a unidade ${colaboradorObra.nome}.`);
-    } catch (err) {
-      console.error(err);
-      alert('Erro ao vincular o cardápio.');
-    } finally {
-      setIsUploadingCardapio(false);
-    }
-  };
 
   // Minimum selectable date calculations
   const getMinBatchDate = () => {
@@ -879,11 +794,7 @@ export default function ColaboradorView({
                 badgeText = 'Feriado';
               } else if (reservation && reservation.status === ReservaStatus.Reservado) {
                 cardBg = 'bg-emerald-500 text-white border-emerald-600 hover:bg-emerald-600 shadow-sm cursor-pointer';
-                if (reservation.consumido || !settings.usarTabletRetirada) {
-                  badgeText = settings.usarTabletRetirada ? '✓ Consumido' : '✓ Entregue';
-                } else {
-                  badgeText = 'Reservado';
-                }
+                badgeText = 'Reservado';
               } else if (isSatOrSun && !settings.permitirFinsDeSemana) {
                 cardBg = 'bg-neutral-100 text-neutral-400 border-neutral-200 opacity-65 cursor-not-allowed';
                 badgeText = 'Fim de Sem.';
@@ -933,12 +844,6 @@ export default function ColaboradorView({
                     {holiday && (
                       <span className="block text-[8px] leading-tight text-amber-700 truncate font-medium bg-amber-200/50 p-0.5 rounded" title={holiday.descricao}>
                         {holiday.descricao}
-                      </span>
-                    )}
-                    {/* Consumed verification */}
-                    {reservation && reservation.status === ReservaStatus.Reservado && (reservation.consumido || !settings.usarTabletRetirada) && (
-                      <span className="inline-flex items-center gap-0.5 text-[8px] bg-emerald-700 text-white px-1 py-0.2 rounded font-mono font-bold leading-none">
-                        {settings.usarTabletRetirada ? 'FACIAL OK' : 'ENTREGUE'}
                       </span>
                     )}
                   </div>
@@ -1206,143 +1111,24 @@ export default function ColaboradorView({
                       <div>
                         <span className="block font-black text-neutral-850">Cardápio Indisponível</span>
                         <span className="text-neutral-600 font-normal mt-0.5 block">Nenhum cardápio oficial em PDF foi cadastrado para a unidade <strong>{colaboradorObra?.nome ?? 'de lotação'}</strong> no momento.</span>
-                        {onSaveObra && (currentUser.perfil === Perfil.Admin || currentUser.perfil === Perfil.Gestor || currentUser.perfil === Perfil.Fornecedor) ? (
-                          <span className="block text-emerald-700 font-bold mt-1.5">
-                            ⚙️ Gestor: Utilize a área técnica abaixo para enviar o arquivo original PDF.
-                          </span>
-                        ) : (
-                          <span className="block text-neutral-500 font-normal mt-1 italic">Consulte o encarregado da cozinha ou a administração da obra.</span>
-                        )}
+                        <span className="block text-neutral-500 font-normal mt-1 italic">Consulte o encarregado da cozinha ou a administração da obra.</span>
                       </div>
                     </div>
                   )}
 
-                  {/* Informational Calendar interaction tip replacing the random food block */}
+                  {/* Informational Calendar interaction tip */}
                   <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3.5 text-[10.5px] text-neutral-600 leading-relaxed flex items-start gap-2">
                     <MousePointerClick className="h-4 w-4 text-neutral-500 shrink-0 mt-0.5" />
                     <div>
                       <strong className="text-neutral-850">Agendamentos no Calendário:</strong> Selecione qualquer dia no calendário ao lado para verificar seus agendamentos correspondentes ou gerenciar suas reservas de forma individual.
                     </div>
                   </div>
-
-                  {/* Admin/Gestor Quick-Update Tools Box */}
-                  {onSaveObra && (currentUser.perfil === Perfil.Admin || currentUser.perfil === Perfil.Gestor || currentUser.perfil === Perfil.Fornecedor) && (
-                    <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 space-y-3" id="quick-upload-admin-cardapio">
-                      <div className="flex justify-between items-center pb-2 border-b border-neutral-100">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
-                          <RefreshCw className="h-3.5 w-3.5 text-emerald-600 animated-spin" />
-                          <span>Área Técnica: Enviar Cardápio PDF</span>
-                        </div>
-                        <span className="text-[9px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 font-bold uppercase rounded font-mono">Acesso Admin</span>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div
-                          onDragOver={(e) => {
-                            e.preventDefault();
-                            setDragOverCardapio(true);
-                          }}
-                          onDragLeave={() => setDragOverCardapio(false)}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            setDragOverCardapio(false);
-                            const file = e.dataTransfer.files?.[0];
-                            if (file) handleQuickUploadFile(file);
-                          }}
-                          onClick={() => document.getElementById('quick-pdf-file-input')?.click()}
-                          className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-all ${
-                            dragOverCardapio
-                              ? 'border-emerald-500 bg-emerald-50'
-                              : newPdfContent.startsWith('data:')
-                              ? 'border-emerald-300 bg-emerald-50/20 text-neutral-700'
-                              : 'border-neutral-300 hover:border-neutral-400 bg-white text-neutral-500'
-                          }`}
-                        >
-                          <input
-                            type="file"
-                            id="quick-pdf-file-input"
-                            accept="application/pdf"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleQuickUploadFile(file);
-                            }}
-                          />
-                          <div className="flex flex-col items-center justify-center space-y-1">
-                            <FileText className={`h-6 w-6 text-neutral-400 ${newPdfContent.startsWith('data:') ? 'text-emerald-500' : ''}`} />
-                            {newPdfName ? (
-                              <div className="space-y-0.5 max-w-full">
-                                <p className="text-[10px] font-bold text-emerald-850 truncate">{newPdfName}</p>
-                                <p className="text-[8px] text-neutral-400 font-mono">Arquivo lido com sucesso ✓</p>
-                              </div>
-                            ) : (
-                              <div>
-                                <p className="text-[10px] font-bold text-neutral-700">Escolher arquivo ou Arrastar PDF aqui</p>
-                                <p className="text-[8px] text-neutral-400">Apenas .PDF no formato oficial</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Text input to paste a direct URL easily */}
-                        <div className="space-y-1.5 pt-1">
-                          <label className="block text-[9px] uppercase font-bold text-neutral-500 font-mono">Ou vincular Link Web (URL) direto:</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={newPdfContent.startsWith('data:') ? '' : newPdfContent}
-                              placeholder="https://exemplo.com/doc.pdf"
-                              onChange={(e) => {
-                                setNewPdfContent(e.target.value);
-                                if (!newPdfName || newPdfName.endsWith('.pdf')) {
-                                  setNewPdfName(e.target.value.substring(e.target.value.lastIndexOf('/') + 1) || 'cardapio_link.pdf');
-                                }
-                              }}
-                              className="flex-1 px-2.5 py-1.5 border border-neutral-300 rounded text-xs bg-white text-neutral-800 placeholder-neutral-400"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleQuickSaveUrl(newPdfContent, newPdfName)}
-                              className="px-3 bg-neutral-900 text-white rounded text-[11px] font-bold hover:bg-neutral-800 transition active:scale-95"
-                            >
-                              Vincular URL
-                            </button>
-                          </div>
-                        </div>
-
-                        {colaboradorObra && (colaboradorObra.cardapioUrl) && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (confirm('Deseja realmente remover o PDF do cardápio vinculado a esta unidade?')) {
-                                const updated = {
-                                  ...colaboradorObra,
-                                  cardapioUrl: '',
-                                  cardapioNome: '',
-                                  cardapioAtualizadoEm: ''
-                                };
-                                if (onSaveObra) {
-                                  await onSaveObra(updated);
-                                  setNewPdfContent('');
-                                  setNewPdfName('');
-                                  alert('Cardápio removido com sucesso!');
-                                }
-                              }
-                            }}
-                            className="w-full py-1 text-[9px] bg-red-50 hover:bg-red-100 text-red-600 rounded font-bold border border-red-200 transition"
-                          >
-                            🗑️ Limpar / Remover Cardápio PDF Existente
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })()}
 
             <div className="text-[10px] text-neutral-500 font-mono text-center pt-2 border-t border-neutral-200/50">
-              ⚠️ Em caso de restrições alimentares, avise o encarregado da cozinha da obra com 24h de antecedência.
+              ⚠️ Em caso de restrições alimentares, avise o gestor responsável ou RH da empresa com 24h de antecedência.
             </div>
           </div>
         </div>
@@ -1411,8 +1197,6 @@ export default function ColaboradorView({
         cardapioAtualizadoEm={obras.find(o => o.id === currentUser.idObraPadrao)?.cardapioAtualizadoEm}
         cardapioTextoIa={obras.find(o => o.id === currentUser.idObraPadrao)?.cardapioTextoIa}
         cardapioDias={obras.find(o => o.id === currentUser.idObraPadrao)?.cardapioDias}
-        obra={obras.find(o => o.id === currentUser.idObraPadrao)}
-        onSaveObra={onSaveObra}
       />
 
     </div>
