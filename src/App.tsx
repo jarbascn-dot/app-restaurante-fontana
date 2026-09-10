@@ -70,7 +70,8 @@ import {
   UtensilsCrossed,
   Fingerprint,
   Settings,
-  X
+  X,
+  RefreshCw
 } from 'lucide-react';
 
 export default function App() {
@@ -203,6 +204,17 @@ export default function App() {
   // Permite que fetchReservas use o perfil correto mesmo sem estar nas deps do efeito
   const currentUserRef = useRef<Usuario | null>(null);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+
+  // ─── Ref global para forçar re-fetch de todas as coleções ────────────────────
+  // Atribuído dentro do Efeito 2; usado pelo pull-to-refresh e Page Visibility API
+  const fetchAllRef = useRef<(() => Promise<void>) | null>(null);
+
+  // ─── Estado do pull-to-refresh ────────────────────────────────────────────────
+  const [pullDistance, setPullDistance] = useState<number>(0);
+  const [isPulling, setIsPulling] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const pullStartYRef = useRef<number>(0);
+  const PULL_THRESHOLD = 80; // px necessários para disparar o refresh
 
   // ─── Efeito 1: Seeding + listener permanente de settings/system ───────────────
   // Este efeito roda uma única vez ao montar o componente.
@@ -361,6 +373,11 @@ export default function App() {
       }
     };
 
+    // ── Expor fetch global para uso externo (pull-to-refresh / Page Visibility) ──
+    fetchAllRef.current = async () => {
+      await Promise.all([fetchObras(), fetchEmpresas(), fetchUsuarios(), fetchFeriados(), fetchReservas()]);
+    };
+
     const setupListeners = async () => {
       if (modoTempoReal) {
         // ── MODO TEMPO REAL: onSnapshot em todas as coleções ──────────────────────
@@ -467,6 +484,58 @@ export default function App() {
   // valores JS distintos; sem isso o efeito re-executa desnecessariamente na inicialização
   // quando o settings chega do Firestore sem o campo modoTempoReal.
   }, [settings.modoTempoReal === true]);
+
+  // ─── Page Visibility API: re-fetch ao voltar ao primeiro plano ───────────────
+  // Quando o colaborador abre o app após um tempo em segundo plano, busca dados novos.
+  // Funciona em AMBOS os modos (econômico e tempo real) sem custo extra no tempo real.
+  useEffect(() => {
+    const handleVisibility = async () => {
+      if (document.visibilityState === 'visible' && isLogged) {
+        console.log('[SGR] App voltou ao primeiro plano → re-fetch automático');
+        await fetchAllRef.current?.();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [isLogged]);
+
+  // ─── Handlers de Pull-to-Refresh ─────────────────────────────────────────────
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    // Só inicia o gesto se o scroll estiver no topo
+    if (window.scrollY === 0) {
+      pullStartYRef.current = e.touches[0].clientY;
+      setIsPulling(true);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isPulling) return;
+    const delta = e.touches[0].clientY - pullStartYRef.current;
+    if (delta > 0) {
+      // Resistência progressiva para sensação natural
+      setPullDistance(Math.min(delta * 0.5, PULL_THRESHOLD + 20));
+    } else {
+      setIsPulling(false);
+      setPullDistance(0);
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (!isPulling) return;
+    setIsPulling(false);
+    if (pullDistance >= PULL_THRESHOLD && !isRefreshing) {
+      setIsRefreshing(true);
+      setPullDistance(0);
+      try {
+        console.log('[SGR] Pull-to-refresh acionado → re-fetch de todos os dados');
+        await fetchAllRef.current?.();
+      } finally {
+        setIsRefreshing(false);
+      }
+    } else {
+      setPullDistance(0);
+    }
+  };
 
   // ─── Logs do Admin ────────────────────────────────────────────────────────────
   // No modo tempo real: onSnapshot contínuo.
@@ -705,6 +774,29 @@ export default function App() {
       setCurrentUser(checkCurrentUser);
     }
   }, [usuarios]);
+
+  // ── Listener dedicado no documento do usuário logado ─────────────────────────
+  // Garante que mudanças de status (aprovação, desativação) sejam refletidas
+  // IMEDIATAMENTE no celular do colaborador, em AMBOS os modos (Econômico e
+  // Tempo Real). Custo mínimo: 1 leitura por alteração, apenas 1 documento.
+  // Resolve o bug em que o colaborador precisava limpar os dados do app após
+  // ter sido liberado pelo RH.
+  useEffect(() => {
+    if (!isLogged || !currentUser?.id) return;
+    let active = true;
+    const userDocRef = doc(db, 'usuarios', currentUser.id);
+    const unsub = onSnapshot(userDocRef, (snap) => {
+      if (!active || !snap.exists()) return;
+      const updatedUser = { ...snap.data(), id: snap.id } as Usuario;
+      setCurrentUser(prev => {
+        if (JSON.stringify(prev) !== JSON.stringify(updatedUser)) return updatedUser;
+        return prev;
+      });
+    }, (err) => {
+      console.warn('[SGR] Listener do usuário atual falhou:', err.message);
+    });
+    return () => { active = false; unsub(); };
+  }, [isLogged, currentUser?.id]);
 
   useEffect(() => {
     localStorage.setItem('sgr_feriados', JSON.stringify(feriados));
@@ -1765,8 +1857,26 @@ export default function App() {
   }
 
   return (
-    <div className="bg-neutral-100 min-h-screen text-neutral-800 font-sans flex flex-col" id="app-root-container">
-      
+    <div
+      className="bg-neutral-100 min-h-screen text-neutral-800 font-sans flex flex-col"
+      id="app-root-container"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Indicador de Pull-to-Refresh */}
+      {(pullDistance > 10 || isRefreshing) && (
+        <div
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center transition-all duration-200"
+          style={{ height: isRefreshing ? 56 : Math.min(pullDistance, 56), overflow: 'hidden' }}
+        >
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-md text-sm font-semibold text-white ${isRefreshing ? 'bg-blue-600' : pullDistance >= PULL_THRESHOLD ? 'bg-blue-500' : 'bg-neutral-400'}`}>
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Atualizando...' : pullDistance >= PULL_THRESHOLD ? 'Solte para atualizar' : 'Puxe para atualizar'}
+          </div>
+        </div>
+      )}
+
       {/* Simulation Header */}
       <SimulationHeader
         usuarios={usuarios}
@@ -1918,6 +2028,21 @@ export default function App() {
             <p className="text-xs text-neutral-500 leading-relaxed text-neutral-600">
               O colaborador <strong>{currentUser.nome}</strong> cadastrou-se recentemente. A liberação de reservas e consumo de refeições está bloqueada até que o administrador do RH aprove seu cadastro no painel.
             </p>
+            <button
+              onClick={async () => {
+                try {
+                  const snap = await getDoc(doc(db, 'usuarios', currentUser.id));
+                  if (snap.exists()) {
+                    setCurrentUser({ ...snap.data(), id: snap.id } as Usuario);
+                  }
+                } catch (err) {
+                  console.warn('[SGR] Verificação manual falhou:', err);
+                }
+              }}
+              className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-semibold transition-colors"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Verificar aprovação agora
+            </button>
           </div>
         ) : (
           <>
@@ -2141,7 +2266,7 @@ export default function App() {
               </aside>
 
               {/* Central Dynamic Context Area View Router */}
-              <div className="flex-1 min-w-0" id="dynamic-viewport-container">
+              <div className="flex-1" id="dynamic-viewport-container">
                 {activeTab === 'dashboard' && currentUser.perfil === Perfil.Admin && (
                   <DashboardView
                     reservas={reservas}
