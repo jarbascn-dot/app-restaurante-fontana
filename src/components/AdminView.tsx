@@ -393,6 +393,8 @@ export default function AdminView({
     l.dispositivo.toLowerCase().includes(logSearch.toLowerCase())
   ).slice(0, 100); // Top 100 logs
 
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const handleSaveSettingsSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSaveSettings({
@@ -407,8 +409,13 @@ export default function AdminView({
       sha256Fingerprint: sha256FingerprintLocal || sha255FingerprintLocal,
       modoTempoReal: modoTempoRealLocal,
     });
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
     setIsSavedMsg(true);
-    setTimeout(() => setIsSavedMsg(false), 3000);
+    saveTimeoutRef.current = setTimeout(() => {
+      setIsSavedMsg(false);
+    }, 3000);
   };
 
   return (
@@ -660,7 +667,7 @@ export default function AdminView({
                               id={`approve-perfil-${u.id}`}
                             >
                               <option value={Perfil.Colaborador}>Colaborador (Reserva refeições)</option>
-                              <option value={Perfil.Gestor}>Gestor / Engenheiro de Obra</option>
+                              <option value={Perfil.Gestor}>Gestor / Responsável de Área/Obra</option>
                               <option value={Perfil.Admin}>RH / Administrador de Custos</option>
                               <option value={Perfil.Fornecedor}>Fornecedor (Cozinha Externa)</option>
                             </select>
@@ -1679,8 +1686,9 @@ export default function AdminView({
             </div>
 
             {isSavedMsg && (
-              <div className="p-3 bg-emerald-50 text-emerald-800 text-xs rounded border border-emerald-200 font-medium">
-                ✔ Parâmetros atualizados no banco de dados e aplicados em tempo real!
+              <div className="p-3 bg-emerald-50 text-emerald-800 text-xs rounded-lg border border-emerald-200 font-bold flex items-center gap-2 animate-in fade-in duration-150" id="settings-saved-banner">
+                <span className="text-sm">✅</span>
+                <span>Parâmetros salvos com sucesso!</span>
               </div>
             )}
 
@@ -1882,13 +1890,39 @@ export default function AdminView({
                 </p>
               </div>
 
-              <button
-                type="submit"
-                className="px-5 py-2.5 bg-neutral-900 border border-neutral-800 hover:bg-neutral-850 text-white rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1.5"
-                id="save-settings-btn"
-              >
-                <Save className="h-3.5 w-3.5" /> Salvar Parâmetros
-              </button>
+              <div className="flex items-center gap-3 flex-wrap pt-1">
+                <button
+                  type="submit"
+                  className={`px-5 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer ${
+                    isSavedMsg
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600'
+                      : 'bg-neutral-900 border border-neutral-800 hover:bg-neutral-850 text-white'
+                  }`}
+                  id="save-settings-btn"
+                >
+                  {isSavedMsg ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-white stroke-[3]" />
+                      <span>Parâmetros Salvos!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-3.5 w-3.5" />
+                      <span>Salvar Parâmetros</span>
+                    </>
+                  )}
+                </button>
+
+                {isSavedMsg && (
+                  <span
+                    id="save-settings-inline-feedback"
+                    className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg flex items-center gap-1.5 animate-in fade-in duration-150"
+                  >
+                    <span>✅</span>
+                    <span>Parâmetros salvos com sucesso!</span>
+                  </span>
+                )}
+              </div>
             </form>
 
             {/* Manutenção do Banco - Limpeza de Reservas */}
@@ -3777,9 +3811,20 @@ export default function AdminView({
         cardapioAtualizadoEm={adminCardapioModalObra?.cardapioAtualizadoEm}
         cardapioTextoIa={adminCardapioModalObra?.cardapioTextoIa}
         cardapioDias={adminCardapioModalObra?.cardapioDias}
-        obra={adminCardapioModalObra || undefined}
-        onSaveObra={onSaveObra}
       />
+
+      {/* Toast / Snackbar de Confirmação Flutuante ao Salvar Parâmetros */}
+      {isSavedMsg && (
+        <div
+          id="toast-parametros-salvos"
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50 flex items-center gap-2.5 px-5 py-3.5 bg-emerald-600 text-white font-bold text-sm rounded-xl shadow-2xl border border-emerald-500 animate-in fade-in slide-in-from-bottom-5 duration-200"
+        >
+          <span className="text-base">✅</span>
+          <span>Parâmetros salvos com sucesso!</span>
+        </div>
+      )}
 
     </div>
   );
