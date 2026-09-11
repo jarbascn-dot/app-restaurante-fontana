@@ -99,17 +99,13 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
     const drawHeader = (pageNumber: number) => {
       // Company Header Left
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.setTextColor(15, 23, 42); // #0f172a
-      doc.text('FONTANA', 14, y);
-
       doc.setFontSize(8);
       doc.setTextColor(100, 116, 139); // #64748b
-      doc.text('CONTROLE INTERNO DE RESTAURANTE', 14, y + 4.5);
+      doc.text('CONTROLE INTERNO DE RESTAURANTE', 14, y + 2);
 
       doc.setFontSize(11);
       doc.setTextColor(15, 23, 42);
-      doc.text('LISTA DE PRESENÇA E ASSINATURA', 14, y + 11);
+      doc.text('LISTA DE PRESENÇA E ASSINATURA', 14, y + 9);
 
       // Meta Box Right
       doc.setFillColor(248, 250, 252);
@@ -242,14 +238,14 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
     doc.setFontSize(6.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(148, 163, 184);
-    const timeStamp = `SGR - APP AUTOMAÇÃO DE RESTAURANTE FONTANA -- IMPRESSO EM ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    const timeStamp = `SGR - APP AUTOMAÇÃO DE RESTAURANTE -- IMPRESSO EM ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
     doc.text(timeStamp, 105, 290, { align: 'center' });
   };
 
   const generateDescontoPdfDoc = (doc: any) => {
     const rows = getDescontoRows();
     const empSelObj = empresas.find(e => e.id === filterDescontoEmpresa);
-    const empresaNomeStr = filterDescontoEmpresa === 'all' ? 'TODAS COMPATÍVEIS' : (empSelObj?.nome || 'Fontana');
+    const empresaNomeStr = filterDescontoEmpresa === 'all' ? 'TODAS COMPATÍVEIS' : (empSelObj?.nome || 'Empresa');
 
     const startFormatted = new Date(descontoStart + 'T00:00:00').toLocaleDateString('pt-BR');
     const endFormatted = new Date(descontoEnd + 'T00:00:00').toLocaleDateString('pt-BR');
@@ -260,17 +256,13 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
     const drawHeader = (pageNumber: number) => {
       // Header Left
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.setTextColor(15, 23, 42);
-      doc.text('FONTANA', 12, y);
-
       doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);
-      doc.text('CONSTRUTORA E INCORPORADORA', 12, y + 4.5);
+      doc.text('CONSTRUTORA E INCORPORADORA', 12, y + 2);
 
       doc.setFontSize(10.5);
       doc.setTextColor(15, 23, 42);
-      doc.text('RELAÇÃO DE DESCONTO EM FOLHA - REFEIÇÕES', 12, y + 10.5);
+      doc.text('RELAÇÃO DE DESCONTO EM FOLHA - REFEIÇÕES', 12, y + 8.5);
 
       // Right Meta Box
       doc.setFillColor(248, 250, 252);
@@ -455,7 +447,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
     doc.setFontSize(6.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(148, 163, 184);
-    const timeStamp = `SGR - APP AUTOMAÇÃO DE RESTAURANTE FONTANA -- IMPRESSO EM ${todayFormatted} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    const timeStamp = `SGR - APP AUTOMAÇÃO DE RESTAURANTE -- IMPRESSO EM ${todayFormatted} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
     doc.text(timeStamp, 105, 290, { align: 'center' });
   };
 
@@ -1653,7 +1645,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
               <div className="flex items-end">
                 <button
                   type="button"
-                  onClick={() => handlePrintReport('printable-sheet-area', 'Folha de Assinatura - Fontana')}
+                  onClick={() => handlePrintReport('printable-sheet-area', 'Folha de Assinatura')}
                   className="w-full py-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs rounded-lg transition shadow-md flex items-center justify-center gap-1.5 duration-150 cursor-pointer"
                   id="trigger-print-cmd-btn"
                 >
@@ -1678,7 +1670,6 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
               {/* Sheet header */}
               <div className="border-b-2 border-neutral-950 pb-4 flex justify-between items-start">
                 <div className="space-y-0.5">
-                  <div className="text-sm font-black tracking-wider uppercase text-neutral-900 font-sans">FONTANA</div>
                   <div className="text-xs font-bold uppercase text-neutral-500 font-mono tracking-wide">Controle Interno de Restaurante</div>
                   <h4 className="text-base font-extrabold tracking-tight text-neutral-950 uppercase mt-2">LISTA DE PRESENÇA E ASSINATURA</h4>
                 </div>
@@ -1750,7 +1741,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
               </div>
 
               <div className="mt-8 text-center text-[9px] font-mono text-neutral-400 border-t border-neutral-200 pt-2">
-                SGR - APP AUTOMAÇÃO DE RESTAURANTE FONTANA -- IMPRESSO EM {new Date().toLocaleDateString('pt-BR')} {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                SGR - APP AUTOMAÇÃO DE RESTAURANTE -- IMPRESSO EM {new Date().toLocaleDateString('pt-BR')} {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
               </div>
 
             </div>
@@ -1861,7 +1852,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
               <div className="flex items-end">
                 <button
                   type="button"
-                  onClick={() => handlePrintReport('payroll-printable-sheet-area', 'Relatório de Desconto em Folha - Fontana')}
+                  onClick={() => handlePrintReport('payroll-printable-sheet-area', 'Relatório de Desconto em Folha')}
                   className="w-full py-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs rounded-lg transition shadow-md flex items-center justify-center gap-1.5 duration-150 cursor-pointer"
                   id="trigger-desconto-print-btn"
                 >
@@ -1885,14 +1876,13 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
               {/* Header */}
               <div className="border-b-2 border-neutral-950 pb-4 flex justify-between items-start">
                 <div className="space-y-0.5">
-                  <div className="text-sm font-black tracking-wider uppercase text-neutral-900 font-sans">FONTANA</div>
                   <div className="text-xs font-bold uppercase text-neutral-500 font-mono tracking-wide">CONSTRUTORA E INCORPORADORA</div>
                   <h4 className="text-base font-extrabold tracking-tight text-neutral-950 uppercase mt-2">RELAÇÃO DE DESCONTO EM FOLHA - REFEIÇÕES</h4>
                 </div>
 
                 <div className="text-right font-mono text-[11px] text-neutral-800 space-y-1 bg-neutral-50 border border-neutral-200 p-2.5 rounded-lg max-w-xs">
                   <p><strong>PERÍODO:</strong> {new Date(descontoStart + 'T00:00:00').toLocaleDateString('pt-BR')} a {new Date(descontoEnd + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
-                  <p><strong>EMPRESA:</strong> {filterDescontoEmpresa === 'all' ? 'TODAS COMPATÍVEIS' : empresas.find(e => e.id === filterDescontoEmpresa)?.nome || 'Fontana'}</p>
+                  <p><strong>EMPRESA:</strong> {filterDescontoEmpresa === 'all' ? 'TODAS COMPATÍVEIS' : empresas.find(e => e.id === filterDescontoEmpresa)?.nome || 'Empresa'}</p>
                   <p><strong>COLETADO EM:</strong> {new Date().toLocaleDateString('pt-BR')}</p>
                 </div>
               </div>
@@ -1972,7 +1962,7 @@ export default function ReportsView({ reservas, usuarios, obras, empresas, setti
               </div>
 
               <div className="mt-8 text-center text-[8px] font-mono text-neutral-400 border-t border-neutral-200 pt-2 uppercase">
-                SGR - APP AUTOMAÇÃO DE RESTAURANTE FONTANA -- RELATÓRIO CONFIGURADO DE ADESÃO E DESCONTO EM FOLHA COLETIVO
+                SGR - APP AUTOMAÇÃO DE RESTAURANTE -- RELATÓRIO CONFIGURADO DE ADESÃO E DESCONTO EM FOLHA COLETIVO
               </div>
 
             </div>
